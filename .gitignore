@@ -1,0 +1,12 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+data
+outputs
+notebook
+mass grave
+*.csv
+*.docx
+*.xlsx
+*.xls
