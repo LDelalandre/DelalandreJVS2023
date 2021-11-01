@@ -5,7 +5,8 @@ packages = c("tidyverse",
              "funrar", # Functional distinctiveness computation
              # "cowplot", "gridExtra", "ggsignif", "egg", "ggpubr","ggcorrplot", # Packages used for plots
              # "kableExtra", # Represent tables
-             "openxlsx"
+             "openxlsx", # to open excel files
+             "TAM" # to compute weighted CWV, skewness, and kurtosis
 )
 
 ## Load, or install and load, packages
