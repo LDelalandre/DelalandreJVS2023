@@ -8,13 +8,25 @@ source("scripts/2. Import files.R")
 mean_attribute_per_species <- function(dataset){
   dataset2 <- dataset %>% 
     mutate(Trtmt = str_sub(Treatment,1,3) ) %>% 
-    filter(Trtmt %in% c("Fer",'Nat')) %>% 
-    group_by(Species,Trtmt,Code_Sp ,    Family, LifeForm1, LifeForm2) %>% 
+    filter(Trtmt %in% c("Fer",'Nat','Tem','Che')) %>% 
+    mutate(LifeHistory = if_else(LifeForm1=="The","annual","perennial")) %>% 
+    mutate(Form = case_when(Family == "Poaceae" ~ "Grass",
+                            Family =="Juncaceae" ~ "Rush",
+                            Family == "Cyperaceae" ~ "Sedge",
+                            TRUE ~ "Other")) %>% 
+    # NB : /!\ I sould keep family and lifeform info, but only when these are variables are clean in the dataset.
+    # (sinon, ça découple une espèce en deux artificiellement dans le calcul de la moyenne).
     select(-c(nameOfProject,measurementDeterminedBy,Rep))
-  col <- dim(dataset2)[2] # number of columns
-  # last column is Trtmt. Take all columns from the 12th (first trait measured) to the col-1 th (last trait measured).
-  dataset2 %>% 
-    summarise_at( .vars = colnames(.)[12:(col-1)] , mean,na.rm=T)
+
+  # Variables on which we want to summarize:
+  vars <- dataset2 %>% 
+    select(!c(Site,Block,Plot,Treatment,Year,Day,Species,Code_Sp,Family,LifeForm1,LifeForm2,
+             Trtmt,LifeHistory,Form)) %>% 
+    colnames()
+
+  dataset2 %>%     
+    group_by(Species,Trtmt,Code_Sp ,    Form, LifeHistory) %>% 
+    summarise_at( .vars = vars , mean,na.rm=T)
 }
 
 
@@ -28,11 +40,18 @@ MEAN_list <- list( mean_attribute_per_species(LeafMorpho),
                    mean_attribute_per_species(Seed) )
 MEAN <- MEAN_list[[1]]
 for (i in 2:length(MEAN_list)){
-  MEAN <- full_join(MEAN,MEAN_list[[i]], by = c('Species','Trtmt','Code_Sp','Family','LifeForm1','LifeForm2'))
+  MEAN <- full_join(MEAN,MEAN_list[[i]], by = c('Species','Trtmt','Code_Sp','LifeHistory','Form'))
 }
 
 # Clean (uniformize) data
 MEAN$Species <- recode(MEAN$Species,"Festuca christiani-bernardii" = "Festuca christianii-bernardii")
+
+see <- MEAN %>% 
+  filter(Trtmt == "Fer") %>% 
+  group_by(Species) %>% 
+  filter(n()>1) %>% 
+  arrange(Species)
+  
 
 write.csv2(MEAN,"outputs/data/mean_attribute_per_treatment.csv",row.names=F)
 #_______________________________________________________________________________

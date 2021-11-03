@@ -1,9 +1,11 @@
 source("scripts/1. Packages.R")
 
 # Plant traits ####
-data_file <- "LaFage_PlantTraitsDP_vp+KB+LD.xlsx"
+data_file <- "LaFage_PlantTraitsDP_vp.xlsx"
 
-LeafMorpho <-  read.xlsx(paste0("data/traits/",data_file), sheet = "LeafMorpho_traits", startRow = 1, colNames = TRUE)  
+LeafMorpho1 <-  read.xlsx(paste0("data/traits/",data_file), sheet = "LeafMorpho_traits", startRow = 1, colNames = TRUE)  
+LeafMorpho_leo <- read.csv2("data/traits/leafMorpho_3.csv")
+LeafMorpho <- rbind(LeafMorpho,LeafMorpho_leo)
 # LeafDimensions <- read.xlsx(paste0("data/traits/",data_file), sheet = "LeafDimensions (àsupprimer)", startRow = 1, colNames = TRUE)
 LeafCN <- read.xlsx(paste0("data/traits/",data_file), sheet = "LeafC&N", startRow = 1, colNames = TRUE) 
 LeafP <- read.xlsx(paste0("data/traits/",data_file), sheet = "LeafP", startRow = 1, colNames = TRUE) 
@@ -11,7 +13,8 @@ Leaf13C <- read.xlsx(paste0("data/traits/",data_file), sheet = "Leaf13C", startR
 Biovolume <- read.xlsx(paste0("data/traits/",data_file), sheet = "Biovolume", startRow = 1, colNames = TRUE) %>% 
   mutate(Hrepro = as.numeric(Hrepro))
 Pheno <- read.xlsx(paste0("data/traits/",data_file), sheet = "Pheno", startRow = 1, colNames = TRUE) %>% 
-  mutate(Rep = "none")
+  mutate(Rep = "None") %>% 
+  mutate(Day = "None")
 Seed <- read.xlsx(paste0("data/traits/",data_file), sheet = "Seed", startRow = 1, colNames = TRUE) 
 
 
