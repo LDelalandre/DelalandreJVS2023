@@ -46,61 +46,29 @@ for (i in 2:length(MEAN_list)){
 # Clean (uniformize) data
 MEAN$Species <- recode(MEAN$Species,"Festuca christiani-bernardii" = "Festuca christianii-bernardii")
 
-see <- MEAN %>% 
-  filter(Trtmt == "Fer") %>% 
-  group_by(Species) %>% 
-  filter(n()>1) %>% 
-  arrange(Species)
-  
-
 write.csv2(MEAN,"outputs/data/mean_attribute_per_treatment.csv",row.names=F)
+
+# Abundance ####
+ABUNDANCE %>% 
+  filter(dataset=="Maud")
+
+
+
+
 #_______________________________________________________________________________
 # 2) Add mean species attribute per treatment to abundance data per transect/quadrat ####
-
 MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment.csv")
 
-# Trait values sampled in the same treatment
-get_trait_value <- function(sp,trtmt,trait){
-  if (trtmt != "Tem"){
-    trait_value <- MEAN %>% 
-      filter(Species==sp & Trtmt==trtmt) %>% 
-      pull(trait) %>% 
-      first()
-    
-    if (length(trait_value==1)){
-      trait_value
-    } else{
-      NA
-    }
-  } else {
-    NA
-  }
-}
+MEAN_tojoin <- MEAN %>% 
+  rename(species = Species, code_sp = Code_Sp, treatment = Trtmt)
 
-# Traits available
-traits <- c("LDMC","SLA","LCC","LNC","Ldelta13C","LPC","SeedMass","Mat","Flo","Disp","Mat_Per","L_Area" ,  
-            "Hveg"  ,    "Hrepro"   , "Dmax"  ,    "Dmin" )
+ABUNDANCE_tojoin <- ABUNDANCE %>% 
+  filter(!(code_sp %in% c("SOLCAI","SOLTER","SOLLIT"))) %>% 
+  select(-c("LifeForm1","LifeForm2"))
 
-
-# Get the trait values of each species in each treatment, for each trait
-get_trait <- function(AB,trait){
-  # AB is the ABUNDANCE dataset
-  varname <- paste0(trait)
-  AB <- mutate(AB, !!varname:= map2_dbl(species,treatment,get_trait_value,trait) )
-  AB
-}
-
-ABUNDANCE_traits <- ABUNDANCE
-for(trait in traits){
-  ABUNDANCE_traits <- get_trait(ABUNDANCE_traits,trait)
-}
-ABUNDANCE_traits <- ABUNDANCE_traits %>% 
-  mutate(annual = case_when(LifeForm1 == "The" ~ T,
-                            TRUE ~ F)) # add info: annual or not
+ABUNDANCE_traits <- full_join(x= ABUNDANCE_tojoin,y = MEAN_tojoin, by = c("species","treatment","code_sp") )
 
 write.csv2(ABUNDANCE_traits,"outputs/data/pooled_abundance_and_traits.csv",row.names=F)
-
-
 
 
 #_______________________________________________________________________________
@@ -110,7 +78,7 @@ ABUNDANCE_traits <- read.csv2("outputs/data/pooled_abundance_and_traits.csv")
 
 ABUNDANCE_CWM_treatment <- ABUNDANCE_traits %>% 
   group_by(treatment) %>% # NB choose the level at which to compute moments
-  mutate_at(vars(LDMC:Mat_Per),
+  mutate_at(vars(Nb_Lf:Mat),
             .funs = list(CWM = ~ weighted.mean(.,abundance,na.rm=T) )) %>% 
   rename_at( vars( contains( "_CWM") ), list( ~paste("CWM", gsub("_CWM", "", .), sep = "_") ) )
   
@@ -118,7 +86,7 @@ ABUNDANCE_CWM_treatment <- ABUNDANCE_traits %>%
 attribute_CWM_treatment <- ABUNDANCE_CWM_treatment %>% 
   distinct(species, treatment,.keep_all=T) %>% 
   select(-c("dataset" ,   "method" ,             "year"    ,            "paddock"  ,           "id_transect_quadrat",
-            "abundance"    ,       "line_length"    , "soil"       ,         "depth"      ,         "point")) # remove variables that
+            "abundance"    ,       "line_length"    , "soil"       ,         "depth")) # remove variables that
 
 
 compute_moment <- function(){
@@ -126,59 +94,88 @@ compute_moment <- function(){
 }
 
 # Maud
-deep_maud <- ABUNDANCE_traits %>%
+soil_Maud <- data.frame(PC1score = c(-3.08,-2.85,-2.52,-1.78,-1.60,-1.56,-0.03,0.16,1.97,2.66,4.05,4.58),
+                        depth = c("S","S","S","S","I","I","I","I","D","D","D","D" ),
+                        paddock = c("P8","P10","P6","P1","P6","P8","P10","P1","P10","P1","P6","P8"))
+
+Maud <- ABUNDANCE_traits %>%
   filter(dataset=="Maud") %>% 
-  filter(depth=="D") %>% 
-  mutate_at(vars(LDMC:Mat_Per),
+  group_by(paddock,depth) %>% 
+  arrange(depth) %>% 
+  filter(!(is.na(LifeHistory)))  
+
+
+# Species level
+ggplot(Maud, aes(x=LifeHistory, y=SLA))+
+  geom_boxplot() +
+  facet_wrap(~depth)
+
+Maud %>% filter(LifeHistory=="annual") %>%
+  full_join(soil_Maud,.,by=c("paddock","depth")) %>% 
+  ggplot(aes(x=PC1score,y=SLA)) +
+  geom_point() +
+  geom_smooth(method="lm")
+
+Maud %>% 
+  group_by(paddock,depth,LifeHistory) %>% 
+  summarize(abtot = sum(abundance)) %>% 
+  full_join(soil_Maud,.,by=c("paddock","depth")) %>% 
+  spread(LifeHistory,abtot) %>% 
+  mutate(relat_ab_annuals = annual/perennial) %>% 
+  ggplot(aes(x=PC1score, y=relat_ab_annuals))+
+  geom_point()
+
+# Community level
+# NB : check that relative values are used to compute the moments!!
+CWM_Maud <- Maud %>% 
+  mutate_at(vars, # vars: generated earlier in this script
             .funs = list(CWM = ~ weighted.mean(.,abundance,na.rm=T) )) %>% 
-  rename_at( vars( contains( "_CWM") ), list( ~paste("CWM", gsub("_CWM", "", .), sep = "_") ) )
-deep_maud %>% 
-  select(CWM_LDMC,CWM_SLA)%>% 
-  unique()
-
-intermediary_maud <- ABUNDANCE_traits %>%
-  filter(dataset=="Maud") %>% 
-  filter(depth=="I") %>% 
-  mutate_at(vars(LDMC:Mat_Per),
-            .funs = list(CWM = ~ weighted.mean(.,abundance,na.rm=T) )) %>% 
-  rename_at( vars( contains( "_CWM") ), list( ~paste("CWM", gsub("_CWM", "", .), sep = "_") ) )
-intermediary_maud %>% 
-  select(CWM_LDMC,CWM_SLA)%>% 
-  unique()
-
-superficial_maud <- ABUNDANCE_traits %>%
-  filter(dataset=="Maud") %>% 
-  filter(depth=="S") %>% 
-  mutate_at(vars(LDMC:Mat_Per),
-            .funs = list(CWM = ~ weighted.mean(.,abundance,na.rm=T) )) %>% 
-  rename_at( vars( contains( "_CWM") ), list( ~paste("CWM", gsub("_CWM", "", .), sep = "_") ) )
-superficial_maud %>% 
-  select(CWM_LDMC,CWM_SLA)%>% 
-  unique()
+  rename_at( vars( contains( "_CWM") ), list( ~paste("CWM", gsub("_CWM", "", .), sep = "_") ) ) %>% 
+  select_at(vars( contains( "CWM") )) %>% 
+  unique() %>%  
+  full_join(soil_Maud,.,by=c("paddock","depth"))
 
 
-ggplot(deep_maud %>% mutate(LifeHistory = if_else(LifeForm1=="The","Annual","Perennial")),
-       aes(x=LifeHistory, y=LDMC))+
-  geom_boxplot()
-ggplot(intermediary_maud %>% mutate(LifeHistory = if_else(LifeForm1=="The","Annual","Perennial")),
-       aes(x=LifeHistory, y=LDMC))+
-  geom_boxplot()
-ggplot(superficial_maud %>% mutate(LifeHistory = if_else(LifeForm1=="The","Annual","Perennial")),
-       aes(x=LifeHistory, y=LDMC))+
-  geom_boxplot()
+gather_CWM_Maud<- CWM_Maud %>% 
+  gather(key = trait,value=CWM,-c(depth,paddock,PC1score)) 
+gather_CWM_Maud$trait <-   str_replace(gather_CWM_Maud$trait,"CWM_","")
+gather_CWM_Maud2 <- gather_CWM_Maud %>% 
+  arrange(factor(trait,levels=vars)) %>% 
+  mutate(trait = factor(trait,levels=vars))
+
+ggplot(gather_CWM_Maud2,aes(x=PC1score,y=CWM))+
+  facet_wrap(~trait,scales="free") +
+  geom_point() +
+  geom_smooth(method="lm") +
+  ggtitle("CWM")
+
+# variance, skewness, kurtosis
+library(TAM) # to compute weighted CWV, skewness, and kurtosis
+
+CWM_Maud <- Maud %>% 
+  filter(LifeHistory=="perennial") %>% 
+  mutate_at(vars, # vars: generated earlier in this script
+            .funs = list(CWM = ~ weighted_skewness(.,abundance) )) %>% 
+  rename_at( vars( contains( "_CWM") ), list( ~paste("CWM", gsub("_CWM", "", .), sep = "_") ) ) %>% 
+  select_at(vars( contains( "CWM") )) %>% 
+  unique() %>%  
+  full_join(soil_Maud,.,by=c("paddock","depth"))
+
+
+gather_CWM_Maud<- CWM_Maud %>% 
+  gather(key = trait,value=CWM,-c(depth,paddock,PC1score)) 
+gather_CWM_Maud$trait <-   str_replace(gather_CWM_Maud$trait,"CWM_","")
+gather_CWM_Maud2 <- gather_CWM_Maud %>% 
+  arrange(factor(trait,levels=vars)) %>% 
+  mutate(trait = factor(trait,levels=vars))
+
+ggplot(gather_CWM_Maud2,aes(x=PC1score,y=CWM))+
+  facet_wrap(~trait,scales="free") +
+  geom_point() +
+  geom_smooth(method="lm") +
+  ggtitle("CWSkewness - perennial only")
 
 
 
 
-#_______________________________________________________________________________
-# Abundance ####
-# Spread abundance data
-ab_maud <- ABUNDANCE_traits %>% 
-  filter(dataset=="Maud") %>% 
-  select(paddock,id_transect_quadrat,depth,code_sp,abundance) %>% 
-  spread(key = code_sp,value = abundance, fill = 0)
-# NB : il me faut surtout ses données par paddock * depth, par par ligne !!
-# Je peux le faire dans mes gros data frame pooled.
 
-weighted.mean(ABUNDANCE_traits %>% filter() ,
-               ab_maud[1,c(4:dim(ab_maud)[2])])
