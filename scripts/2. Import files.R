@@ -5,7 +5,7 @@ data_file <- "LaFage_PlantTraitsDP_vp.xlsx"
 
 LeafMorpho1 <-  read.xlsx(paste0("data/traits/",data_file), sheet = "LeafMorpho_traits", startRow = 1, colNames = TRUE)  
 LeafMorpho_leo <- read.csv2("data/traits/leafMorpho_3.csv")
-LeafMorpho <- rbind(LeafMorpho,LeafMorpho_leo)
+LeafMorpho <- rbind(LeafMorpho1,LeafMorpho_leo)
 # LeafDimensions <- read.xlsx(paste0("data/traits/",data_file), sheet = "LeafDimensions (àsupprimer)", startRow = 1, colNames = TRUE)
 LeafCN <- read.xlsx(paste0("data/traits/",data_file), sheet = "LeafC&N", startRow = 1, colNames = TRUE) 
 LeafP <- read.xlsx(paste0("data/traits/",data_file), sheet = "LeafP", startRow = 1, colNames = TRUE) 

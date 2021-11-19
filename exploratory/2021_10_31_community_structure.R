@@ -60,7 +60,7 @@ ABUNDANCE %>%
 MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment.csv")
 
 MEAN_tojoin <- MEAN %>% 
-  rename(species = Species, code_sp = Code_Sp, treatment = Trtmt)
+  dplyr::rename(species = Species, code_sp = Code_Sp, treatment = Trtmt)
 
 ABUNDANCE_tojoin <- ABUNDANCE %>% 
   filter(!(code_sp %in% c("SOLCAI","SOLTER","SOLLIT"))) %>% 
@@ -89,10 +89,6 @@ attribute_CWM_treatment <- ABUNDANCE_CWM_treatment %>%
             "abundance"    ,       "line_length"    , "soil"       ,         "depth")) # remove variables that
 
 
-compute_moment <- function(){
-  
-}
-
 # Maud
 soil_Maud <- data.frame(PC1score = c(-3.08,-2.85,-2.52,-1.78,-1.60,-1.56,-0.03,0.16,1.97,2.66,4.05,4.58),
                         depth = c("S","S","S","S","I","I","I","I","D","D","D","D" ),
@@ -102,16 +98,34 @@ Maud <- ABUNDANCE_traits %>%
   filter(dataset=="Maud") %>% 
   group_by(paddock,depth) %>% 
   arrange(depth) %>% 
-  filter(!(is.na(LifeHistory)))  
+  filter(!(is.na(LifeHistory))) %>% 
+  full_join(soil_Maud,.,by=c("paddock","depth")) %>% 
+  filter(!is.na(LifeHistory))
+# /!\ problem with raw data (ex: lack of Bupleurum)
+
+ab_Maud_traits <- read.xlsx("data/abundance/maud_Relevés d'abondance La Fage Juin 2009.xlsx", sheet = "abondances par parcelle", 
+                     startRow = 1, colNames = TRUE, rowNames = F) %>% 
+  remove_rownames() %>%  
+  gather(Species,abundance,-plot) %>%
+  mutate(Species=str_replace(Species,"_"," ")) %>% 
+  full_join(MEAN,by="Species") %>% 
+  dplyr::rename(species=Species,code_sp=Code_Sp) %>% 
+  filter(!is.na(abundance)) %>% 
+  mutate(depth = str_sub(plot,start = 1L,end=1L)) %>% 
+  mutate(paddock = str_sub(plot,start = 3L,end=-1L)) %>%
+  select(-plot) %>% 
+  full_join(soil_Maud,.,by=c("paddock","depth")) %>% 
+  filter(Trtmt == "Nat") %>% 
+  filter(abundance >0 )
 
 
 # Species level
+
 ggplot(Maud, aes(x=LifeHistory, y=SLA))+
-  geom_boxplot() +
+  geom_point() +
   facet_wrap(~depth)
 
 Maud %>% filter(LifeHistory=="annual") %>%
-  full_join(soil_Maud,.,by=c("paddock","depth")) %>% 
   ggplot(aes(x=PC1score,y=SLA)) +
   geom_point() +
   geom_smooth(method="lm")
@@ -127,13 +141,19 @@ Maud %>%
 
 # Community level
 # NB : check that relative values are used to compute the moments!!
-CWM_Maud <- Maud %>% 
+
+vars <- MEAN %>% 
+  select(Nb_Lf:Mat) %>% 
+  colnames()
+
+CWM_Maud <- ab_Maud_traits %>% 
+  group_by(PC1score) %>% 
   mutate_at(vars, # vars: generated earlier in this script
             .funs = list(CWM = ~ weighted.mean(.,abundance,na.rm=T) )) %>% 
+  # TAM::weighted_skewness for other moments
   rename_at( vars( contains( "_CWM") ), list( ~paste("CWM", gsub("_CWM", "", .), sep = "_") ) ) %>% 
-  select_at(vars( contains( "CWM") )) %>% 
-  unique() %>%  
-  full_join(soil_Maud,.,by=c("paddock","depth"))
+  select_at(vars(PC1score, depth, paddock, contains( "CWM") )) %>% 
+  unique()
 
 
 gather_CWM_Maud<- CWM_Maud %>% 
@@ -149,33 +169,76 @@ ggplot(gather_CWM_Maud2,aes(x=PC1score,y=CWM))+
   geom_smooth(method="lm") +
   ggtitle("CWM")
 
-# variance, skewness, kurtosis
-library(TAM) # to compute weighted CWV, skewness, and kurtosis
 
-CWM_Maud <- Maud %>% 
-  filter(LifeHistory=="perennial") %>% 
+# Distance of species to CWM for various traits ####
+
+CWM_Maud_indiv <- ab_Maud_traits %>% 
+  group_by(PC1score) %>% 
   mutate_at(vars, # vars: generated earlier in this script
-            .funs = list(CWM = ~ weighted_skewness(.,abundance) )) %>% 
-  rename_at( vars( contains( "_CWM") ), list( ~paste("CWM", gsub("_CWM", "", .), sep = "_") ) ) %>% 
-  select_at(vars( contains( "CWM") )) %>% 
-  unique() %>%  
-  full_join(soil_Maud,.,by=c("paddock","depth"))
+            .funs = list(CWM = ~ weighted.mean(.,abundance,na.rm=T) )) %>% 
+  rename_at( vars( contains( "_CWM") ), list( ~paste("CWM", gsub("_CWM", "", .), sep = "_") ) )
+
+CWM_Maud_indiv %>% 
+  mutate(distance = abs(CWM_Mat_Per - Mat_Per)) %>% 
+  ggplot(aes(x=LifeHistory,y=distance,color = LifeHistory))+
+  geom_boxplot() +
+  facet_wrap(~depth)
 
 
-gather_CWM_Maud<- CWM_Maud %>% 
-  gather(key = trait,value=CWM,-c(depth,paddock,PC1score)) 
-gather_CWM_Maud$trait <-   str_replace(gather_CWM_Maud$trait,"CWM_","")
-gather_CWM_Maud2 <- gather_CWM_Maud %>% 
-  arrange(factor(trait,levels=vars)) %>% 
-  mutate(trait = factor(trait,levels=vars))
 
-ggplot(gather_CWM_Maud2,aes(x=PC1score,y=CWM))+
-  facet_wrap(~trait,scales="free") +
+# Fertile : distance of species to CWM for various traits ####
+
+CWM_fer_indiv <- ABUNDANCE_traits %>% 
+  filter(dataset=="Diachro" & year ==2004) %>% 
+  group_by(id_transect_quadrat) %>% 
+  mutate_at(vars, # vars: generated earlier in this script
+            .funs = list(CWM = ~ weighted.mean(.,abundance,na.rm=T) )) %>% 
+  rename_at( vars( contains( "_CWM") ), list( ~paste("CWM", gsub("_CWM", "", .), sep = "_") ) )
+
+CWM_fer_indiv %>% 
+  filter(!is.na(LifeHistory)) %>% 
+  mutate(distance = abs(CWM_SLA - SLA)) %>% 
+  ggplot(aes(x=LifeHistory,y=distance,color = LifeHistory))+
+  geom_boxplot() +
+  facet_wrap(~treatment)
+
+CWM_fer_indiv %>% 
+  filter(!is.na(LifeHistory)) %>% 
+  mutate(distance = abs(CWM_Mat_Per - Mat_Per)) %>% 
+  ggplot(aes(x=LifeHistory,y=Mat_Per,color = LifeHistory))+
+  geom_boxplot() +
+  facet_wrap(~treatment)
+
+CWM_fer_indiv %>% 
+  filter(!is.na(LifeHistory)) %>% 
+  ggplot(aes(x=CWM_Mat_Per,y=Mat_Per,color = LifeHistory, shape = treatment))+
+  geom_point()+
+  facet_wrap(~LifeHistory) +
+  geom_abline(slope = 1, intercept = 0)
+
+# Using Maud's code ####
+
+
+# data spring 2021 ####
+data_traits_for_PCA <- LeafMorpho_leo %>% 
+  filter(grepl("Nat",Treatment)) %>% 
+  select(c(Code_Sp,SLA,LDMC,L_Area,Sple_FM,Sple_DM,Sple_Area)) %>% 
+  group_by(Code_Sp) %>% 
+  summarize_all(mean) %>% 
+  column_to_rownames("Code_Sp")
+
+ACP1<-PCA(data_traits_for_PCA,graph=FALSE)
+coord_var <- data.frame(ACP1$var$coord) %>% 
+  rownames_to_column("code_sp")
+var.explain.dim1 <- round(ACP1$eig[1,2])
+var.explain.dim2 <- round(ACP1$eig[2,2])
+coord_ind <- data.frame(ACP1$ind$coord) %>% 
+  rownames_to_column("code_sp")
+
+ggplot(data=coord_ind,aes(x=Dim.1,y=Dim.2,label=code_sp)) +
   geom_point() +
-  geom_smooth(method="lm") +
-  ggtitle("CWSkewness - perennial only")
-
-
-
-
+  geom_text(data=coord_var, aes(x=Dim.1*5, Dim.2*5, label=code_sp), size = 5, vjust=1, color="black") +
+  geom_segment(data=coord_var, aes(x=0, y=0, xend=Dim.1*7-0.2, yend=Dim.2*7-0.2), 
+               arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
+  geom_label()
 

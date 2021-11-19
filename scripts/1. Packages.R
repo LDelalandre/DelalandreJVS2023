@@ -10,16 +10,22 @@ packages = c("tidyverse",
 )
 
 ## Load, or install and load, packages
-package.check <- lapply(
+# package.check <- lapply(
+#   packages,
+#   FUN = function(x) {
+#     if (!require(x, character.only = TRUE)) {
+#       install.packages(x, dependencies = TRUE)
+#     }
+#     library(x, character.only = TRUE)
+#   }
+# )
+
+package.check2 <- lapply(
   packages,
   FUN = function(x) {
-    if (!require(x, character.only = TRUE)) {
-      install.packages(x, dependencies = TRUE)
-    }
     library(x, character.only = TRUE)
   }
 )
-
 
 # Complete folder structure ####
 
