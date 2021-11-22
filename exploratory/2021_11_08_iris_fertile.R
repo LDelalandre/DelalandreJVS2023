@@ -13,22 +13,36 @@ IN_fer <- read.csv2("data/abundance/IN_fertile.csv") %>%
   # filter(Traitement == "P+F+") %>% 
   mutate(plot = paste(parc,cage,sep=""))
 
-ab_iris <- read.xlsx("data/abundance/iris_Relevés bota.xlsx",sheet="Fertile") %>% 
+ab_iris <- read.xlsx("data/abundance/iris_Relevés bota.xlsx",sheet="Fertile") %>% # NB : je peux aussi importer ses données du natif (et du)
   mutate(cage = str_sub(Cage,1,1)) %>% 
-  dplyr::rename(abundance = 'Présence.(tot)') %>% 
+  dplyr::rename(abundance = 'Abondance.(tot)') %>% 
   mutate(plot = paste(Parc,cage,sep=""))
 
-ab_iris_IN <- full_join(ab_iris,IN_fer,by="plot") %>% 
+# NB : only 8 plots out of 10 were measured for abundance
+ab_iris %>% 
+  pull(plot) %>% 
+  unique()
+
+ab_iris_IN <- full_join(ab_iris,IN_fer,by=c("plot","cage")) %>% 
   mutate(species=Espece) %>% 
   select(-Espece) %>% 
   full_join(name_lifeform,by="species") %>% 
-  filter(!is.na(abundance))
+  filter(!is.na(abundance)) %>% 
+  select(-c('Abondance.(1)','Abondance.(2)','Présence.(1)','Présence.(2)'))
 
 
+# ptits plots là
+toplot <- ab_iris_IN %>% 
+  group_by(species,LifeHistory,group,INN,INP) %>% 
+  summarize(sum_ab = sum(abundance))
 
-
-ggplot(ab_iris_IN,aes(x=group,y=abundance))+
+ggplot(toplot  ,aes(x=group,y=sum_ab) )+
   geom_boxplot() +
+  facet_wrap(~LifeHistory)
+
+
+ggplot(toplot  ,aes(x=INN,y=sum_ab) )+
+  geom_point() +
   facet_wrap(~LifeHistory)
 
 # CWM
@@ -39,17 +53,18 @@ CWM_iris <- MEAN %>%
   filter(treatment=="Fer") %>% 
   select(-LifeHistory,code_sp) %>% 
   full_join(ab_iris_IN,by="species") %>% 
-  group_by(group) %>% # NB choose the level at which to compute moments
+  group_by(plot) %>% # NB choose the level at which to compute moments. group, or  plot...
   mutate_at(vars(Nb_Lf:Mat),
             .funs = list(CWM = ~ weighted.mean(.,abundance,na.rm=T) )) %>% 
-  rename_at( vars( contains( "_CWM") ), list( ~paste("CWM", gsub("_CWM", "", .), sep = "_") ) )
+  rename_at( vars( contains( "_CWM") ), list( ~paste("CWM", gsub("_CWM", "", .), sep = "_") ) ) %>% 
+  unique()
 
 
 CWM <- CWM_iris %>% 
   filter(!is.na(group)) %>% 
   select(starts_with("CWM")) %>% 
-  unique() %>% 
-  arrange(group)
+  unique()
+  # arrange(group)
 # Le CWM de LNC ne suit pas les INN. C'est donc que ce n'est pas du remplacement 
 # d'espèces qu'on a ici.
 
