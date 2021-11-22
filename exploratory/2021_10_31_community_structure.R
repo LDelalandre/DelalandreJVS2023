@@ -117,7 +117,17 @@ ab_Maud_traits <- read.xlsx("data/abundance/maud_Relevés d'abondance La Fage Ju
   full_join(soil_Maud,.,by=c("paddock","depth")) %>% 
   filter(Trtmt == "Nat") %>% 
   filter(abundance >0 )
+write.csv2(ab_Maud_traits,"outputs/data/ab_Maud_traits.csv",row.names = F)
 
+ab_Maud_traits %>% 
+  select(code_sp,SLA,LDMC,L_Area) %>% 
+  unique() %>% 
+  filter(!(is.na(SLA))) %>%
+  relocate(L_Area,LDMC,SLA) %>% 
+  mutate(L_Area=L_Area*100) %>% # to change unit from cm² to mm²
+  mutate(LDMC=LDMC/1000*100) %>% 
+  write.csv2("outputs/data/Pierce CSR/Traits_Maud.csv",row.names=F)
+  
 
 # Species level
 
@@ -154,6 +164,7 @@ CWM_Maud <- ab_Maud_traits %>%
   rename_at( vars( contains( "_CWM") ), list( ~paste("CWM", gsub("_CWM", "", .), sep = "_") ) ) %>% 
   select_at(vars(PC1score, depth, paddock, contains( "CWM") )) %>% 
   unique()
+write.csv2(CWM_Maud,"outputs/data/CWM_Maud.CSV",row.names=F)
 
 
 gather_CWM_Maud<- CWM_Maud %>% 
