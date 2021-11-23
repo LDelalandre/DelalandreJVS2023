@@ -227,7 +227,7 @@ summary(comp.dim.2)
 
 #________________________________________________________________________________
 # II) PCA on CWM ####
-# Adeline
+# Adeline ####
 Adeline_ab_tr <- read.csv2("outputs/data/pooled_abundance_and_traits.csv") %>% 
   filter(dataset == "Adeline") %>% 
   group_by(paddock,id_transect_quadrat) # NB choose the level at which to compute moments. group, or  plot...

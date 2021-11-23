@@ -5,8 +5,14 @@ source("scripts/functions/traitMoments.test.R")
 
 library(funrar)
 
-ABUNDANCE_traits <- read.csv2("outputs/data/pooled_abundance_and_traits.csv")
-MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment.csv")
+# ABUNDANCE_traits <- read.csv2("outputs/data/pooled_abundance_and_traits.csv")
+MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment.csv") %>% 
+  filter(!(Species == "Geranium dissectum - limbe")) %>% 
+  filter(!(Species == "Geranium dissectum - pétiole")) %>% 
+  filter(!(Species == "Carex humilis?")) %>% 
+  filter(!(Species == "Cirsium acaule")) # il faudra le réintégrer
+
+MEAN_treatment <- MEAN %>% filter(Trtmt == "Nat")
 # Maud <- ABUNDANCE_traits %>% filter(dataset == "Maud")
 
 soil_Maud <- data.frame(PC1score = c(-3.08,-2.85,-2.52,-1.78,-1.60,-1.56,-0.03,0.16,1.97,2.66,4.05,4.58),
@@ -16,19 +22,6 @@ soil_Maud <- data.frame(PC1score = c(-3.08,-2.85,-2.52,-1.78,-1.60,-1.56,-0.03,0
 
 # Maud's data ####
 # Preparing data ####
-
-# stacked abundance
-ab_Maud_unclean <- ABUNDANCE %>% 
-  filter(dataset=="Maud") %>% 
-  full_join(soil_Maud,.,by=c("paddock","depth")) %>% 
-  mutate(LifeHistory = if_else(LifeForm1=="The","annual","perennial")) %>% 
-  filter(!(is.na(LifeHistory))) %>% 
-  # NB : /!\ I sould keep family and lifeform info, but only when these are variables are clean in the dataset.
-  # (sinon, ça découple une espèce en deux artificiellement dans le calcul de la moyenne).
-  mutate(plot=paste(depth,paddock,sep="_"))
-
-
-
 ab_Maud <- read.xlsx("data/abundance/maud_Relevés d'abondance La Fage Juin 2009.xlsx", sheet = "abondances par parcelle", 
                    startRow = 1, colNames = TRUE, rowNames = F) %>% 
   remove_rownames() %>%  
@@ -51,7 +44,7 @@ traits <- MEAN %>%
   select(Code_Sp,Nb_Lf:Mat ) %>%
   unique() %>% 
   arrange(Code_Sp) %>% 
-  column_to_rownames("Code_Sp") %>% 
+  column_to_rownames("Code_Sp") %>%
   filter(!is.na(SLA  ))
 
 
