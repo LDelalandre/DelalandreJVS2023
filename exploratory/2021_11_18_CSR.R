@@ -42,6 +42,22 @@ make_list <- function(xy.df){
 }
 # NB : not necessary to make a list for plotting with the Ternary package
 
+
+to_boxplot <- MEAN_CSR %>% 
+  select(-c(LDMC,SLA,L_Area,Red,Green,Blue,Species)) %>% 
+  gather(Dimension, Score,-c(Code_Sp,LifeHistory,Trtmt)) %>% 
+  filter(Trtmt %in% c("Fer","Nat"))
+to_boxplot$Score = as.numeric(to_boxplot$Score)
+to_boxplot$Dimension <- as.factor(to_boxplot$Dimension)
+
+ggplot(to_boxplot,aes(x=as.factor(Dimension),y=Score,color=LifeHistory))+
+  geom_boxplot() +
+  facet_wrap(~Trtmt)
+
+# mod <- lm(Score ~ LifeHistory*Dimension*Trtmt,data=to_boxplot)
+# anova(mod)
+
+# Ternary diagrams
 an_fer.df <- MEAN_CSR %>% 
   filter(Trtmt == "Fer" & LifeHistory == "annual") %>% 
   column_to_rownames("Code_Sp") %>%
