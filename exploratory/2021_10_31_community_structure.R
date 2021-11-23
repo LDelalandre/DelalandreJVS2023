@@ -39,12 +39,16 @@ MEAN_list <- list( mean_attribute_per_species(LeafMorpho),
                    mean_attribute_per_species(Pheno),
                    mean_attribute_per_species(Seed) )
 MEAN <- MEAN_list[[1]]
+MEAN$Species <- recode(MEAN$Species,"Cirsium acaulon" = "Cirsium acaule")
 for (i in 2:length(MEAN_list)){
   MEAN <- full_join(MEAN,MEAN_list[[i]], by = c('Species','Trtmt','Code_Sp','LifeHistory','Form'))
+  MEAN$Species <- recode(MEAN$Species,"Cirsium acaulon" = "Cirsium acaule")
 }
 
 # Clean (uniformize) data
 MEAN$Species <- recode(MEAN$Species,"Festuca christiani-bernardii" = "Festuca christianii-bernardii")
+
+
 
 write.csv2(MEAN,"outputs/data/mean_attribute_per_treatment.csv",row.names=F)
 

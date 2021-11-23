@@ -195,17 +195,17 @@ ab_iris <- read.xlsx("data/abundance/iris_Relevés bota.xlsx",sheet="Tout compil
                                Traitement == "P-F-" ~ "Tem")) 
 
 CWM_iris <- MEAN %>% 
-  select(-LifeHistory,code_sp) %>% 
-  merge(ab_iris,by=c("species","treatment")) %>% 
+  # merge(name_LH %>% dplyr::rename(code_sp=Code_Sp),by="code_sp") %>% 
+  # select(-c(LifeHistory,Code_Sp)) %>% 
+  merge(ab_iris %>% dplyr::rename(Species=species,Trtmt = treatment),by=c("Species","Trtmt")) %>% 
   group_by(plot) %>% # NB choose the level at which to compute moments. group, or  plot...
   mutate_at(vars(Nb_Lf:Mat),
             .funs = list(CWM = ~ weighted.mean(.,abundance,na.rm=T) )) %>% 
   rename_at( vars( contains( "_CWM") ), list( ~paste("CWM", gsub("_CWM", "", .), sep = "_") ) ) %>% 
-  unique() %>% 
-  merge(name_LH %>% dplyr::rename(code_sp=Code_Sp),by="code_sp")
+  unique() 
 
 Iris_sp <- CWM_iris %>% 
-  group_by(code_sp,treatment,LifeHistory) %>% 
+  group_by(Code_Sp,Trtmt,LifeHistory) %>% 
   select(L_Area,LDMC,SLA) %>% 
   relocate(L_Area,LDMC,SLA) %>% 
   mutate(L_Area=L_Area*100) %>% # to change unit from cm² to mm²
@@ -297,11 +297,13 @@ Adeline_sp <- Adeline_ab_tr %>%
   unique()
 write.csv2(Adeline_sp,"outputs/data/Pierce CSR/Traits_Adeline.csv" ,row.names=F)
 
-CWM_adeline <- Adeline_ab_tr %>% 
+CWM_adeline0 <- Adeline_ab_tr %>% 
   mutate_at(vars(Nb_Lf:Mat),
             .funs = list(CWM = ~ weighted.mean(.,abundance,na.rm=T) )) %>% 
   rename_at( vars( contains( "_CWM") ), list( ~paste("CWM", gsub("_CWM", "", .), sep = "_") ) ) %>% 
-  unique() %>% 
+  unique()
+
+CWM_adeline <- CWM_adeline0 %>% 
   select(CWM_L_Area,CWM_LDMC,CWM_SLA) %>% 
   rename(SLA=CWM_SLA,LDMC=CWM_LDMC,L_Area=CWM_L_Area) %>% 
   relocate(L_Area,LDMC,SLA) %>% 
@@ -370,3 +372,11 @@ AddToTernary(points, CSR_Adeline_CWM %>%
 AddToTernary(points, CSR_Adeline_CWM %>% 
                filter(treatment == "Tem") %>% 
                select(C,S,R), col='black', lty='dotted', lwd=3)
+
+
+
+#_____________________________________________________________________
+# ACP
+# Take 
+# - the species*treatment level
+# - the plot level (on various plots ?)
