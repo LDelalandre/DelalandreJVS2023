@@ -52,7 +52,9 @@ to_boxplot$Dimension <- as.factor(to_boxplot$Dimension)
 
 ggplot(to_boxplot,aes(x=as.factor(Dimension),y=Score,color=LifeHistory))+
   geom_boxplot() +
-  facet_wrap(~Trtmt)
+  facet_wrap(~Trtmt) 
+  # ggsignif::geom_signif(comparisons = list(c("annual", "perennial")),
+                        # map_signif_level = TRUE,vjust = 0.5,col="black")
 
 # mod <- lm(Score ~ LifeHistory*Dimension*Trtmt,data=to_boxplot)
 # anova(mod)
@@ -145,24 +147,80 @@ CSR_Maud <- read.csv2("outputs/data/Pierce CSR/Traits_CWM_Maud_completed.csv")
 TernaryPlot(main = "Maud, community level",alab = "C \u2192", blab = "S \u2192", clab = "\u2190 R")
 AddToTernary(points, CSR_Maud %>% 
                filter(depth == "D") %>% 
-               select(C,S,R), pch = 4, lwd=2)
+               select(C,S,R), pch = 1, lwd=2)
 AddToTernary(points, CSR_Maud %>% 
                filter(depth == "I") %>% 
-               select(C,S,R), pch = 3, lty='dotted', lwd=2)
+               select(C,S,R), pch = 4, lty='dotted', lwd=2)
 AddToTernary(points, CSR_Maud %>% 
                filter(depth == "S") %>% 
-               select(C,S,R), pch = 1, lty='dotted', lwd=2)
+               select(C,S,R), pch = 3, lty='dotted', lwd=2)
 legend("topright", 
        cex = 1,
        bty = "n",
        legend = c('Deep', 'Intermediary', 'Superficial'), 
-       pch = c(4,3,1))
+       pch = c(1,4,3))
+
+#____
+# relative abundance of annuals (maud data: pin-point) ####
+ab_maud_traits <- read.csv2("outputs/data/ab_Maud_traits.csv")
+rel_ab_annuals <- ab_maud_traits %>% 
+  group_by(depth,paddock,PC1score) %>% 
+  select(PC1score,depth,paddock,species,abundance,LifeHistory) %>% 
+  mutate(rel_ab = abundance/sum(abundance)) %>% 
+  filter(LifeHistory == "annual") %>% 
+  summarize(sum_ab_ann = sum(rel_ab)) %>% 
+  ungroup() %>% 
+  select(-c("depth"))
+
+CSR_PC1_cover <- left_join(CSR_Maud,rel_ab_annuals,by = "PC1score") %>% 
+  replace(is.na(.), 0)
+# Rq: cover of annuals is 14% in parc 1, which is the most windy of La Fage
+
+# Environmental info
+ggplot(CSR_PC1_cover,aes(x=-PC1score,y=sum_ab_ann,label=depth))+
+  geom_point() +
+  geom_label()
+
+# CSR info
+CSR_PC1_cover_removedinfluent <- CSR_PC1_cover %>% filter(!(paddock=="P1"))
+
+ggplot(CSR_PC1_cover, aes(x=S,y=sum_ab_ann,label = depth))+
+  geom_label() 
+
+  
+# CSR and environment
+ggplot(CSR_PC1_cover,aes(x=-PC1score,y=S))+
+  geom_point()
+ggplot(CSR_PC1_cover,aes(x=-PC1score,y=C))+
+  geom_point()
+ggplot(CSR_PC1_cover,aes(x=-PC1score,y=R))+
+  geom_point()
+
+  
+# en boxplot
+ggplot(CSR_PC1_cover,aes(x=depth,y=sum_ab_ann))+
+  geom_boxplot()
+
+ggplot(CSR_PC1_cover,aes(x=depth,y=S))+
+  geom_boxplot()
+ggplot(CSR_PC1_cover,aes(x=depth,y=C))+
+  geom_boxplot()
+ggplot(CSR_PC1_cover,aes(x=depth,y=R))+
+  geom_boxplot()
+  
+
+# densité abundance annuals
+ggplot(CSR_PC1_cover,aes(x=sum_ab_ann))+
+  geom_density()
+
+# Caractériser les stratégies autrement que juste CSR ? Plus de traits fonctionnels (par exemple phéno ?)
 
 
+# Traits des annuelles le long du gradient
+ggplot(ab_maud_traits %>% filter(LifeHistory == "annual"),aes(x=PC1score,y=LDMC,color = species))+
+  geom_point()
 
-curve(x^(2) / 2,from = 0,to = 100,col = 'red',type = 'p',pch = 16,n = 20)
-curve((1-x^(2))/2 + 5000,from = 0,to = 100,col = 'blue',type = 'p',pch = 15,add = TRUE,n = 20)
-
+#____
 
 # Compare with species level 
 Depth <- "S"
@@ -270,7 +328,7 @@ AddToTernary(points,CSR_Iris_sp %>%
 
 # Community level #
 CWM_iris2 <- CWM_iris %>% 
-  group_by(plot,treatment) %>% 
+  group_by(plot,Trtmt) %>% 
   select(starts_with("CWM")) %>% 
   unique() %>% 
   select(CWM_L_Area,CWM_LDMC,CWM_SLA) %>% 
@@ -295,6 +353,27 @@ AddToTernary(points, CSR_Iris %>%
                filter(treatment == "Tem") %>% 
                select(C,S,R), col='black', lty='dotted', lwd=3)
 
+
+# In the natif 
+TernaryPlot(main = "Iris, community level, natif",alab = "C \u2192", blab = "S \u2192", clab = "\u2190 R")
+legend("topright", 
+       cex = 1,
+       bty = "n",
+       legend = c('Deep', 'Intermediary', 'Superficial'), 
+       pch = c(1,4,3))
+
+AddToTernary(points, CSR_Iris %>% 
+               filter(grepl("D",plot)) %>% 
+               filter(treatment == "Nat") %>% 
+               select(C,S,R), col='black', lty='dotted', lwd=3, pch = 1)
+AddToTernary(points, CSR_Iris %>% 
+               filter(grepl("I",plot)) %>% 
+               filter(treatment == "Nat") %>% 
+               select(C,S,R), col='black', lty='dotted', lwd=3, pch = 4)
+AddToTernary(points, CSR_Iris %>% 
+               filter(grepl("S",plot)) %>% 
+               filter(treatment == "Nat") %>% 
+               select(C,S,R), col='black', lty='dotted', lwd=3, pch = 3)
 
 #______________________________________________________________________________
 # Adeline ####

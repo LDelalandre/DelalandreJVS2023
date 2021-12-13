@@ -79,13 +79,13 @@ write.csv2(ABUNDANCE_traits,"outputs/data/pooled_abundance_and_traits.csv",row.n
 # CWM ####
 ABUNDANCE_traits <- read.csv2("outputs/data/pooled_abundance_and_traits.csv")
 
-
+# NB problem for Maud's data !
 ABUNDANCE_CWM_treatment <- ABUNDANCE_traits %>% 
   group_by(treatment) %>% # NB choose the level at which to compute moments
   mutate_at(vars(Nb_Lf:Mat),
             .funs = list(CWM = ~ weighted.mean(.,abundance,na.rm=T) )) %>% 
   rename_at( vars( contains( "_CWM") ), list( ~paste("CWM", gsub("_CWM", "", .), sep = "_") ) )
-  
+
 # Keep one row per species*treatment, with its trait value and the CWM
 attribute_CWM_treatment <- ABUNDANCE_CWM_treatment %>% 
   distinct(species, treatment,.keep_all=T) %>% 
@@ -108,7 +108,7 @@ Maud <- ABUNDANCE_traits %>%
 # /!\ problem with raw data (ex: lack of Bupleurum)
 
 ab_Maud_traits <- read.xlsx("data/abundance/maud_Relevés d'abondance La Fage Juin 2009.xlsx", sheet = "abondances par parcelle", 
-                     startRow = 1, colNames = TRUE, rowNames = F) %>% 
+                            startRow = 1, colNames = TRUE, rowNames = F) %>% 
   remove_rownames() %>%  
   gather(Species,abundance,-plot) %>%
   mutate(Species=str_replace(Species,"_"," ")) %>% 
@@ -131,7 +131,7 @@ ab_Maud_traits %>%
   mutate(L_Area=L_Area*100) %>% # to change unit from cm² to mm²
   mutate(LDMC=LDMC/1000*100) %>% 
   write.csv2("outputs/data/Pierce CSR/Traits_Maud.csv",row.names=F)
-  
+
 
 # Species level
 

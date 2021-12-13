@@ -3,6 +3,7 @@ source("scripts/2. Import files.R")
 library(FactoMineR)
 library(ggrepel)
 library(gridExtra)
+library(ggpubr)
 
 MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment.csv") %>% 
   filter(!(Species == "Geranium dissectum - limbe")) %>% 
@@ -48,7 +49,84 @@ annuals <- MEAN %>%
   unique()
 
 
-trtmt <- "Nat"
+# PCA on annuals f(pheno) ####
+traits_selected_ann <- c("LDMC","SLA","L_Area",
+                "LCC","LNC","LPC", #"Ldelta13C",
+                "Hveg"  ,    "Hrepro"   , "Dmax"  , #    "Dmin" ,
+                # "Flo","Disp","Mat_Per", #"Mat",
+                "SeedMass")
+
+traits_ann <- MEAN %>% 
+  filter(LifeHistory=="annual") %>% 
+  select(!!c("Code_Sp","Trtmt",traits_selected_ann,"Disp","Mat")) %>% 
+  group_by(Code_Sp) %>% 
+  summarise(across(all_of(c(traits_selected_ann,"Disp","Mat")), mean, na.rm= TRUE)) 
+
+ggplot(traits_ann,aes(x= Disp))+
+  geom_density()
+
+traits_ann %>% 
+  filter(!(is.na(Disp))) %>%
+  arrange(Disp) %>% 
+  pull(Code_Sp)
+
+data_PCA_ann <- traits_ann %>% 
+  select(-c(Disp,Mat)) %>% 
+  column_to_rownames("Code_Sp")
+
+ACP1<-PCA(data_PCA_ann,graph = T)
+
+coord_var <- data.frame(ACP1$var$coord) %>% 
+  rownames_to_column()
+var.explain.dim1 <- round(ACP1$eig[1,2])
+var.explain.dim2 <- round(ACP1$eig[2,2])
+var.explain.dim3 <- round(ACP1$eig[3,2])
+coord_ind <- data.frame(ACP1$ind$coord) %>% 
+  rownames_to_column("Code_Sp") %>% 
+  mutate(Disp = traits_ann$Disp) %>% 
+  mutate(pheno = case_when(Disp<=160 ~"early",
+                           Disp > 180 ~ "late",
+                           TRUE ~ "middle"))
+  
+
+factoextra::fviz_eig(ACP1, addlabels = TRUE) # percentage of variance explained
+
+ggplot(coord_ind %>% filter(!is.na(pheno)),aes(x=Dim.1,y=Dim.2,colour=pheno))+
+  geom_hline(aes(yintercept=0), size=.2,linetype="longdash") + 
+  geom_vline(aes(xintercept = 0),linetype = "longdash", size=.2)+
+  coord_equal() +
+  geom_point() +
+  geom_segment(data=coord_var, aes(x=0, y=0, xend=Dim.1*7-0.2, yend=Dim.2*7-0.2), 
+               arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
+  geom_text_repel(data=coord_var, aes(x=Dim.1*7, Dim.2*7, label=rowname), size = 4, vjust=1, color="black") +
+  xlab(paste("Dim1",var.explain.dim1,"% variance explained"))+
+  ylab(paste("Dim2",var.explain.dim2,"% variance explained"))
+
+  
+ggplot(coord_ind %>% filter(!is.na(pheno)),aes(x=Dim.1,y=Dim.3,colour=pheno))+
+    geom_hline(aes(yintercept=0), size=.2,linetype="longdash") + 
+    geom_vline(aes(xintercept = 0),linetype = "longdash", size=.2)+
+    coord_equal() +
+    geom_point() +
+    geom_segment(data=coord_var, aes(x=0, y=0, xend=Dim.1*7-0.2, yend=Dim.3*7-0.2), 
+                 arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
+    geom_text_repel(data=coord_var, aes(x=Dim.1*7, Dim.3*7, label=rowname), size = 4, vjust=1, color="black") +
+    xlab(paste("Dim1",var.explain.dim1,"% variance explained"))+
+    ylab(paste("Dim3",var.explain.dim3,"% variance explained"))
+
+ggplot(coord_ind %>% filter(!is.na(pheno)),aes(x=Dim.2,y=Dim.3,colour=pheno))+
+  geom_hline(aes(yintercept=0), size=.2,linetype="longdash") + 
+  geom_vline(aes(xintercept = 0),linetype = "longdash", size=.2)+
+  coord_equal() +
+  geom_point() +
+  geom_segment(data=coord_var, aes(x=0, y=0, xend=Dim.2*7-0.2, yend=Dim.3*7-0.2), 
+               arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
+  geom_text_repel(data=coord_var, aes(x=Dim.2*7, Dim.3*7, label=rowname), size = 4, vjust=1, color="black") +
+  xlab(paste("Dim2",var.explain.dim2,"% variance explained"))+
+  ylab(paste("Dim3",var.explain.dim3,"% variance explained"))
+
+#_______________________________________________________________________________
+trtmt <- "Fer"
 # Fertile ####
 if(trtmt == "Fer"){
   data_traits_for_PCA2 <- data_traits_for_PCA %>% 
@@ -57,6 +135,8 @@ if(trtmt == "Fer"){
     column_to_rownames("Code_Sp")
   
   ACP1<-PCA(data_traits_for_PCA2,graph = FALSE)
+  factoextra::fviz_eig(ACP1, addlabels = TRUE, ylim = c(0, 30)) # percentage of variance explained
+  
   coord_var <- data.frame(ACP1$var$coord) %>% 
     rownames_to_column()
   var.explain.dim1 <- round(ACP1$eig[1,2])
@@ -99,7 +179,7 @@ if(trtmt == "Fer"){
     ggtitle("Dimension 2")
   
   
-  PCA_fer <- ggpubr::ggarrange(
+  PCA_fer <- ggarrange(
     PCA1,                # First row with line plot
     # Second row with box and dot plots
     ggarrange(plot_d1,plot_d2, ncol = 2, labels = c("B", "C")), 
@@ -119,6 +199,9 @@ if(trtmt == "Fer"){
     column_to_rownames("Code_Sp")
   
   ACP1<-PCA(data_traits_for_PCA2,graph = FALSE)
+  factoextra::fviz_eig(ACP1, addlabels = TRUE, ylim = c(0, 30)) # percentage of variance explained
+  
+  
   coord_var <- data.frame(ACP1$var$coord) %>% 
     rownames_to_column()
   var.explain.dim1 <- round(ACP1$eig[1,2])
