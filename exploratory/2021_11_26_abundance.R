@@ -39,16 +39,18 @@ annD <- ab_maud %>%
   unique()
 
 annI <- ab_maud %>% 
-  filter(LifeHistory=="annual") %>% 
-  filter(depth == "I")%>% 
+  filter(LifeHistory== "annual") %>% 
+  filter(depth == "I") %>% 
   pull(Species) %>% 
   unique()
 
 annS <- ab_maud %>% 
   filter(LifeHistory=="annual") %>% 
-  filter(depth == "S") 
+  filter(depth == "S")
   pull(Species) %>% 
   unique()
+  
+  
 
 setdiff(annS,annD)
 intersect(annS,annD)

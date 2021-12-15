@@ -18,6 +18,13 @@ name_LH <- LeafMorpho %>%
   select(Species,Code_Sp,LifeHistory) %>% 
   unique()
 
+CSR <- read.csv2("outputs/data/Pierce CSR/Traits_mean_sp_per_trtmt_completed.csv",dec=",") %>% 
+  merge(name_LH %>% select(-Code_Sp),by = "Species") %>% 
+  mutate(C=str_replace(C,",",".") %>% as.numeric())%>% 
+  mutate(S=str_replace(S,",",".") %>% as.numeric())%>% 
+  mutate(R=str_replace(R,",",".") %>% as.numeric())
+
+
 trait <- "SeedMass"
 ggplot(MEAN_treatment,aes_string(x=trait))+
   geom_density() +
@@ -35,20 +42,47 @@ ab_maud <- read.xlsx("data/abundance/maud_Relevés d'abondance La Fage Juin 2009
   select(-plot) %>% 
   full_join(soil_Maud,.,by=c("paddock","depth")) %>% 
   filter(abundance >0 ) %>% 
-  merge(name_LH, by="Species")
+  merge(name_LH, by="Species") %>% 
+  filter(!(Code_Sp == "STRIFSCAB"))
 
 Depth = "S"
 ab_maud2 <- ab_maud %>% 
   select(-paddock) %>% 
   group_by(Species,Code_Sp,depth,LifeHistory) %>% 
   summarize(abundance = sum(abundance)) %>% 
-  filter(depth == Depth) %>% 
+  # filter(depth == Depth) %>% 
   arrange(-abundance) 
 
-traits_ab_maud <- merge(ab_maud2 %>% select(-c(Code_Sp,LifeHistory)),MEAN_treatment,"Species")
+traits_ab_maud <- merge(ab_maud2 %>% select(-c(Code_Sp,LifeHistory)),MEAN_treatment,"Species") %>% 
+  filter(!Code_Sp.x == "STRIFSCAB")
 
+ab_maud2 %>% filter(LifeHistory == "annual" & depth == "S")
 
 trait <- "SLA"
+
+ggplot(traits_ab_maud%>% 
+         filter(LifeHistory == "perennial"),
+       aes_string(x=trait))+
+  geom_density(color="blue") +
+  geom_density(data = traits_ab_maud %>% 
+                 filter(LifeHistory == "annual"),
+               aes_string(x=trait),color = "red") 
+
+# score CSR at species level
+CSR_nat_Maud <- CSR %>% filter(Trtmt == "Nat") %>% 
+  select(Species,C,S,R) %>% 
+  merge(traits_ab_maud, by  = "Species")
+  
+score <- "C"
+ggplot(CSR_nat_Maud%>% 
+         filter(LifeHistory == "perennial"),
+       aes_string(x=score)) +
+  geom_density(color="blue") +
+  geom_density(data = CSR_nat_Maud%>% 
+                 filter(LifeHistory == "annual"),
+               aes_string(x=score),color = "red") 
+  
+
 ggplot(traits_ab_maud,
        aes_string(x=trait))+
   geom_density() +
@@ -62,14 +96,9 @@ ggplot(traits_ab_maud %>%
   geom_point(data = traits_ab_maud %>% filter(LifeHistory=="annual"), aes_string(x=trait,y=0),color = "red")
 
 
-ggplot(traits_ab_maud%>% 
-         filter(LifeHistory == "perennial"),
-       aes_string(x=trait))+
-  geom_density(color="blue") +
-  geom_density(data = traits_ab_maud%>% 
-                 filter(LifeHistory == "annual"),
-               aes_string(x=trait),color = "red")
- 
+# Are some annuals more decoupled than others?
+traits_ab_maud %>% 
+  filter(LifeHistory == "perennial")
 
 
 # Iris fertile ####
@@ -101,6 +130,9 @@ ggplot(traits_ab_iris %>%
                  filter(LifeHistory == "annual"),
                aes_string(x=trait),color = "red")
 
+traits_ab_iris %>% 
+  filter(LifeHistory=="annual")
+
 ggplot(MEAN %>% 
          filter(LifeHistory == "perennial"),
        aes_string(x=trait))+
@@ -108,3 +140,20 @@ ggplot(MEAN %>%
   geom_density(data = MEAN%>% 
                  filter(LifeHistory == "annual"),
                aes_string(x=trait),color = "red")
+
+
+
+# score CSR at species level
+CSR_fer_Iris <- CSR %>% filter(Trtmt == "Fer") %>% 
+  select(Species,C,S,R) %>% 
+  merge(traits_ab_iris, by  = "Species")
+
+score <- "R"
+ggplot(CSR_fer_Iris%>% 
+         filter(LifeHistory == "perennial"),
+       aes_string(x=score)) +
+  geom_density(color="blue") +
+  geom_density(data = CSR_nat_Maud%>% 
+                 filter(LifeHistory == "annual"),
+               aes_string(x=score),color = "red") 
+

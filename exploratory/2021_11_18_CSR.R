@@ -85,7 +85,16 @@ per_nat.df <- MEAN_CSR %>%
 per_nat.list <- make_list(per_nat.df)
 
 
+# Species level ####
+TernaryPlot(main = "La Fage",alab = "C \u2192", blab = "S \u2192", clab = "\u2190 R")
+AddToTernary(points, MEAN_CSR %>% 
+               filter(LifeHistory == "perennial") %>% 
+               select(C,S,R), col='blue', lty='dotted', lwd=3)
 
+# TernaryPlot(main = "La Fage",alab = "C \u2192", blab = "S \u2192", clab = "\u2190 R")
+AddToTernary(points, MEAN_CSR %>% 
+               filter(LifeHistory == "annual") %>% 
+               select(C,S,R), col='red', lty='dotted', lwd=3)
 
 # Species level per treatment ####
 par(mfrow=c(1,1))
@@ -208,6 +217,54 @@ ggplot(CSR_PC1_cover,aes(x=depth,y=C))+
 ggplot(CSR_PC1_cover,aes(x=depth,y=R))+
   geom_boxplot()
   
+
+
+# Ajouter info Adeline fertile
+Adeline_ab_tr <- read.csv2("outputs/data/pooled_abundance_and_traits.csv") %>% 
+  filter(dataset == "Adeline") %>% 
+  group_by(paddock,id_transect_quadrat) # NB choose the level at which to compute moments. group, or  plot...
+CSR_Adeline_CWM <- read.csv2("outputs/data/Pierce CSR/Traits_CWM_Adeline_completed.csv")  %>% 
+  mutate(treatment = case_when(
+    str_detect(paddock, "C") ~ "Fer",
+    str_detect(paddock, "N") ~ "Nat",
+    str_detect(paddock, "T") ~ "Tem"))
+
+adeline_ab_CSR <- Adeline_ab_tr %>% 
+  group_by(id_transect_quadrat) %>% 
+  mutate(ab_relat = abundance/sum(abundance)) %>% 
+  merge(CSR_Adeline_CWM %>% select(-c("SLA","LDMC","L_Area","paddock","treatment")),by = "id_transect_quadrat")
+
+adeline_ab_CSR_toplot <- adeline_ab_CSR %>% 
+  select(soil ,id_transect_quadrat,species,code_sp,treatment,LifeHistory,ab_relat,C,S,R) %>% 
+  group_by(soil,C,S,R,id_transect_quadrat,treatment,LifeHistory) %>% 
+  summarize(sum_ab_relat = sum(ab_relat)) %>% 
+  filter(LifeHistory == "annual" & treatment== 'Fer')
+
+ggplot( adeline_ab_CSR_toplot ,
+        aes(x= S  ,y=sum_ab_relat)) +
+  geom_point()
+
+
+  
+# Merge with Maud data
+maud_tomerge <- CSR_PC1_cover %>% 
+  select(PC1score, depth,         C ,       S  ,        R, sum_ab_ann)
+adeline_tomerge <- adeline_ab_CSR_toplot %>% 
+  mutate(depth = "F", PC1score = "NA") %>% 
+  rename(sum_ab_ann = sum_ab_relat) %>% 
+  ungroup() %>% 
+  select(PC1score, depth,         C ,       S  ,        R, sum_ab_ann)
+
+rbind(maud_tomerge,adeline_tomerge) %>% 
+  ggplot(aes(x=reorder(depth,-sum_ab_ann),y=sum_ab_ann))+
+  geom_boxplot()
+
+rbind(maud_tomerge,adeline_tomerge) %>% 
+  arrange(factor(depth, levels = c("F","D","I","S"))) %>% 
+  mutate(depth = factor(depth,levels =  c("F","D","I","S"))) %>% 
+  ggplot(aes(x=depth,y=C))+
+  geom_boxplot()
+
 
 # densité abundance annuals
 ggplot(CSR_PC1_cover,aes(x=sum_ab_ann))+
@@ -469,6 +526,27 @@ AddToTernary(points, CSR_Adeline_CWM %>%
                select(C,S,R), col='black', lty='dotted', lwd=3)
 
 
+# CWM CSR and abundance Adeline ####
+
+adeline_ab_CSR <- Adeline_ab_tr %>% 
+  group_by(id_transect_quadrat) %>% 
+  mutate(ab_relat = abundance/sum(abundance)) %>% 
+  merge(CSR_Adeline_CWM %>% select(-c("SLA","LDMC","L_Area","paddock","treatment")),by = "id_transect_quadrat")
+
+adeline_ab_CSR_toplot <- adeline_ab_CSR %>% 
+  select(soil ,id_transect_quadrat,species,code_sp,treatment,LifeHistory,ab_relat,C,S,R) %>% 
+  group_by(soil,C,S,R,id_transect_quadrat,treatment,LifeHistory) %>% 
+  summarize(sum_ab_relat = sum(ab_relat))
+
+
+adeline_ab_CSR_toplot %>% 
+  filter(LifeHistory == "annual" & treatment== 'Nat') %>% 
+  arrange(sum_ab_relat)
+
+ggplot( adeline_ab_CSR_toplot %>% 
+         filter(LifeHistory == "annual" & treatment== 'Nat') ,
+       aes(x= S  ,y=sum_ab_relat)) +
+  geom_point()
 
 #_____________________________________________________________________
 # ACP

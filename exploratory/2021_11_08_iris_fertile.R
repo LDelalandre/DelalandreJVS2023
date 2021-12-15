@@ -13,6 +13,7 @@ IN_fer <- read.csv2("data/abundance/IN_fertile.csv") %>%
   # filter(Traitement == "P+F+") %>% 
   mutate(plot = paste(parc,cage,sep=""))
 
+
 ab_iris <- read.xlsx("data/abundance/iris_Relevés bota.xlsx",sheet="Fertile") %>% # NB : je peux aussi importer ses données du natif (et du)
   mutate(cage = str_sub(Cage,1,1)) %>% 
   dplyr::rename(abundance = 'Abondance.(tot)') %>% 

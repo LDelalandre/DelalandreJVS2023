@@ -264,6 +264,16 @@ ggplot(CWM_nat,aes(x=bare+pebble,y=SLA,label = site ))+
 ggplot(CWM_nat_CSR_ab,aes(x=dung,y=AB_relat_annuals,label=site))+
   geom_label()
 
+ggplot(CWM_nat_CSR_ab,aes(x=S,y=AB_relat_annuals,label=site))+
+  geom_label()
+
+# si j'enleve là où beaucoup de crottes (il va surtout falloir corriger pour ça et faire des modèles sympa)
+low_dung <- CWM_nat_CSR_ab %>% 
+  filter(dung < 1)
+
+ggplot(low_dung,aes(x=C,y=AB_relat_annuals,label=site,color = dung))+
+  geom_point()+
+  scale_color_gradient(low="blue", high="red" )
 
 
 # NB : essayer avec les scores CSR
@@ -274,3 +284,9 @@ ggplot(CWM_nat_CSR_ab,aes(x=dung,y=AB_relat_annuals,label=site))+
 ggplot(CWM_nat_CSR_ab,aes(x=AB_relat_annuals))+
   geom_density()
 
+ggplot(CWM_nat_CSR_ab,aes(x =dung, y=AB_relat_annuals, label = site))+
+  geom_text()
+
+ggplot(CWM_nat_CSR_ab,aes(x=reorder(site,-AB_relat_annuals),y=AB_relat_annuals,fill=grazed))+
+  geom_histogram(stat="identity") +
+  theme(axis.text.x = element_text(angle = 45))  

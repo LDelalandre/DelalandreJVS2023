@@ -6,6 +6,7 @@ data
 outputs
 notebook
 mass grave
+draft
 *.csv
 *.docx
 *.xlsx
