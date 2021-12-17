@@ -2,12 +2,38 @@ source("scripts/1. Packages.R")
 source("scripts/2. Import files.R")
 # https://r-charts.com/base-r/margins/
 
-par(mar = c(0.1, 1, 0.1, 1),
-    mfrow = c(2,1))
-par(mar=c(5.1, 4.1, 4.1, 2.1), mgp=c(3, 1, 0), las=0,mfrow=c(1,1)) # default
+
+# pdf("outputs/figures/Fig_envir_cover/test.pdf",         # File name
+#     width = 8, height = 7, # Width and height in inches
+#     bg = "white",          # Background color
+#     colormodel = "cmyk")   # Color model (cmyk is required for most publications)
+# # paper = "A4") 
+
+# par(mar = c(1, 1, 0.1, 1),mfrow = c(2,1))
+
+# par(mar=c(5.1, 4.1, 4.1, 2.1), mgp=c(3, 1, 0), las=0,mfrow=c(1,1)) # default
+
+par(mar = c(5.1, 4.1, 4.1, 2.1) ,mfrow = c(2,1))
+
+
+# Vegetation consumption ####
+disturbance <- read.table("data/environment/Disturbance_DivHerbe.txt",header=T,sep="\t",dec=",") %>% 
+  filter(!(Trtmt == "Tem"))
+
+
+boxplot(disturbance$Tx_CalcPic ~ disturbance$Trtmt ,  
+        width=c(1,4), 
+        col=c("orange" , "seagreen"),
+        xlab = NA,
+        ylab = NA,
+        xaxt = "n",
+        # log = "x",
+        at = c(1,2)
+)
+
+
 
 # INN ####
-
 INraw <- read.xlsx("data/environment/IN La Fage.xlsx", sheet = "resultat", startRow = 1, colNames = TRUE) %>% 
   mutate()
 nom <- read.xlsx("data/environment/IN La Fage.xlsx", sheet = "nom", startRow = 1, colNames = TRUE)  %>% 
@@ -19,56 +45,24 @@ IN <- merge(nom,INraw,by="nature.echantillon") %>%
 
 IN2 <- IN %>% 
   group_by(soil) %>% 
-  summarise(meanINN = mean(INN,na.rm = T),meanINP = mean(INP,na.rm=T))
+  summarise(meanINN = mean(INN,na.rm = T),meanINP = mean(INP,na.rm=T)) %>% 
+  arrange(-meanINN)
 
-myLeftAxisLabs <- pretty(seq(0, max(IN2$meanINN), length.out = 10))
-myRightAxisLabs <- pretty(seq(0, max(IN2$meanINP), length.out = 10))
-myLeftAxisAt <- myLeftAxisLabs/max(IN2$meanINN)
-myRightAxisAt <- myRightAxisLabs/max(IN2$meanINP)
+to_barplot <- t(as.matrix(IN2[, c("meanINN", "meanINP")]))
 
-barplot(t(as.matrix(IN2[, c("meanINN", "meanINP")])),
-        beside = TRUE, yaxt = "n", names.arg = IN2$soil,
-        ylim=c(0, max(c(myLeftAxisLabs, myRightAxisLabs))))
-axis(2, at = myLeftAxisLabs, labels = myLeftAxisLabs)
-axis(4, at = myRightAxisLabs, labels = myRightAxisLabs)
+barplot(to_barplot,
+        beside = TRUE, names.arg = IN2$soil, # yaxt = "n",
+        ylim=c(0, max(c(IN2$meanINN,IN2$meanINP))  ),  col = 3:4 )
 
 legend("topright",
-       legend = rownames(data),
+       legend = c("INN (%)","INP (%)"),
        pch = 15,
-       col = 1:nrow(data))
+       col = 3:4)
+# axis(4, at = myRightAxisAt, labels = myRightAxisLabs)
 
 
 
-test <- data.frame(group = 1:10, var.a = rnorm(n = 10, mean = 500, sd = 20),
-                   var.b = runif(10))
-funProp <- function(testCol) {
-  test[, testCol]/max(test[, testCol])
-}
-test$var.a.prop <- funProp("var.a")
-test$var.b.prop <- funProp("var.b")
-
-myLeftAxisLabs <- pretty(seq(0, max(test$var.a), length.out = 10))
-myRightAxisLabs <- pretty(seq(0, max(test$var.b), length.out = 10))
-myLeftAxisAt <- myLeftAxisLabs/max(test$var.a)
-myRightAxisAt <- myRightAxisLabs/max(test$var.b)
-
-barplot(t(as.matrix(test[, c("var.a.prop", "var.b.prop")])),
-        beside = TRUE, yaxt = "n", names.arg = test$group,
-        ylim=c(0, max(c(myLeftAxisAt, myRightAxisAt))))
-axis(2, at = myLeftAxisAt, labels = myLeftAxisLabs)
-axis(4, at = myRightAxisAt, labels = myRightAxisLabs)
-
-# Vegetation consumption ####
-disturbance <- read.table("data/environment/Disturbance_DivHerbe.txt",header=T,sep="\t",dec=",") %>% 
-  filter(!(Trtmt == "Tem"))
-
-
-boxplot(disturbance$Tx_CalcPic ~ disturbance$Trtmt ,  width=c(10,40), col=c("orange" , "seagreen"),
-        xlab = NA,
-        ylab = NA,
-        xaxt = "n"
-)
-
+# dev.off()
 
 
 
