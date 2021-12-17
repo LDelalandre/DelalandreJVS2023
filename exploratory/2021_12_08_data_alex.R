@@ -29,6 +29,10 @@ name_LH_attribut <- name_LH %>%
 
 spab_lh <- merge(spab,name_LH_attribut,by="attribut") # life history added to Alexandre's abundance data
 
+paddocks_nat <- c("P6","P9","P8")
+paddocks_fer <- c("C1" ,"C3" ,"C2")
+paddocks_tem <-  c("T1")
+
 
 MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment.csv") %>% 
   filter(!(Species == "Geranium dissectum - limbe")) %>% 
@@ -112,9 +116,7 @@ ggplot(lhab_bare,aes(x=litter,y = AB_relat,color = LifeHistory))+
 #______________________________________________________________
 # Identity of annuals ####
 
-paddocks_nat <- c("P6","P9","P8")
-paddocks_fer <- c("C1" ,"C3" ,"C2")
-paddocks_tem <-  c("T1")
+
 
 grazed_regime <- "Grazed"
 

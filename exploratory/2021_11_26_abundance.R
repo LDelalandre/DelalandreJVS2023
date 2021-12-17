@@ -186,5 +186,4 @@ ab_alex %>%
   select(LifeHistory,location,gradient_level,Code_Sp,total_cover) %>% 
   filter(location %in% c("P6","P8","P9"))
 
-
   

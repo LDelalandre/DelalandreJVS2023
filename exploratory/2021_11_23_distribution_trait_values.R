@@ -56,8 +56,35 @@ ab_maud2 <- ab_maud %>%
 traits_ab_maud <- merge(ab_maud2 %>% select(-c(Code_Sp,LifeHistory)),MEAN_treatment,"Species") %>% 
   filter(!Code_Sp.x == "STRIFSCAB")
 
-ab_maud2 %>% filter(LifeHistory == "annual" & depth == "S")
+# distribution traits 
+traits_ab_maud %>% 
+  filter(depth == "S") %>% 
+  filter(LifeHistory=="annual") %>%
+  ggplot(aes(x=SLA)) +
+  geom_density()
 
+# Liknk to temporal variation Adeline ####
+ann_nat_sup <- ab_maud2 %>% 
+  filter(LifeHistory == "annual" ) %>%
+  filter(depth == "S") %>% 
+  pull(Species)
+
+tempo_var_adeline <- read.csv2("data/abundance/Decreasers increasers Adeline/temporal_variation_adeline.CSV") %>% 
+  rename(Species = species)
+
+tempo_nat_sup <- tempo_var_adeline %>% 
+  filter(Species %in% ann_nat_sup)
+
+tempo_traits <- left_join(tempo_nat_sup,
+                          traits_ab_maud,
+                          by = "Species")
+ggplot(tempo_traits %>% filter(depth == "S"),aes(x=change,y=abundance,label = Species))+
+  # ggrepel::geom_label_repel()
+  geom_label()
+
+
+
+# Distributions of trait values ####
 trait <- "SLA"
 
 ggplot(traits_ab_maud%>% 
@@ -67,6 +94,15 @@ ggplot(traits_ab_maud%>%
   geom_density(data = traits_ab_maud %>% 
                  filter(LifeHistory == "annual"),
                aes_string(x=trait),color = "red") 
+
+# Which traits are missing
+traits_ab_maud %>% 
+  filter(LifeHistory=="annual") %>% 
+  filter(is.na(LTmes)) %>% 
+  pull(Species)
+
+
+
 
 # score CSR at species level
 CSR_nat_Maud <- CSR %>% filter(Trtmt == "Nat") %>% 
@@ -96,7 +132,7 @@ ggplot(traits_ab_maud %>%
   geom_point(data = traits_ab_maud %>% filter(LifeHistory=="annual"), aes_string(x=trait,y=0),color = "red")
 
 
-# Are some annuals more decoupled than others?
+# Are some annuals more uncoupled than others?
 traits_ab_maud %>% 
   filter(LifeHistory == "perennial")
 

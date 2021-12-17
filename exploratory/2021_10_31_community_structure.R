@@ -194,11 +194,18 @@ CWM_Maud_indiv <- ab_Maud_traits %>%
   rename_at( vars( contains( "_CWM") ), list( ~paste("CWM", gsub("_CWM", "", .), sep = "_") ) )
 
 CWM_Maud_indiv %>% 
-  mutate(distance = abs(CWM_Mat_Per - Mat_Per)) %>% 
+  mutate(distance = abs(CWM_LDMC - LDMC)) %>% 
   ggplot(aes(x=LifeHistory,y=distance,color = LifeHistory))+
-  geom_boxplot() +
+  geom_point() +
   facet_wrap(~depth)
 
+
+CWM_Maud_indiv %>% 
+  ggplot(aes(x=CWM_LDMC,y=LDMC,color = LifeHistory))+
+  geom_point() +
+  geom_abline(slope = 1, intercept = 0)
+  
+  facet_wrap(~depth)
 
 
 # Fertile : distance of species to CWM for various traits ####
