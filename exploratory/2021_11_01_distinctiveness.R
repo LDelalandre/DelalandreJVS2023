@@ -35,7 +35,11 @@ ab_Maud <- read.xlsx("data/abundance/maud_Relevés d'abondance La Fage Juin 2009
   select(-plot) %>% 
   full_join(soil_Maud,.,by=c("paddock","depth"))
 
-
+# Distribution of trait values
+MEAN %>% 
+  filter(Trtmt == "Nat" & Species %in% ab_Maud$species) %>% 
+  ggplot(aes(x = SLA,color=LifeForm1)) +
+  geom_density()
 
 # traits
 traits <- MEAN %>% 
@@ -45,7 +49,8 @@ traits <- MEAN %>%
   unique() %>% 
   arrange(Code_Sp) %>% 
   column_to_rownames("Code_Sp") %>%
-  filter(!is.na(SLA  ))
+  filter(!is.na(SLA  )) %>% 
+  select(c(SLA,LDMC))
 
 
 # Distinctiveness ####
@@ -108,7 +113,7 @@ distinct_tot<-distinctiveness_com(com_df=tidy,
 ggplot(distinct_tot,aes(x=LifeHistory,y=Di))+
   geom_point()
 
-# Reagrder une communauté en particulier
+# Regarder une communauté en particulier
 Maud <- Maud %>% 
   filter(community == "S_P10")
 

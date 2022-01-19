@@ -2,62 +2,6 @@ source("scripts/1. Packages.R")
 source("scripts/2. Import files.R")
 
 
-#_______________________________________________________________________________
-# 1) Mean trait value per species * treatment ####
-
-mean_attribute_per_species <- function(dataset){
-  dataset2 <- dataset %>% 
-    mutate(Trtmt = str_sub(Treatment,1,3) ) %>% 
-    filter(Trtmt %in% c("Fer",'Nat','Tem','Che')) %>% 
-    mutate(LifeHistory = if_else(LifeForm1=="The","annual","perennial")) %>% 
-    mutate(Form = case_when(Family == "Poaceae" ~ "Grass",
-                            Family =="Juncaceae" ~ "Rush",
-                            Family == "Cyperaceae" ~ "Sedge",
-                            TRUE ~ "Other")) %>% 
-    # NB : /!\ I sould keep family and lifeform info, but only when these are variables are clean in the dataset.
-    # (sinon, ça découple une espèce en deux artificiellement dans le calcul de la moyenne).
-    select(-c(nameOfProject,measurementDeterminedBy,Rep))
-
-  # Variables on which we want to summarize:
-  vars <- dataset2 %>% 
-    select(!c(Site,Block,Plot,Treatment,Year,Day,Species,Code_Sp,Family,LifeForm1,LifeForm2,
-             Trtmt,LifeHistory,Form)) %>% 
-    colnames()
-
-  dataset2 %>%     
-    group_by(Species,Trtmt,Code_Sp ,    Form, LifeHistory) %>% 
-    summarise_at( .vars = vars , mean,na.rm=T)
-}
-
-
-# Compile mean of all the traits in one dataset
-MEAN_list <- list( mean_attribute_per_species(LeafMorpho),
-                   mean_attribute_per_species(LeafCN),
-                   mean_attribute_per_species(LeafP),
-                   mean_attribute_per_species(Leaf13C),
-                   mean_attribute_per_species(Biovolume),
-                   mean_attribute_per_species(Pheno),
-                   mean_attribute_per_species(Seed) )
-MEAN <- MEAN_list[[1]]
-MEAN$Species <- recode(MEAN$Species,"Cirsium acaulon" = "Cirsium acaule")
-for (i in 2:length(MEAN_list)){
-  MEAN <- full_join(MEAN,MEAN_list[[i]], by = c('Species','Trtmt','Code_Sp','LifeHistory','Form'))
-  MEAN$Species <- recode(MEAN$Species,"Cirsium acaulon" = "Cirsium acaule")
-}
-
-# Clean (uniformize) data
-MEAN$Species <- recode(MEAN$Species,"Festuca christiani-bernardii" = "Festuca christianii-bernardii")
-
-
-
-write.csv2(MEAN,"outputs/data/mean_attribute_per_treatment.csv",row.names=F)
-
-# Abundance ####
-ABUNDANCE %>% 
-  filter(dataset=="Maud")
-
-
-
 
 #_______________________________________________________________________________
 # 2) Add mean species attribute per treatment to abundance data per transect/quadrat ####
@@ -65,6 +9,14 @@ MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment.csv")
 
 MEAN_tojoin <- MEAN %>% 
   dplyr::rename(species = Species, code_sp = Code_Sp, treatment = Trtmt)
+
+# Abundance ####
+ABUNDANCE <- read.csv2("data/abundance/pooled_abundance_data.csv") %>%  # NB checker comment j'ai construit ce jeu de données.
+  # Notamment, est-ce que j'ai bien les mêmes données d'abondance que Maud dans son papier de 2012 ? (ça pourrait expliquer mes résultats différents).
+  mutate(treatment = case_when(grepl("C",paddock) ~"Fer",
+                               grepl("P",paddock) ~"Nat",
+                               grepl("N",paddock) ~"Nat",
+                               grepl("T",paddock) ~"Tem"))
 
 ABUNDANCE_tojoin <- ABUNDANCE %>% 
   filter(!(code_sp %in% c("SOLCAI","SOLTER","SOLLIT"))) %>% 
@@ -98,14 +50,14 @@ soil_Maud <- data.frame(PC1score = c(-3.08,-2.85,-2.52,-1.78,-1.60,-1.56,-0.03,0
                         depth = c("S","S","S","S","I","I","I","I","D","D","D","D" ),
                         paddock = c("P8","P10","P6","P1","P6","P8","P10","P1","P10","P1","P6","P8"))
 
-Maud <- ABUNDANCE_traits %>%
-  filter(dataset=="Maud") %>% 
-  group_by(paddock,depth) %>% 
-  arrange(depth) %>% 
-  filter(!(is.na(LifeHistory))) %>% 
-  full_join(soil_Maud,.,by=c("paddock","depth")) %>% 
-  filter(!is.na(LifeHistory))
-# /!\ problem with raw data (ex: lack of Bupleurum)
+# Maud <- ABUNDANCE_traits %>%
+#   filter(dataset=="Maud") %>% 
+#   group_by(paddock,depth) %>% 
+#   arrange(depth) %>% 
+#   filter(!(is.na(LifeHistory))) %>% 
+#   full_join(soil_Maud,.,by=c("paddock","depth")) %>% 
+#   filter(!is.na(LifeHistory))
+# # /!\ problem with raw data (ex: lack of Bupleurum)
 
 ab_Maud_traits <- read.xlsx("data/abundance/maud_Relevés d'abondance La Fage Juin 2009.xlsx", sheet = "abondances par parcelle", 
                             startRow = 1, colNames = TRUE, rowNames = F) %>% 

@@ -538,11 +538,24 @@ adeline_ab_CSR_toplot <- adeline_ab_CSR %>%
   group_by(soil,C,S,R,id_transect_quadrat,treatment,LifeHistory) %>% 
   summarize(sum_ab_relat = sum(ab_relat))
 
+write.csv2(adeline_ab_CSR_toplot,"outputs/data/Adeline_abundance_CSR.csv",row.names=F)
 
-adeline_ab_CSR_toplot %>% 
-  filter(LifeHistory == "annual" & treatment== 'Nat') %>% 
-  arrange(sum_ab_relat)
+# Abundance of annuals
+ggplot(adeline_ab_CSR_toplot %>% 
+  filter(LifeHistory == "annual" & treatment== 'Fer') %>% 
+  arrange(sum_ab_relat),
+  aes(x=treatment,y=sum_ab_relat) )+
+  geom_boxplot()
 
+# Scores
+ggplot(adeline_ab_CSR_toplot %>% 
+         select(C,S,R) %>% 
+         unique(),
+       aes(x=treatment,y=R) )+
+  geom_boxplot()
+
+
+# In the Natif treatment
 ggplot( adeline_ab_CSR_toplot %>% 
          filter(LifeHistory == "annual" & treatment== 'Nat') ,
        aes(x= S  ,y=sum_ab_relat)) +

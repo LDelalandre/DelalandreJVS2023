@@ -63,7 +63,7 @@ traits_ab_maud %>%
   ggplot(aes(x=SLA)) +
   geom_density()
 
-# Liknk to temporal variation Adeline ####
+# Link to temporal variation Adeline ####
 ann_nat_sup <- ab_maud2 %>% 
   filter(LifeHistory == "annual" ) %>%
   filter(depth == "S") %>% 
@@ -85,20 +85,29 @@ ggplot(tempo_traits %>% filter(depth == "S"),aes(x=change,y=abundance,label = Sp
 
 
 # Distributions of trait values ####
-trait <- "SLA"
+trait <- "LNC"
+col <- "LifeForm1.x"
+# col <- "LifeHistory"
 
-ggplot(traits_ab_maud%>% 
-         filter(LifeHistory == "perennial"),
-       aes_string(x=trait))+
-  geom_density(color="blue") +
-  geom_density(data = traits_ab_maud %>% 
-                 filter(LifeHistory == "annual"),
-               aes_string(x=trait),color = "red") 
+# ggplot(traits_ab_maud%>% 
+#          filter(LifeHistory == "perennial"),
+#        aes_string(x=trait))+
+#   geom_density(color="blue") +
+#   geom_density(data = traits_ab_maud %>% 
+#                  filter(LifeHistory == "annual"),
+#                aes_string(x=trait),color = "red") 
+
+ggplot(traits_ab_maud, aes_string(x=trait,color = col))+
+  geom_density()
+
+traits_ab_maud %>% 
+  filter(LifeForm1.x == "Hem" & SLA > 23)
+
 
 # Which traits are missing
 traits_ab_maud %>% 
   filter(LifeHistory=="annual") %>% 
-  filter(is.na(LTmes)) %>% 
+  filter(is.na(SeedMass)) %>% 
   pull(Species)
 
 

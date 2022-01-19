@@ -46,7 +46,7 @@ annI <- ab_maud %>%
 
 annS <- ab_maud %>% 
   filter(LifeHistory=="annual") %>% 
-  filter(depth == "S")
+  filter(depth == "S") %>% 
   pull(Species) %>% 
   unique()
   
@@ -71,8 +71,31 @@ richness_per_guild %>%
   group_by(PC1score) %>% 
   # mutate(frac = n/sum(n)) %>% 
   spread(LifeHistory,n) %>% 
-  replace(is.na(.), 0) 
+  replace(is.na(.), 0) %>% 
   # summarise(var_annual = sd(annual)/mean(annual), var_perennial = sd(perennial)/mean(perennial))
+  ggplot(aes(x=depth,y=perennial))+
+  geom_boxplot()
+
+
+richness_per_guild %>% 
+  group_by(PC1score) %>% 
+  # mutate(frac = n/sum(n)) %>% 
+  spread(LifeHistory,n) %>% 
+  replace(is.na(.), 0) %>% 
+  # summarise(var_annual = sd(annual)/mean(annual), var_perennial = sd(perennial)/mean(perennial))
+  ggplot(aes(x=depth,y=annual / (annual + perennial) * 100))+
+  geom_boxplot()
+
+
+# number of annual and perennials
+richness_per_guild %>% 
+  group_by(PC1score) %>% 
+  # mutate(frac = n/sum(n)) %>% 
+  # spread(LifeHistory,n) %>% 
+  # replace(is.na(.), 0) %>% 
+  # summarise(var_annual = sd(annual)/mean(annual), var_perennial = sd(perennial)/mean(perennial))
+  ggplot(aes(x=depth,y=n,color=LifeHistory))+
+  geom_boxplot()
 
 
 
