@@ -1,5 +1,5 @@
 source("scripts/1. Packages.R")
-source("scripts/2. Import files.R")
+
 # https://r-charts.com/base-r/margins/
 
 # I) Load data ####
@@ -35,65 +35,13 @@ error.bar <- function(x, y, upper, lower=upper, length=0.1,...){
 }
 
 
-# 3) CSR and abundance ####
+# 3) CSR ####
+CWM2_fer <- read.csv2("outputs/data/Pierce CSR/Traits_CWM_fer_completed.csv")
+CWM2_nat <- read.csv2("outputs/data/Pierce CSR/Traits_CWM_nat_completed.csv")
 
-# 3.1) Maud####
-# relative abundance of annuals (maud data: pin-point) ####
-ab_maud_traits <- read.csv2("outputs/data/ab_Maud_traits.csv")
-rel_ab_annuals <- ab_maud_traits %>% 
-  group_by(depth,paddock,PC1score) %>% 
-  select(PC1score,depth,paddock,species,abundance,LifeHistory) %>% 
-  mutate(rel_ab = abundance/sum(abundance)) %>% 
-  filter(LifeHistory == "annual") %>% 
-  summarize(sum_ab_ann = sum(rel_ab)) %>% 
-  ungroup() %>% 
-  select(-c("depth"))
-
-# Compute CWM of CSR: 1) CWM of traits ; 2) Pierce's algo for CSR
-CWM_Maud_goodunit <- read.csv2("outputs/data/CWM_Maud.CSV") %>% 
-  select(PC1score,depth,CWM_L_Area,CWM_LDMC,CWM_SLA) %>% 
-  rename(SLA=CWM_SLA,LDMC=CWM_LDMC,L_Area=CWM_L_Area) %>% 
-  relocate(L_Area,LDMC,SLA) %>% 
-  mutate(L_Area=L_Area*100) %>% # to change unit from cm² to mm²
-  mutate(LDMC=LDMC/1000*100) %>% # change from mg/g to %
-  filter(!is.na(L_Area)) %>% 
-  filter(!is.na(SLA))
-write.csv2(CWM_Maud_goodunit,"outputs/data/Pierce CSR/Traits_CWM_Maud.csv" ,row.names=F)
-CSR_Maud <- read.csv2("outputs/data/Pierce CSR/Traits_CWM_Maud_completed.csv") 
-
-CSR_PC1_cover <- left_join(CSR_Maud,rel_ab_annuals,by = "PC1score") %>% 
-  replace(is.na(.), 0)
-# Rq: cover of annuals is 14% in parc 1, which is the most windy of La Fage
-
-# en boxplot
-ggplot(CSR_PC1_cover,aes(x=depth,y=sum_ab_ann))+
-  geom_boxplot()
-
-ggplot(CSR_PC1_cover,aes(x=depth,y=S))+
-  geom_boxplot()
-ggplot(CSR_PC1_cover,aes(x=depth,y=C))+
-  geom_boxplot()
-ggplot(CSR_PC1_cover,aes(x=depth,y=R))+
-  geom_boxplot()
-
-# 3.2) Adeline ####
-adeline_ab_CSR_toplot_ann_fer <- read.csv2("outputs/data/Adeline_abundance_CSR.csv") %>% 
-  filter(LifeHistory == "annual" & treatment == "Fer") %>% 
-  rename(sum_ab_ann = sum_ab_relat)
-
-
-# 3.3) Merge the two ####
-CSR_ab_ann <- rbind(
-  adeline_ab_CSR_toplot_ann_fer %>% 
-  select(C,S,R,sum_ab_ann) %>% 
-  mutate(depth = "Fer"),
-  
-  CSR_PC1_cover %>% 
-  select(C,S,R,sum_ab_ann,depth)
-)
-CSR_ab_ann$depth <- factor(CSR_ab_ann$depth, levels = c("Fer","D","I","S"))
-
-
+# 4) Abundance ####
+ab_fer <- read.csv2("outputs/data/abundance_fertile.csv")
+ab_nat <- read.csv2("outputs/data/abundance_natif.csv")
 
 
 
@@ -102,43 +50,91 @@ CSR_ab_ann$depth <- factor(CSR_ab_ann$depth, levels = c("Fer","D","I","S"))
 # II) Figure ####
 # NB: Version pré-finale, à modifier sous inkscape
 #specify path to save PDF to
-destination = "outputs/figures/Fig_envir_cover/test3.pdf"
+destination = "outputs/figures/Fig_envir_cover/test4.pdf"
 
 #open PDF
 pdf(file=destination,width = 3, height = 7)
 
 #specify to save plots in 2x2 grid
-par(mar = c(2, 4.5, 0.1, 1),mfrow = c(4,1),mpg = c(1,1,0))
+par(mar = c(2, 4.5, 0.1, 1),mfrow = c(5,1),mpg = c(1,1,0))
+
+# 0) Number of annual species ####
+# NB : must be done at the level of plot, I guess.
+richness_per_guild_nat <- ab_nat %>% 
+  count(depth,paddock,LifeHistory) %>% 
+  merge(soil_Maud,by=c("depth","paddock"))
+
+richness_per_guild_fer <- ab_fer %>%
+  mutate(LifeHistory = if_else(LifeForm1=="The","annual","perennial")) %>% 
+  mutate(depth = "Fer") %>% 
+  count(depth,paddock,LifeHistory) %>% 
+  mutate(PC1score = NA)
+
+richness_per_guild <- rbind(richness_per_guild_nat,richness_per_guild_fer)
+richness_per_guild$depth <- factor(richness_per_guild$depth , levels = c("Fer","D","I","S"))
+
+richness_per_guild_toplot <- richness_per_guild %>% 
+  spread(LifeHistory,n) %>% 
+  replace(is.na(.), 0) %>% 
+  mutate(relative_richness_annual = annual / (annual + perennial))
+
+boxplot(relative_richness_annual *100 ~ depth,
+        data = richness_per_guild_toplot,
+        # ylim=c(0,100),
+        xlab = NA,
+        ylab = "Relative richness of annuals (%)",
+        xaxt = "n",
+        medlwd = 1)
 
 # 1) Boxplot of annual cover ####
-boxplot(CSR_ab_ann$sum_ab_ann * 100 ~ CSR_ab_ann$depth,
-        ylim=c(0,100),
+ann_fer <- ab_fer %>% 
+  mutate(LifeHistory = if_else(LifeForm1=="The","annual","perennial")) %>% 
+  group_by(LifeHistory,year,paddock,id_transect_quadrat) %>% 
+  dplyr::rename(line = id_transect_quadrat) %>% 
+  summarise(tot_relat_ab = sum(relat_ab)) %>% 
+  filter(LifeHistory =="annual") %>% 
+  mutate(depth = "Fer") %>% 
+  relocate(LifeHistory,year,depth,paddock,line,tot_relat_ab)
+
+ann_nat <- ab_nat %>% 
+  group_by(LifeHistory,depth,paddock,line) %>% 
+  summarise(tot_relat_ab = sum(relat_ab)) %>% 
+  filter(LifeHistory =="annual") %>% 
+  mutate(year = 2009) %>% 
+  relocate(LifeHistory,year,depth,paddock,line,tot_relat_ab) %>% 
+  mutate(line = as.character(line))
+
+cover_annuals <- rbind(ann_fer,ann_nat)
+cover_annuals$depth <- factor(cover_annuals$depth , levels = c("Fer","D","I","S"))
+
+
+boxplot(tot_relat_ab * 100 ~ depth,
+        data = cover_annuals, # %>% filter(!(depth == "Fer")),
+        # ylim=c(0,100),
         xlab = NA,
         ylab = "Relative abundance of annuals (%)",
         xaxt = "n",
         medlwd = 1)
+# Est-ce qu'il faut que je bosse au niveau de la ligne, ou du parc? Au niveau du parc, j'ai deux points pour le fertile,
+# sauf si je prends plusieurs années.
 
 # 2) Boxplots of CWM CSR scores ####
+CSR_toplot_nat <- CWM2_nat %>% 
+  select(depth,CWM_C,CWM_S,CWM_R) %>% 
+  gather(key = "score", value = "value", -c(depth) )
 
-# boxplot(CSR_ab_ann$R ~ CSR_ab_ann$depth,        
-#         xlab = NA,
-#         ylab = "Community-weighted R score",
-#         xaxt = "n")
-# boxplot(CSR_ab_ann$S ~ CSR_ab_ann$depth,
-#         xlab = NA,
-#         ylab = "Community-weighted S score",
-#         xaxt = "n")
-# boxplot(CSR_ab_ann$C ~ CSR_ab_ann$depth,
-#         xlab = NA,
-#         ylab = "Community-weighted C score",
-#         xaxt = "n")
+CSR_toplot_fer <- CWM2_fer %>% 
+  mutate(depth = "Fer") %>% 
+  select(depth,CWM_C,CWM_S,CWM_R) %>% 
+  gather(key = "score", value = "value", -c(depth) )
 
-CSR_ab_ann_gathered <- CSR_ab_ann %>% 
-  gather(key = "score", value = "value", -c(depth,sum_ab_ann) )
-CSR_ab_ann_gathered$score <- factor(CSR_ab_ann_gathered$score , levels = c("C","S","R"))
+CSR_toplot <- rbind(CSR_toplot_nat,CSR_toplot_fer)
+CSR_toplot$score <- factor(CSR_toplot$score , levels = c("CWM_C","CWM_S","CWM_R"))
+CSR_toplot$depth <- factor(CSR_toplot$depth , levels = c("Fer","D","I","S"))
+
 
 boxplot(
-  value ~ score * depth , data = CSR_ab_ann_gathered, xaxt = "n",
+  value ~ score * depth , data = CSR_toplot, xaxt = "n",
   xlab = "", ylab = "Score (%)",
   col = c("black", "grey","white"),
   medlwd = 1
@@ -149,27 +145,6 @@ legend(
   legend = c("C", "S", "R"), fill = c("black", "grey","white"),
   cex = 0.7
 )
-
-# 
-# SandR <- CSR_ab_ann_gathered %>% 
-#   filter(score %in% c("S","R"))
-# SandR$score <- factor(SandR$score , levels = c("S","R"))
-# 
-# boxplot(
-#   value ~ score * depth , data = SandR, 
-#   xaxt = "n",
-#   xlab = "",
-#   ylab = "Score (%)",
-#   col = c("white", "grey"),
-#   medlwd = 1
-# )
-# 
-# legend(
-#   "topleft", title = "Score",
-#   legend = c("S", "R"), fill = c("white", "grey"),
-#   cex = 0.7
-# )
-
 
 # 3) Boxplot of biomass consumption ####
 boxplot(disturbance$Tx_CalcPic ~ disturbance$Trtmt ,  
