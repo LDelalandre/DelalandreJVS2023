@@ -61,8 +61,13 @@ for (i in 2:length(MEAN_list)){
 
 # Clean (uniformize) data
 MEAN$Species <- recode(MEAN$Species,"Festuca christiani-bernardii" = "Festuca christianii-bernardii")
+MEAN2 <- MEAN %>% 
+  dplyr::rename(species = Species, code_sp = Code_Sp, treatment = Trtmt) %>% 
+  filter(!(species %in% c("Carex humilis?","Carex sp.","Geranium dissectum - petiole","Geranium dissectum - limbe"))) %>% 
+  filter(!(treatment == "Tem"))
 
-write.csv2(MEAN,"outputs/data/mean_attribute_per_treatment.csv",row.names=F)
+
+write.csv2(MEAN2,"outputs/data/mean_attribute_per_treatment.csv",row.names=F)
 
 
 

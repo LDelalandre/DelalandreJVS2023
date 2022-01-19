@@ -22,7 +22,7 @@ CWM_adeline0 <- Adeline_ab_tr %>%
   mutate_at(vars(Nb_Lf:Mat),
             .funs = list(CWM = ~ weighted.mean(.,abundance,na.rm=T) )) %>% 
   rename_at( vars( contains( "_CWM") ), list( ~paste("CWM", gsub("_CWM", "", .), sep = "_") ) ) %>% 
-  unique()%>% 
+  unique() %>% 
   filter(Hrepro<100)
 
 # CWM_adeline <- CWM_adeline0 %>% 

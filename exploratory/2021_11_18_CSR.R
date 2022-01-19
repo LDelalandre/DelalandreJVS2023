@@ -2,32 +2,7 @@ source("scripts/1. Packages.R")
 source("scripts/2. Import files.R")
 library('Ternary') # https://mran.microsoft.com/web/packages/Ternary/vignettes/Ternary.html
 
-
-name_LH <- LeafMorpho %>% 
-  mutate(LifeHistory = if_else(LifeForm1=="The","annual","perennial")) %>% 
-  select(Code_Sp,LifeHistory) %>% 
-  unique()
-  
-MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment.csv") %>% 
-  filter(!(Species == "Geranium dissectum - limbe")) %>% 
-  filter(!(Species == "Geranium dissectum - pétiole")) %>% 
-  filter(!(Species == "Carex humilis?"))
-
-# On species (per treatment) ####
-MEAN_goodunit <- MEAN %>% 
-  select(Species,Code_Sp,Trtmt,L_Area,LDMC,SLA) %>% 
-  relocate(L_Area,LDMC,SLA) %>% 
-  mutate(L_Area=L_Area*100) %>% # to change unit from cm² to mm²
-  mutate(LDMC=LDMC/1000*100) %>% # change from mg/g to %
-  filter(!is.na(L_Area)) %>% 
-  filter(!is.na(SLA))
-write.csv2(MEAN_goodunit,"outputs/data/Pierce CSR/Traits_mean_sp_per_trtmt.csv" ,row.names=F)
-
-
 MEAN_CSR <- read.csv2("outputs/data/Pierce CSR/Traits_mean_sp_per_trtmt_completed.csv",dec=",") %>% 
-  filter(!(Species == "Geranium dissectum - limbe")) %>% 
-  filter(!(Species == "Geranium dissectum - pétiole")) %>% 
-  merge(name_LH,by="Code_Sp") %>% 
   relocate(C,S,R) %>% 
   mutate(C=str_replace(C,",",".") %>% as.numeric())%>% 
   mutate(S=str_replace(S,",",".") %>% as.numeric())%>% 
