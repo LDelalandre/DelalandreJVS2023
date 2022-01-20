@@ -1,16 +1,15 @@
 source("scripts/1. Packages.R")
-source("scripts/2. Import files.R")
 library(FactoMineR)
 library(ggrepel)
 library(gridExtra)
 library(ggpubr)
 
-MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment.csv") %>% 
-  filter(!(Species == "Geranium dissectum - limbe")) %>% 
-  filter(!(Species == "Geranium dissectum - pétiole")) %>% 
-  filter(!(Species == "Carex humilis?")) %>% 
-  filter(!(Species == "Cirsium acaule")) # il faudra le réintégrer
- 
+MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment.csv")
+  # filter(!(Species == "Geranium dissectum - limbe")) %>% 
+  # filter(!(Species == "Geranium dissectum - pétiole")) %>% 
+  # filter(!(Species == "Carex humilis?")) %>% 
+  # filter(!(Species == "Cirsium acaule")) # il faudra le réintégrer
+
 # all the traits: 
 
 # traits <- c("LDMC","SLA","L_Area",
@@ -37,15 +36,15 @@ data_traits <- MEAN
 
 # Version traits moyennés apr espèce sur les deux traitements
 data_traits_for_PCA <- data_traits %>% 
-  select(!!c("Code_Sp","Trtmt",traits)) %>%  # subset of the traits that I want of analyse
-  group_by(Code_Sp,Trtmt) %>% 
+  select(!!c("code_sp","treatment",traits)) %>%  # subset of the traits that I want of analyse
+  group_by(code_sp,treatment) %>% 
   summarise(across(all_of(traits), mean, na.rm= TRUE)) 
 
 #_____________________________________________________
 # PCA ####
 annuals <- MEAN %>% 
   filter(LifeHistory=="annual") %>% 
-  pull(Code_Sp) %>% 
+  pull(code_sp) %>% 
   unique()
 
 
@@ -58,8 +57,8 @@ traits_selected_ann <- c("LDMC","SLA","L_Area",
 
 traits_ann <- MEAN %>% 
   filter(LifeHistory=="annual") %>% 
-  select(!!c("Code_Sp","Trtmt",traits_selected_ann,"Disp","Mat")) %>% 
-  group_by(Code_Sp) %>% 
+  select(!!c("code_sp","treatment",traits_selected_ann,"Disp","Mat")) %>% 
+  group_by(code_sp) %>% 
   summarise(across(all_of(c(traits_selected_ann,"Disp","Mat")), mean, na.rm= TRUE)) 
 
 ggplot(traits_ann,aes(x= Disp))+
@@ -68,11 +67,11 @@ ggplot(traits_ann,aes(x= Disp))+
 traits_ann %>% 
   filter(!(is.na(Disp))) %>%
   arrange(Disp) %>% 
-  pull(Code_Sp)
+  pull(code_sp)
 
 data_PCA_ann <- traits_ann %>% 
   select(-c(Disp,Mat)) %>% 
-  column_to_rownames("Code_Sp")
+  column_to_rownames("code_sp")
 
 ACP1<-PCA(data_PCA_ann,graph = T)
 
@@ -130,9 +129,9 @@ trtmt <- "Fer"
 # Fertile ####
 if(trtmt == "Fer"){
   data_traits_for_PCA2 <- data_traits_for_PCA %>% 
-    filter(Trtmt == trtmt) %>% 
-    select(-Trtmt) %>% 
-    column_to_rownames("Code_Sp")
+    filter(treatment == trtmt) %>% 
+    select(-treatment) %>% 
+    column_to_rownames("code_sp")
   
   ACP1<-PCA(data_traits_for_PCA2,graph = FALSE)
   factoextra::fviz_eig(ACP1, addlabels = TRUE, ylim = c(0, 30)) # percentage of variance explained
@@ -194,9 +193,9 @@ if(trtmt == "Fer"){
   trtmt <- "Nat"
   
   data_traits_for_PCA2 <- data_traits_for_PCA %>% 
-    filter(Trtmt == trtmt) %>% 
-    select(-Trtmt) %>% 
-    column_to_rownames("Code_Sp")
+    filter(treatment == trtmt) %>% 
+    select(-treatment) %>% 
+    column_to_rownames("code_sp")
   
   ACP1<-PCA(data_traits_for_PCA2,graph = FALSE)
   factoextra::fviz_eig(ACP1, addlabels = TRUE, ylim = c(0, 30)) # percentage of variance explained
@@ -277,11 +276,6 @@ ggsave("outputs/figures/PCA.png",PCA,height = 20, width =20)
 # ANOVA Position on axes ####
 # NB: choose natif or fertile by running the corresponding code
 
-
-
-
-
-
 # Axis 1
 comp.dim.1 <- lm(Dim.1~Lifelength,data=coord_ind)
 par(mfrow=c(2,2)) ; plot(comp.dim.1)
@@ -296,7 +290,7 @@ anova(comp.dim.1)
 summary(comp.dim.1)
 
 # Axis 2 not gignificant (and not normal...) in the natif
-comp.dim.2 <- lm(Dim.2~Lifelength,data=coord_ind2)
+comp.dim.2 <- lm(Dim.2~Lifelength,data=coord_ind)
 par(mfrow=c(2,2)) ; plot(comp.dim.2)
 
 shapiro.test(residuals(comp.dim.2))

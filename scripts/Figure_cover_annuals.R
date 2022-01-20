@@ -43,14 +43,16 @@ CWM2_nat <- read.csv2("outputs/data/Pierce CSR/Traits_CWM_nat_completed.csv")
 ab_fer <- read.csv2("outputs/data/abundance_fertile.csv")
 ab_nat <- read.csv2("outputs/data/abundance_natif.csv")
 
-
+soil_Maud <- data.frame(PC1score = c(-3.08,-2.85,-2.52,-1.78,-1.60,-1.56,-0.03,0.16,1.97,2.66,4.05,4.58),
+                        depth = c("S","S","S","S","I","I","I","I","D","D","D","D" ),
+                        paddock = c("P8","P10","P6","P1","P6","P8","P10","P1","P10","P1","P6","P8"))
 
 
 
 # II) Figure ####
 # NB: Version pré-finale, à modifier sous inkscape
 #specify path to save PDF to
-destination = "outputs/figures/Fig_envir_cover/test4.pdf"
+destination = "outputs/figures/Fig_envir_cover/main figure.pdf"
 
 #open PDF
 pdf(file=destination,width = 3, height = 7)
@@ -177,11 +179,22 @@ dev.off()
 
 # III) Stats ####
 
+# 0) Annual richness ####
+lm_richness <- lm(relative_richness_annual ~ depth, data = richness_per_guild_toplot )
+anova(lm_richness)
+summary(lm_richness)
+multcomp::cld(emmeans::emmeans(lm_richness, specs = "depth", type = "response",
+                               adjust = "tuckey"),
+              Letters = "abcdefghi", details = T)
+
+
+
 # 1) Annual cover ####
-CSR_ab_ann_nat <- CSR_ab_ann %>% 
+cover_annuals_nat <- cover_annuals %>% 
   filter(!(depth == "Fer"))
 
-lm_cover <- lm(sum_ab_ann ~ depth, data = CSR_ab_ann_nat )
+lm_cover <- lm(tot_relat_ab ~ depth, data = cover_annuals_nat, 
+               contrasts = list(depth = "contr.SAS"))
 plot(lm_cover)
 
 shapiro.test(residuals(lm_cover))
