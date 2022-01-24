@@ -19,7 +19,10 @@ data_traits_for_PCA <- MEAN %>%
   group_by(code_sp,treatment) %>% 
   summarise(across(all_of(traits), mean, na.rm= TRUE)) 
 
-
+annuals <- MEAN %>% 
+  filter(LifeHistory=="annual") %>% 
+  pull(code_sp) %>% 
+  unique()
 
 trtmt <- "Nat"
 # Fertile ####
@@ -160,9 +163,6 @@ if(trtmt == "Fer"){
 }
 
 
-
-
-
 # Both PCA graphs ####
 # grid.arrange(PCA1,PCA2,PCA1Di,PCA2Di, ncol=2)
 PCA <- grid.arrange(PCA1,PCA2, ncol=2)
@@ -197,3 +197,219 @@ par(mfrow= c(1,1)) ; plot(density(residuals(comp.dim.2)))
 
 anova(comp.dim.2)
 summary(comp.dim.2)
+
+
+#___________________________________________________________________
+# Annuals in both treatments ####
+traits <- c("LDMC","SLA","L_Area",
+            "LCC","Ldelta13C", "LPC","LNC",
+            # "Hveg"  ,    "Hrepro"   , "Dmax"  , #    "Dmin" ,
+            "Flo","Mat_Per",# "Disp", "Mat",
+            "SeedMass"
+)
+
+ab_fer <- read.csv2("outputs/data/abundance_fertile.csv")
+# Prenons l'abondance dans le diachro sur plusieurs années pour voir si je capte plus d'sp
+# Fertilized treatment
+ABUNDANCE <- read.csv2("data/abundance/pooled_abundance_data.csv") %>%  
+  mutate(treatment = case_when(grepl("C",paddock) ~"Fer",
+                               grepl("P",paddock) ~"Nat",
+                               grepl("N",paddock) ~"Nat",
+                               grepl("T",paddock) ~"Tem"))
+
+ab_diachro <- ABUNDANCE %>% 
+  filter(dataset == "Diachro") %>% 
+  filter(year %in% c(2000,2001,2002,2003,2004,2005)) %>%  # /!\ No measure available after 2005! Should I keep 2006, or several years?
+  filter(treatment == "Fer") %>% 
+  # add relative abundance
+  group_by(id_transect_quadrat) %>% 
+  mutate(relat_ab = abundance/sum(abundance))
+
+# abondance dans le natif
+ab_nat <- read.csv2("outputs/data/abundance_natif.csv")
+
+ann_fer <- ab_fer %>% 
+  filter(LifeForm1=="The") %>% 
+  pull(code_sp) %>% 
+  unique()
+ann_nat <- ab_nat %>% 
+  filter(LifeHistory=="annual") %>% 
+  # filter(depth == "S") %>%
+  pull(code_sp) %>% 
+  unique()
+
+# Species replacement
+common <- intersect(ann_fer,ann_nat)
+justfer <- setdiff(ann_fer,ann_nat) # species in fer not in nat_sup
+justnat <- setdiff(ann_nat,ann_fer) # sp in nat_sup not in fer
+
+# PCA
+data_traits_for_PCA <- MEAN %>% 
+  select(!!c("code_sp","treatment",traits)) %>%  # subset of the traits that I want of analyse
+  group_by(code_sp,treatment) %>% 
+  summarise(across(all_of(traits), mean, na.rm= TRUE)) %>% 
+  filter(code_sp %in% c(justfer,justnat))
+
+data_traits_for_PCA_fer <- data_traits_for_PCA %>% 
+  ungroup() %>% 
+  # filter(code_sp %in% annuals) %>%
+  filter( code_sp %in% ann_fer & treatment == "Fer" ) %>%
+  mutate(sp_tr = paste(code_sp,treatment,sep="_")) %>% 
+  select(-c(treatment,code_sp)) %>% 
+  column_to_rownames("sp_tr")
+
+data_traits_for_PCA_nat <- data_traits_for_PCA %>% 
+  ungroup() %>% 
+  # filter(code_sp %in% annuals) %>%
+  filter( code_sp %in% ann_nat & treatment == "Nat" ) %>%
+  mutate(sp_tr = paste(code_sp,treatment,sep="_")) %>% 
+  select(-c(treatment,code_sp)) %>% 
+  column_to_rownames("sp_tr")
+
+data_traits_for_PCA2 <- rbind(data_traits_for_PCA_fer,data_traits_for_PCA_nat)
+
+
+ACP1<-PCA(data_traits_for_PCA2,graph = FALSE)
+factoextra::fviz_eig(ACP1, addlabels = TRUE) # percentage of variance explained
+
+
+coord_var <- data.frame(ACP1$var$coord) %>% 
+  rownames_to_column()
+var.explain.dim1 <- round(ACP1$eig[1,2])
+var.explain.dim2 <- round(ACP1$eig[2,2])
+coord_ind <- data.frame(ACP1$ind$coord) %>% 
+  rownames_to_column("sp_tr") %>% 
+  mutate(code_sp = str_sub(sp_tr,1L,-5L)) %>% 
+  mutate(treatment = str_sub(sp_tr,-3L,-1L))
+
+treatment <- coord_ind$teatment
+# DISTINCTIVENESS measured as in ForCEEPS paper
+# forDi <- coord_ind %>% 
+#   select(-Lifelength) %>% 
+#   column_to_rownames("Code_Sp")
+# 
+# Dist <- traits_dist(forDi)  %>% 
+#   rownames_to_column() %>%
+#   rename(Code_Sp=rowname) %>% 
+#   mutate(Lifelength = Lifelength)
+
+
+PCA2 <- ggplot(coord_ind,aes(x=Dim.1,y=Dim.2,colour=treatment))+
+  geom_hline(aes(yintercept=0), size=.2,linetype="longdash") + 
+  geom_vline(aes(xintercept = 0),linetype = "longdash", size=.2)+
+  coord_equal() +
+  geom_point() +
+  geom_segment(data=coord_var, aes(x=0, y=0, xend=Dim.1*7-0.2, yend=Dim.2*7-0.2), 
+               arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
+  geom_text_repel(data=coord_var, aes(x=Dim.1*7, Dim.2*7, label=rowname), size = 4, vjust=1, color="black") +
+  ggtitle("Annuals in fer and nat sup") +
+  # theme(legend.position = "none")+
+  xlab(paste("Dim1",var.explain.dim1,"% variance explained"))+
+  ylab(paste("Dim2",var.explain.dim2,"% variance explained"))
+
+# With species names
+# ggplot (coord_ind,aes(x=Dim.1,y=Dim.2,label = Code_Sp,colour=Lifelength))+
+#   geom_text()
+
+plot_d1 <- ggplot(coord_ind,aes(x = treatment,y=Dim.1,color = treatment))+
+  geom_boxplot() +
+  ggsignif::geom_signif(comparisons = list(c("annual", "perennial")),
+                        map_signif_level = TRUE,vjust = 0.5,col="black") +
+  ggtitle("Dimension 1")
+
+
+plot_d2 <- ggplot(coord_ind,aes(x = treatment,y=Dim.2,color = treatment))+
+  geom_boxplot() +
+  ggsignif::geom_signif(comparisons = list(c("annual", "perennial")),
+                        map_signif_level = TRUE,vjust = 0.5,col="black") +
+  ggtitle("Dimension 2")
+
+
+PCA_annuals <- ggpubr::ggarrange(
+  PCA2,                # First row with line plot
+  # Second row with box and dot plots
+  ggarrange(plot_d1,plot_d2, ncol = 2, labels = c("B", "C")), 
+  nrow = 2, 
+  labels = "A"       # Label of the line plot
+) 
+
+PCA_annuals
+PCA2
+
+
+
+
+
+
+#______________________________________________________
+# CWM of annuals in both treatments ####
+CWM_annuals_fer <- read.csv2("outputs/data/CWM_annuals_fer.csv" ) %>% 
+  column_to_rownames("id_transect_quadrat") %>% 
+  select(-c(paddock))
+CWM_annuals_nat <- read.csv2("outputs/data/CWM_annuals_nat.csv" ) %>% 
+  mutate(id_transect_quadrat = paste(paddock,depth,line,sep="_")) %>% 
+  column_to_rownames("id_transect_quadrat") %>% 
+  select(-c(paddock,depth,line))
+
+CWM_annuals <- rbind(CWM_annuals_fer,CWM_annuals_nat)
+
+
+
+
+
+ACP1<-PCA(CWM_annuals,graph = FALSE)
+factoextra::fviz_eig(ACP1, addlabels = TRUE) # percentage of variance explained
+
+
+coord_var <- data.frame(ACP1$var$coord) %>% 
+  rownames_to_column()
+var.explain.dim1 <- round(ACP1$eig[1,2])
+var.explain.dim2 <- round(ACP1$eig[2,2])
+coord_ind <- data.frame(ACP1$ind$coord) %>% 
+  rownames_to_column("transect") %>% 
+  mutate(treatment = if_else(str_detect(transect,"F"),"Fer","Nat"))
+
+treatment <- coord_ind$teatment
+
+
+PCA2 <- ggplot(coord_ind,aes(x=Dim.1,y=Dim.2,colour=treatment))+
+  geom_hline(aes(yintercept=0), size=.2,linetype="longdash") + 
+  geom_vline(aes(xintercept = 0),linetype = "longdash", size=.2)+
+  coord_equal() +
+  geom_point() +
+  geom_segment(data=coord_var, aes(x=0, y=0, xend=Dim.1*7-0.2, yend=Dim.2*7-0.2), 
+               arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
+  geom_text_repel(data=coord_var, aes(x=Dim.1*7, Dim.2*7, label=rowname), size = 4, vjust=1, color="black") +
+  ggtitle("Annuals in fer and nat sup") +
+  # theme(legend.position = "none")+
+  xlab(paste("Dim1",var.explain.dim1,"% variance explained"))+
+  ylab(paste("Dim2",var.explain.dim2,"% variance explained"))
+
+# With species names
+# ggplot (coord_ind,aes(x=Dim.1,y=Dim.2,label = Code_Sp,colour=Lifelength))+
+#   geom_text()
+
+plot_d1 <- ggplot(coord_ind,aes(x = treatment,y=Dim.1,color = treatment))+
+  geom_boxplot() +
+  ggsignif::geom_signif(comparisons = list(c("annual", "perennial")),
+                        map_signif_level = TRUE,vjust = 0.5,col="black") +
+  ggtitle("Dimension 1")
+
+
+plot_d2 <- ggplot(coord_ind,aes(x = treatment,y=Dim.2,color = treatment))+
+  geom_boxplot() +
+  ggsignif::geom_signif(comparisons = list(c("annual", "perennial")),
+                        map_signif_level = TRUE,vjust = 0.5,col="black") +
+  ggtitle("Dimension 2")
+
+
+PCA_annuals <- ggpubr::ggarrange(
+  PCA2,                # First row with line plot
+  # Second row with box and dot plots
+  ggarrange(plot_d1,plot_d2, ncol = 2, labels = c("B", "C")), 
+  nrow = 2, 
+  labels = "A"       # Label of the line plot
+) 
+
+PCA_annuals
+PCA2

@@ -64,7 +64,7 @@ MEAN$Species <- recode(MEAN$Species,"Festuca christiani-bernardii" = "Festuca ch
 MEAN2 <- MEAN %>% 
   dplyr::rename(species = Species, code_sp = Code_Sp, treatment = Trtmt) %>% 
   filter(!(species %in% c("Carex humilis?","Carex sp.","Geranium dissectum - petiole","Geranium dissectum - limbe"))) %>% 
-  filter(!(treatment == "Tem"))
+  filter(!(treatment %in% c("Tem","Che")))
 
 
 write.csv2(MEAN2,"outputs/data/mean_attribute_per_treatment.csv",row.names=F)

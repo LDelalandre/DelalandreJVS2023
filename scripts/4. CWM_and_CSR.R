@@ -5,14 +5,6 @@ ab_fer <- read.csv2("outputs/data/abundance_fertile.csv")
 ab_nat <- read.csv2("outputs/data/abundance_natif.csv")
 MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment.csv")
 
-# PCA ####
-# Compute PCA on traits from all species measured in each treatment
-MEAN %>% 
-  filter(treatment == "Fer")
-
-MEAN %>% 
-  filter(treatment == "Nat")
-
 # Compute CSR scores ####
 # Species level
 MEAN_goodunit <- MEAN %>% 
@@ -58,10 +50,25 @@ write.csv2(CWM_fer,"outputs/data/Pierce CSR/Traits_CWM_fer.csv" ,row.names=F)
 # and S_CWM = S computed on CWM of L_Area, SLA, and LDMC scores.
 CWM2_fer <- read.csv2("outputs/data/Pierce CSR/Traits_CWM_fer_completed.csv")
 
+# CWM computed on the guild of annual species
+CWM_annuals_fer <- ab_traits_fer %>% 
+  filter(LifeHistory == "annual") %>% 
+  group_by(id_transect_quadrat) %>% 
+  mutate(relat_ab = abundance/sum(abundance)) %>% 
+  mutate_at(vars(L_Area:R),
+            .funs = list(CWM = ~ weighted.mean(.,relat_ab,na.rm=T) )) %>% 
+  rename_at( vars( contains( "_CWM") ), list( ~paste("CWM", gsub("_CWM", "", .), sep = "_") ) ) %>% 
+  unique() %>% 
+  select(paddock, id_transect_quadrat,starts_with("CWM")) %>% 
+  unique() %>% 
+  rename_at( vars( contains( "CWM_") ), list( ~ gsub("CWM_", "", .) ) )
+
+write.csv2(CWM_annuals_fer,"outputs/data/CWM_annuals_fer.csv" ,row.names=F)
+
 # ii) Nat ####
 ab_traits_nat <- ab_nat %>% 
   left_join(MEAN_CSR %>% filter(treatment == "Nat"),
-            by = c("species","code_sp")) 
+            by = c("species","code_sp","LifeHistory")) 
 # /!\ pb: Anthyllis vulneraria has two LifeForm1 : it adds lines as new species. To be corrected.
 
 # I keep it with species level I case I want to compute distance to CWM for some species
@@ -82,5 +89,18 @@ write.csv2(CWM_nat,"outputs/data/Pierce CSR/Traits_CWM_nat.csv" ,row.names=F)
 # and S_CWM = S computed on CWM of L_Area, SLA, and LDMC scores.
 CWM2_nat <- read.csv2("outputs/data/Pierce CSR/Traits_CWM_nat_completed.csv")
 
+# CWM computed on the guild of annual species
+CWM_annuals_nat <- ab_traits_nat %>% 
+  filter(LifeHistory == "annual") %>% 
+  group_by(paddock,line,depth) %>% 
+  mutate(relat_ab = abundance/sum(abundance)) %>% 
+  mutate_at(vars(L_Area:R),
+            .funs = list(CWM = ~ weighted.mean(.,relat_ab,na.rm=T) )) %>% 
+  rename_at( vars( contains( "_CWM") ), list( ~paste("CWM", gsub("_CWM", "", .), sep = "_") ) ) %>% 
+  unique() %>% 
+  select(depth,paddock,line, starts_with("CWM")) %>% 
+  unique() %>% 
+  rename_at( vars( contains( "CWM_") ), list( ~ gsub("CWM_", "", .) ) )
 
+write.csv2(CWM_annuals_nat,"outputs/data/CWM_annuals_nat.csv" ,row.names=F)
 
