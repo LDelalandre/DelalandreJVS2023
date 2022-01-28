@@ -1,5 +1,5 @@
 source("scripts/1. Packages.R")
-source("scripts/2. Import files.R")
+# source("scripts/2. Import files.R")
 
 library("FD")
 
@@ -11,18 +11,23 @@ spab <- read.csv(file = "data/abundance/Alexandre/data-export/spab.csv") %>%
   mutate(tot_ab = sum(abundance)) %>% 
   mutate(rel_ab = abundance/sum(abundance))
 
-name_LH <- LeafMorpho %>% 
-  mutate(LifeHistory = if_else(LifeForm1=="The","annual","perennial")) %>% 
-  select(Species,Code_Sp,LifeHistory) %>% 
+MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment.csv") %>% 
+  filter(!(species == "Geranium dissectum - limbe")) %>% 
+  filter(!(species == "Geranium dissectum - pétiole")) %>% 
+  filter(!(species == "Carex humilis?")) %>% 
+  filter(!(species == "Cirsium acaule")) # il faudra le réintégrer
+
+name_LH <- MEAN %>% 
+  select(species,code_sp,LifeHistory) %>% 
   unique()
 
 name_LH_attribut <- name_LH %>% 
-  mutate(genera_short = str_sub(Species, start = 1L, end = 3L) %>% toupper()) %>%
-  mutate(first_space=  str_locate(Species," ")[,1]) %>% 
-  mutate(sp_short =  str_sub(Species, start = .$first_space +1 , end =  .$first_space +2) %>% toupper()) %>% 
+  mutate(genera_short = str_sub(species, start = 1L, end = 3L) %>% toupper()) %>%
+  mutate(first_space=  str_locate(species," ")[,1]) %>% 
+  mutate(sp_short =  str_sub(species, start = .$first_space +1 , end =  .$first_space +2) %>% toupper()) %>% 
   mutate(attribut = paste0(genera_short,sp_short)) %>% 
   select(-c(genera_short,sp_short,first_space)) %>% 
-  filter(!(Species %in% c("Myosostis ramosissima subsp. ramosissima","Vicia sativa subsp. sativa",
+  filter(!(species %in% c("Myosostis ramosissima subsp. ramosissima","Vicia sativa subsp. sativa",
                           "Crepis sancta subsp. sancta","Carex humilis?",
                           "Geranium dissectum - limbe","Geranium dissectum - pétiole"))) # pour éviter les doublons
 
@@ -34,11 +39,7 @@ paddocks_fer <- c("C1" ,"C3" ,"C2")
 paddocks_tem <-  c("T1")
 
 
-MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment.csv") %>% 
-  filter(!(Species == "Geranium dissectum - limbe")) %>% 
-  filter(!(Species == "Geranium dissectum - pétiole")) %>% 
-  filter(!(Species == "Carex humilis?")) %>% 
-  filter(!(Species == "Cirsium acaule")) # il faudra le réintégrer
+
 
 # Environment gps
 gpsdat <- read.csv("data/abundance/Alexandre/data/gpsdat.csv") %>% 
@@ -49,7 +50,7 @@ gpsdat <- read.csv("data/abundance/Alexandre/data/gpsdat.csv") %>%
 trans <- read.csv("data/abundance/Alexandre/data/trans.csv") 
 envir <- read.csv("data/abundance/Alexandre/data/envir.csv") 
 
-meteo <- read.csv2("data/Meteo_LaFage_1973-2006.csv")
+meteo <- read.csv2("data/environment/Meteo_LaFage_1973-2006.csv")
 mm_year <- meteo %>% group_by(AN) %>% 
   summarize(sumRR = sum(RR,na.rm=T))
 hist(mm_year$sumRR)
@@ -63,48 +64,68 @@ lhab_bare_splevel <- merge(spab_lh,bare,by="site")
 # Cover of annuals depending on environmental bare ground
 lhab <- spab_lh %>% 
   group_by(site) %>% 
+  mutate(rich_tot = n()) %>% 
   mutate(ab_tot = sum(abundance), ab_relat = abundance/ab_tot) %>% 
-  group_by(site,LifeHistory) %>%
+  group_by(site,gradient_level,LifeHistory) %>%
   filter(location %in% c("P6","P9","P8")) %>% 
-  summarize(AB = sum(abundance),AB_relat = sum(ab_relat)) 
+  summarize(AB = sum(abundance),AB_relat = sum(ab_relat),
+            RI_relat = n()/rich_tot) %>% 
+  unique() %>% 
+  arrange(factor(gradient_level, levels = c("B","I","H"))) %>% 
+  mutate(gradient_level = factor(gradient_level, levels = c("B","I","H")))
 
-lhab_bare <- merge(lhab,bare,by="site") %>% 
-  filter(LifeHistory == "annual") 
-  filter(grazed == "Grazed")
+
+lhab_bare <- merge(lhab,bare,by=c("site","gradient_level")) %>% 
+  filter(LifeHistory == "annual")
+  # filter(grazed == "Ungrazed")
+
+ggplot(lhab_bare,aes(x=AB_relat,y=RI_relat,label=gradient_level))+
+  geom_point() +
+  geom_text()+
+  facet_wrap(~grazed)
+  
+ggplot(lhab_bare,aes(x=dung,y=RI_relat))+
+  geom_point() +
+  facet_wrap(~grazed) 
+  # geom_smooth(method="lm")
+  
+
 # filter(! (site %in% c("P9IGT2", "P8BGT1") )) # Influent sites
 
+# Choose either RI_relat or AB_relat
+  
 # transect info
-ggplot(lhab_bare,aes(x=transect_bg,y = AB_relat,color = LifeHistory))+
+ggplot(lhab_bare,aes(x=transect_bg,y = RI_relat,color = LifeHistory))+
   geom_point() +
   facet_wrap(~grazed) +
-  geom_smooth(method = "lm") +
+  # geom_smooth(method = "lm") +
   labs(x="fraction of bare ground in the transect", y="relative abundance (fraction of the cover)") +
   ggtitle("Bare ground in the transect")
 
 ggplot(lhab_bare,aes(x=transect_bg,y = AB,color = LifeHistory))+
   geom_point() +
   facet_wrap(~grazed) +
-  geom_smooth(method = "lm") +
+  # geom_smooth(method = "lm") +
   labs(x="fraction of bare ground in the transect", y="absolute abundance (cm)") +
   ggtitle("Bare ground in the transect")
 
 # environmental info
-ggplot(lhab_bare,aes(x=envir_bg,y = AB_relat,color = LifeHistory))+
+ggplot(lhab_bare,aes(x=envir_bg,y = RI_relat,color = LifeHistory))+
   geom_point() +
   facet_wrap(~grazed) +
-  geom_smooth(method = "lm")  +
+  # geom_smooth(method = "lm")  +
   labs(x="fraction of environmental bare ground", y="relative abundance (fraction of the cover)") +
   ggtitle("Environmental bare ground")
 
 # dung
-ggplot(lhab_bare,aes(x=dung,y = AB_relat,color = LifeHistory))+
+ggplot(lhab_bare,aes(x=dung,y = RI_relat,color = LifeHistory))+
   geom_point() +
   facet_wrap(~grazed) +
-  geom_smooth(method = "lm") +
+  # geom_smooth(method = "lm") +
   labs(x="fraction of dung cover around the transect", y="relative abundance (fraction of the cover)") +
   ggtitle("Dung")
 
-ggplot(lhab_bare,aes(x=litter,y = AB_relat,color = LifeHistory))+
+ggplot(lhab_bare,aes(x=litter,y = RI_relat,color = LifeHistory))+
   geom_point() +
   facet_wrap(~grazed) +
   geom_smooth(method = "lm")
@@ -129,14 +150,14 @@ spab_fer <- spab_lh %>%
   filter(location %in% paddocks_fer) %>% 
   filter(grazed == grazed_regime) %>% 
   filter(LifeHistory == "annual") %>%
-  select(Species) %>% 
+  select(species) %>% 
   unique()
 
 spab_nat <- spab_lh %>% 
   filter(location %in% paddocks_nat) %>% 
   filter(grazed == grazed_regime) %>% 
   filter(LifeHistory == "annual") %>%
-  select(Species) %>% 
+  select(species) %>% 
   unique()
 
 intersect(spab_fer,spab_nat)
@@ -159,7 +180,7 @@ spab_lh %>%
 d1 <- spab_lh %>% 
   filter(grazed == "Grazed") %>%
   filter(location %in% c("P6","P9","P8")) %>% 
-  group_by(location,gradient_level,LifeHistory) %>% 
+  group_by(location,gradient_level,site,LifeHistory) %>% 
   summarize(n=n()) %>% 
   spread(LifeHistory,n)
 

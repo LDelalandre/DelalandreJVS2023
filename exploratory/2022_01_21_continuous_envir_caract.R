@@ -1,8 +1,11 @@
 source("scripts/1. Packages.R")
 
+
+
+# Biomass and INN ####
 biomass <- read.xlsx("data/environment/Biomasses et indices La Fage.xlsx", 
           sheet = "2009", 
-          startRow = 1, colNames = TRUE, rowNames = F)%>% 
+          startRow = 1, colNames = TRUE, rowNames = F) %>% 
   mutate(Dates = as.Date(Dates- 25569, origin = "1970-01-01"))
 
 biomass_may <- biomass %>% 
@@ -15,3 +18,14 @@ ggplot(biomass_may,aes_string(x="Position",y="rdt.T.ha"))+
 
 ggplot(biomass_may,aes_string(x="Position",y="INN"))+
   geom_boxplot()
+
+# Environmental variables ####
+soil_fer <- read.xlsx("data/environment/SOL_ANALYSE_Adeline_Propre.xlsx", 
+                     sheet = "SOL_ANALYSE", 
+                     startRow = 1, colNames = TRUE, rowNames = F)
+
+
+
+
+
+

@@ -19,15 +19,15 @@ make_list <- function(xy.df){
 
 
 to_boxplot <- MEAN_CSR %>% 
-  select(-c(LDMC,SLA,L_Area,Red,Green,Blue,Species)) %>% 
-  gather(Dimension, Score,-c(Code_Sp,LifeHistory,Trtmt)) %>% 
-  filter(Trtmt %in% c("Fer","Nat"))
+  # select(-c(LDMC,SLA,L_Area,Red,Green,Blue,Species)) %>% 
+  gather(Dimension, Score,-c(code_sp,LifeHistory,treatment)) %>% 
+  filter(treatment %in% c("Fer","Nat"))
 to_boxplot$Score = as.numeric(to_boxplot$Score)
 to_boxplot$Dimension <- as.factor(to_boxplot$Dimension)
 
 ggplot(to_boxplot,aes(x=as.factor(Dimension),y=Score,color=LifeHistory))+
   geom_boxplot() +
-  facet_wrap(~Trtmt) 
+  facet_wrap(~treatment) 
   # ggsignif::geom_signif(comparisons = list(c("annual", "perennial")),
                         # map_signif_level = TRUE,vjust = 0.5,col="black")
 
@@ -36,8 +36,8 @@ ggplot(to_boxplot,aes(x=as.factor(Dimension),y=Score,color=LifeHistory))+
 
 # Ternary diagrams
 an_fer.df <- MEAN_CSR %>% 
-  filter(Trtmt == "Fer" & LifeHistory == "annual") %>% 
-  column_to_rownames("Code_Sp") %>%
+  filter(treatment == "Fer" & LifeHistory == "annual") %>% 
+  column_to_rownames("code_sp") %>%
   select(C,S,R)
 an_fer.list <- make_list(an_fer.df)
 

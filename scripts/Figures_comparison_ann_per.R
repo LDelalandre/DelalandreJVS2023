@@ -22,10 +22,28 @@ ab_traits_fer_CSR <- ab_fer %>%
   filter(!is.na(C))
 
 ab_traits_nat_CSR <- ab_nat %>% 
+  mutate(id_com=paste(depth,paddock,line,sep="_")) %>% 
   left_join(MEAN_CSR %>% filter(treatment == "Nat"),
             by = c("species","code_sp","LifeHistory")) %>% 
-  select(depth,code_sp,LifeHistory,C,S,R)%>% 
+  select(depth,id_com,code_sp,LifeHistory,C,S,R)%>% 
   filter(!is.na(C))
+
+ab_traits_nat_CSR %>% 
+  filter(depth=="S") %>% 
+  # unique() %>% 
+  # filter(LifeHistory == "perennial") %>%
+  ggplot(aes(x=S))+
+  geom_density() +
+  xlim(c(0,100))
+
+ab_traits_nat_CSR %>% 
+  filter(depth=="S") %>% 
+  filter(id_com == "S_P8_2") %>% 
+  unique() %>%
+  # filter(LifeHistory == "perennial") %>%
+  ggplot(aes(x=S))+
+  geom_density() +
+  xlim(c(0,100))
 
 # Option 2 : prendre les traits des espèces mesurés dans l'un ou l'autre traitement
 MEAN_CSR %>% 

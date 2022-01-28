@@ -24,7 +24,21 @@ annuals <- MEAN %>%
   pull(code_sp) %>% 
   unique()
 
-trtmt <- "Nat"
+# Biplots ####
+draw_curve <- function(x,a=113000,b=-1.58){
+  a*x^b
+}
+
+
+ggplot(MEAN,aes(x=LDMC,y=SLA,color = LifeHistory))+
+  geom_point() +
+  # facet_wrap(~treatment) +
+  xlim(c(0,800)) +
+  ylim(c(0,70)) 
+  geom_function(fun = draw_curve,color="black")
+
+#________________________________________________________________________
+trtmt <- "Fer"
 # Fertile ####
 if(trtmt == "Fer"){
   data_traits_for_PCA2 <- data_traits_for_PCA %>% 
@@ -50,14 +64,15 @@ if(trtmt == "Fer"){
     geom_hline(aes(yintercept=0), size=.2,linetype="longdash") + 
     geom_vline(aes(xintercept = 0),linetype = "longdash", size=.2)+
     coord_equal() +
-    geom_point() +
+    geom_point(size=4) +
     geom_segment(data=coord_var, aes(x=0, y=0, xend=Dim.1*7-0.2, yend=Dim.2*7-0.2), 
                  arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
-    geom_text_repel(data=coord_var, aes(x=Dim.1*7, Dim.2*7, label=rowname), size = 4, vjust=1, color="black") +
+    geom_text_repel(data=coord_var, aes(x=Dim.1*7, Dim.2*7, label=rowname), size = 6, vjust=1, color="black") +
     ggtitle(trtmt) +
     theme(legend.position = "none") +
     xlab(paste("Dim1",var.explain.dim1,"% variance explained"))+
-    ylab(paste("Dim2",var.explain.dim2,"% variance explained"))
+    ylab(paste("Dim2",var.explain.dim2,"% variance explained")) + 
+    theme(text=element_text(size=20))
   
   # With species names
   # ggplot (coord_ind,aes(x=Dim.1,y=Dim.2,label = Code_Sp,colour=Lifelength))+
@@ -124,14 +139,15 @@ if(trtmt == "Fer"){
     geom_hline(aes(yintercept=0), size=.2,linetype="longdash") + 
     geom_vline(aes(xintercept = 0),linetype = "longdash", size=.2)+
     coord_equal() +
-    geom_point() +
+    geom_point( size = 4) +
     geom_segment(data=coord_var, aes(x=0, y=0, xend=Dim.1*7-0.2, yend=Dim.2*7-0.2), 
                  arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
-    geom_text_repel(data=coord_var, aes(x=Dim.1*7, Dim.2*7, label=rowname), size = 4, vjust=1, color="black") +
+    geom_text_repel(data=coord_var, aes(x=Dim.1*7, Dim.2*7, label=rowname), size = 6, vjust=1, color="black") +
     ggtitle(trtmt) +
     theme(legend.position = "none")+
     xlab(paste("Dim1",var.explain.dim1,"% variance explained"))+
-    ylab(paste("Dim2",var.explain.dim2,"% variance explained"))
+    ylab(paste("Dim2",var.explain.dim2,"% variance explained")) + 
+    theme(text=element_text(size=20))
   
   # With species names
   # ggplot (coord_ind,aes(x=Dim.1,y=Dim.2,label = Code_Sp,colour=Lifelength))+
@@ -202,9 +218,9 @@ summary(comp.dim.2)
 #___________________________________________________________________
 # Annuals in both treatments ####
 traits <- c("LDMC","SLA","L_Area",
-            "LCC","Ldelta13C", "LPC","LNC",
-            # "Hveg"  ,    "Hrepro"   , "Dmax"  , #    "Dmin" ,
-            "Flo","Mat_Per",# "Disp", "Mat",
+            "LCC","LNC","Ldelta13C","LPC",
+            "Hveg"  ,    "Hrepro"   , "Dmax"  , #    "Dmin" ,
+            "Flo","Disp","Mat_Per", #"Mat",
             "SeedMass"
 )
 
@@ -249,6 +265,19 @@ data_traits_for_PCA <- MEAN %>%
   group_by(code_sp,treatment) %>% 
   summarise(across(all_of(traits), mean, na.rm= TRUE)) %>% 
   filter(code_sp %in% c(justfer,justnat))
+  
+# Plot SLA LDMC
+ggplot(data_traits_for_PCA,aes(x=LDMC,y=SLA,color = treatment))+
+  geom_point() +
+  # facet_wrap(~treatment) +
+  xlim(c(0,800)) +
+  ylim(c(0,70)) +
+  scale_colour_manual(values=c("#009E73","#E69F00"))+
+  geom_function(fun = draw_curve,color="black")
+
+ggplot(data_traits_for_PCA,aes(x=LNC,y=SLA,color = treatment))+
+  geom_point() +
+  scale_colour_manual(values=c("#009E73","#E69F00"))
 
 data_traits_for_PCA_fer <- data_traits_for_PCA %>% 
   ungroup() %>% 
@@ -305,7 +334,8 @@ PCA2 <- ggplot(coord_ind,aes(x=Dim.1,y=Dim.2,colour=treatment))+
   ggtitle("Annuals in fer and nat sup") +
   # theme(legend.position = "none")+
   xlab(paste("Dim1",var.explain.dim1,"% variance explained"))+
-  ylab(paste("Dim2",var.explain.dim2,"% variance explained"))
+  ylab(paste("Dim2",var.explain.dim2,"% variance explained")) +
+  scale_colour_manual(values=c("#009E73","#E69F00"))
 
 # With species names
 # ggplot (coord_ind,aes(x=Dim.1,y=Dim.2,label = Code_Sp,colour=Lifelength))+
@@ -351,7 +381,8 @@ CWM_annuals_nat <- read.csv2("outputs/data/CWM_annuals_nat.csv" ) %>%
   column_to_rownames("id_transect_quadrat") %>% 
   select(-c(paddock,depth,line))
 
-CWM_annuals <- rbind(CWM_annuals_fer,CWM_annuals_nat)
+CWM_annuals <- rbind(CWM_annuals_fer,CWM_annuals_nat) %>% 
+  select(all_of(traits))
 
 
 
@@ -383,7 +414,8 @@ PCA2 <- ggplot(coord_ind,aes(x=Dim.1,y=Dim.2,colour=treatment))+
   ggtitle("Annuals in fer and nat sup") +
   # theme(legend.position = "none")+
   xlab(paste("Dim1",var.explain.dim1,"% variance explained"))+
-  ylab(paste("Dim2",var.explain.dim2,"% variance explained"))
+  ylab(paste("Dim2",var.explain.dim2,"% variance explained")) + 
+  scale_colour_manual(values=c("#009E73","#E69F00"))
 
 # With species names
 # ggplot (coord_ind,aes(x=Dim.1,y=Dim.2,label = Code_Sp,colour=Lifelength))+

@@ -58,7 +58,7 @@ destination = "outputs/figures/Fig_envir_cover/main figure.pdf"
 pdf(file=destination,width = 3, height = 7)
 
 #specify to save plots in 2x2 grid
-par(mar = c(2, 4.5, 0.1, 1),mfrow = c(5,1),mpg = c(1,1,0))
+par(mar = c(2, 5.5, 0.1, 1),mfrow = c(6,1),mpg = c(1,1,0))
 
 # 0) Number of annual species ####
 # NB : must be done at the level of plot, I guess.
@@ -84,11 +84,11 @@ boxplot(relative_richness_annual *100 ~ depth,
         data = richness_per_guild_toplot,
         # ylim=c(0,100),
         xlab = NA,
-        ylab = "Relative richness of annuals (%)",
+        ylab = "Relative richness \n of annuals (%)",
         xaxt = "n",
         medlwd = 1)
 
-# 1) Boxplot of annual cover ####
+# 1) Annual cover ####
 ann_fer <- ab_fer %>% 
   mutate(LifeHistory = if_else(LifeForm1=="The","annual","perennial")) %>% 
   group_by(LifeHistory,year,paddock,id_transect_quadrat) %>% 
@@ -112,23 +112,25 @@ cover_annuals$depth <- factor(cover_annuals$depth , levels = c("Fer","D","I","S"
 
 boxplot(tot_relat_ab * 100 ~ depth,
         data = cover_annuals, # %>% filter(!(depth == "Fer")),
-        # ylim=c(0,100),
+        ylim=c(0,10),
         xlab = NA,
-        ylab = "Relative abundance of annuals (%)",
+        ylab = "Relative abundance \n of annuals (%)",
         xaxt = "n",
         medlwd = 1)
 # Est-ce qu'il faut que je bosse au niveau de la ligne, ou du parc? Au niveau du parc, j'ai deux points pour le fertile,
 # sauf si je prends plusieurs années.
 
-# 2) Boxplots of CWM CSR scores ####
+# 2) CWM CSR scores ####
 CSR_toplot_nat <- CWM2_nat %>% 
-  select(depth,CWM_C,CWM_S,CWM_R) %>% 
-  gather(key = "score", value = "value", -c(depth) )
+  mutate(id_com = paste(depth,paddock,line,sep = "_")) %>% 
+  select(id_com,depth,CWM_C,CWM_S,CWM_R) %>% 
+  gather(key = "score", value = "value", -c(depth,id_com) ) 
 
 CSR_toplot_fer <- CWM2_fer %>% 
   mutate(depth = "Fer") %>% 
-  select(depth,CWM_C,CWM_S,CWM_R) %>% 
-  gather(key = "score", value = "value", -c(depth) )
+  select(depth,id_transect_quadrat,CWM_C,CWM_S,CWM_R) %>% 
+  gather(key = "score", value = "value", -c(depth,id_transect_quadrat) ) %>% 
+  rename(id_com = id_transect_quadrat)
 
 CSR_toplot <- rbind(CSR_toplot_nat,CSR_toplot_fer)
 CSR_toplot$score <- factor(CSR_toplot$score , levels = c("CWM_C","CWM_S","CWM_R"))
@@ -136,31 +138,126 @@ CSR_toplot$depth <- factor(CSR_toplot$depth , levels = c("Fer","D","I","S"))
 
 
 boxplot(
-  value ~ score * depth , data = CSR_toplot, xaxt = "n",
-  xlab = "", ylab = "Score (%)",
+  value ~ score * depth , data = CSR_toplot, 
+  xaxt = "n",
+  xlab = "", 
+  ylab = "Score (%)",
   col = c("black", "grey","white"),
   medlwd = 1
 )
-
 legend(
   "topleft", title = "Score",
   legend = c("C", "S", "R"), fill = c("black", "grey","white"),
   cex = 0.7
 )
 
-# 3) Boxplot of biomass consumption ####
+# only C score
+# boxplot(
+#   value ~ score * depth , data = CSR_toplot %>% filter(score == "CWM_C"), xaxt = "n",
+#   xlab = "", ylab = "Score (%)",
+#   col = "black",
+#   medlwd = 1
+# )
+# legend(
+#   "topleft", title = "Score",
+#   legend = c("C"), fill = c("black"),
+#   cex = 0.7
+# )
+
+
+# Triangle
+# CSR_toplot2 <- CSR_toplot %>% 
+#   spread(key = score,value = value)
+# 
+# TernaryPlot(main = "La Fage",alab = "C \u2192", blab = "S \u2192", clab = "\u2190 R")
+# AddToTernary(points, CSR_toplot2 %>% 
+#                filter(depth == "Fer") %>% 
+#                select(CWM_C,CWM_S,CWM_R), col='green', lty='dotted', lwd=3, pch = 0)
+# AddToTernary(points, CSR_toplot2 %>% 
+#                filter(depth == "D") %>% 
+#                select(CWM_C,CWM_S,CWM_R), col='black', lty='dotted', lwd=3, pch = 1)
+# AddToTernary(points, CSR_toplot2 %>% 
+#                filter(depth == "I") %>% 
+#                select(CWM_C,CWM_S,CWM_R), col='black', lty='dotted', lwd=3, pch = 4)
+# AddToTernary(points, CSR_toplot2 %>% 
+#                filter(depth == "S") %>% 
+#                select(CWM_C,CWM_S,CWM_R), col='black', lty='dotted', lwd=3, pch = 3)
+# legend("topright", 
+#        cex = 1,
+#        bty = "n",
+#        legend = c('Deep', 'Intermediary', 'Superficial'), 
+#        pch = c(1,4,3))
+
+
+# Link score C in fertile and abundance of annuals
+C_ab_ann_fer <- merge(CSR_toplot_fer %>% rename(line = id_com),ann_fer,by=c("depth","line"))
+ggplot(C_ab_ann_fer %>% filter(score=="CWM_C"),aes(x=value,y=tot_relat_ab))+
+  geom_point()
+# Il faudrait faire un vrai modèle stat, avec plusieurs variables explicatives...
+
+C_rich_ann_fer <- merge(CSR_toplot_fer %>% rename(line = id_com),ann_fer,by=c("depth","line"))
+ggplot(C_ab_ann_fer %>% filter(score=="CWM_C"),aes(x=value,y=tot_relat_ab))+
+  geom_point()
+
+# 3) Vegetation cover ####
+tot_ab_fer <- ab_fer %>% 
+  group_by(year,paddock,id_transect_quadrat) %>% 
+  dplyr::rename(line = id_transect_quadrat) %>% 
+  summarise(tot_ab = sum(abundance)) %>% 
+  mutate(depth = "Fer") %>% 
+  relocate(year,depth,paddock,line,tot_ab)
+
+tot_ab_nat <- ab_nat %>% 
+  group_by(depth,paddock,line) %>% 
+  summarise(tot_ab = sum(abundance)) %>% 
+  mutate(year = 2009) %>% 
+  relocate(year,depth,paddock,line,tot_ab) %>% 
+  mutate(line = as.character(line))
+
+cover <- rbind(tot_ab_fer,tot_ab_nat)
+cover$depth <- factor(cover$depth , levels = c("Fer","D","I","S"))
+
+boxplot(tot_ab ~depth, data = cover ,
+        xlab = NA,
+        ylab = "Number of point \n intersept",
+        medlwd = 1,
+        xaxt = "n")
+
+# 4) Biomass consumption ####
 boxplot(disturbance$Tx_CalcPic ~ disturbance$Trtmt ,  
-        width=c(1,4), 
+        width=c(1,4),
         # col=c("orange" , "seagreen"),
         xlab = NA,
-        ylab = "Proportion of biomass eaten",
+        ylab = "Proportion of \n biomass eaten",
         xaxt = "n",
         # log = "x",
         at = c(1,2),
         medlwd = 1
 )
 
-# 4) Bar plot of INN and INP ####
+# 5) Biomass production ####
+biomass <- read.xlsx("data/environment/Biomasses et indices La Fage.xlsx", 
+sheet = "2009", 
+startRow = 1, colNames = TRUE, rowNames = F) %>% 
+  mutate(Dates = as.Date(Dates- 25569, origin = "1970-01-01"))
+
+biomass_may <- biomass %>% 
+  filter(Parcs %in% c("C1","C2","1","6","8","10")) %>% 
+  filter(Dates == "2009-05-01") %>% 
+  mutate(rdt.T.ha = as.numeric(rdt.T.ha)) %>% 
+  mutate(Position = str_sub(Position,1,1)) %>% 
+  mutate(Position = case_when(is.na(Position) ~ "Fer",
+                              TRUE ~ Position)) 
+biomass_may$Position <- factor(biomass_may$Position , levels = c("Fer","D","I","S"))
+
+boxplot(biomass_may$rdt.T.ha ~ biomass_may$Position,
+        xlab = NA,
+        ylab = "Productivity (T/ha)",
+        xaxt = "n",
+        medlwd = 1
+)
+
+# 6) Bar plot of INN and INP ####
 BarPlot <- barplot(to_barplot,
                    beside = TRUE, names.arg = c("Fer", "D","I","S"),#names.arg = IN2$soil, # yaxt = "n",
                    ylim=c(0, max(c(IN2$meanINN,IN2$meanINP)+3)  ),  

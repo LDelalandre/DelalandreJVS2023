@@ -15,12 +15,47 @@ ABUNDANCE <- read.csv2("data/abundance/pooled_abundance_data.csv") %>%
 ab_diachro_2005 <- ABUNDANCE %>% 
   filter(dataset == "Diachro") %>% 
   filter(year == 2005) %>%  # /!\ No measure available after 2005! Should I keep 2006, or several years?
-  filter(treatment == "Fer") %>% 
+  filter(treatment == "Fer") %>%
   # add relative abundance
   group_by(id_transect_quadrat) %>% 
   mutate(relat_ab = abundance/sum(abundance))
 
 write.csv2(ab_diachro_2005,"outputs/data/abundance_fertile.csv",row.names=F)
+
+
+
+# Abundance Adeline (####)just to compare)
+# NB: quadrats, dans des cages d'exclusion (p. 70 de sa thèse).
+adeline <- read.xlsx("data/abundance/DATA_SYNCHRO_AB.xlsx", 
+                     sheet = "AB_LIGNE", 
+                     startRow = 1, colNames = TRUE, rowNames = F)
+nb_contact <- adeline %>% 
+  filter(METHODE=="BIOMASS") %>% 
+  group_by(GESTION,CODE_PLOT) %>% 
+  summarize(contact = sum(Aba))
+
+ggplot(nb_contact,aes(x=GESTION,y=contact))+
+  geom_boxplot()
+
+
+# Regarder dans diachro nombre points contacts f(traitement)
+ABUNDANCE %>% 
+  filter(dataset == "Diachro") %>% 
+  # filter(year == 2004) %>%
+  group_by(id_transect_quadrat,year) %>% 
+  mutate(sumab = sum(abundance)) %>% 
+  ggplot(aes(x=treatment,y=sumab))+
+  geom_boxplot() +
+  facet_wrap(~year)+
+  ggsave("outputs/plots/comparison_intercept_nat_fer.png",width = 10,height=10)
+
+# Regarder la météo
+meteo <- read.csv2("data/environment/Meteo_LaFage_1973-2006.csv")
+meteo %>% 
+  group_by(AN) %>% 
+  summarize(sum_RR = sum(RR), mean_TX = mean(TX), mean_RGC = mean(RGC)) %>% 
+  ggplot(aes(x=AN,y=mean_TX))+
+  geom_line()
 
 # Unfertilized treatment #### 
 # (Maud's relevés)
