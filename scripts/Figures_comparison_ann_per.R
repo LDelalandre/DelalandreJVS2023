@@ -45,17 +45,29 @@ ab_traits_nat_CSR %>%
   geom_density() +
   xlim(c(0,100))
 
-# Option 2 : prendre les traits des espèces mesurés dans l'un ou l'autre traitement
+# Option 2 : prendre les traits des espèces mesurés dans l'un ou l'autre traitement ####
 MEAN_CSR %>% 
   select(code_sp,treatment,LifeHistory,C,S,R) %>%
   gather(key = score, value = value, -c(code_sp, LifeHistory,treatment)) %>% 
+  # filter(score == "R") %>% 
   filter(treatment%in% c("Nat","Fer")) %>% 
   ggplot(aes(x=score, y=value, color = LifeHistory))+
-  geom_boxplot() +
-  facet_wrap(~treatment)
+  geom_point()+
+  # geom_boxplot() +
+  facet_wrap(~treatment) 
+
+data.anovaCSR <- MEAN_CSR %>% 
+  select(code_sp,treatment,LifeHistory,C,S,R) %>%
+  # gather(key = score, value = value, -c(code_sp, LifeHistory,treatment)) %>% 
+  filter(treatment%in% c("Nat","Fer"))
+
+options(contrasts=c("contr.treatment","contr.treatment"))
+lmCSR <- lm(R ~ treatment * LifeHistory, data = data.anovaCSR) 
+anova(lmCSR)
+summary(lmCSR)
 
 
-# Option 3 : sélectionner les espèces qui apparaissent dans les relevés de maud superficiel et diachro
+# Option 3 : sélectionner les espèces qui apparaissent dans les relevés de maud superficiel et diachro ####
 
 # dans le fertile
 species_fer <- ab_fer %>% 
@@ -64,6 +76,7 @@ species_fer <- ab_fer %>%
 
 MEAN_CSR %>% 
   filter(code_sp %in% species_fer) %>% 
+  filter(treatment=="Fer") %>% 
   select(code_sp,LifeHistory,C,S,R) %>%
   gather(key = score, value = value, -c(code_sp, LifeHistory)) %>% 
   ggplot(aes(x=score, y=value, color = LifeHistory))+
@@ -76,12 +89,14 @@ species_S <- ab_nat %>%
   pull(code_sp) %>% 
   unique()
 
-MEAN_CSR %>% 
-  filter(code_sp %in% species_S) %>% 
+tata <- MEAN_CSR %>% 
+  filter(code_sp %in% species_S) %>%
+  filter(treatment=="Nat") %>% 
   select(code_sp,LifeHistory,C,S,R) %>%
   gather(key = score, value = value, -c(code_sp, LifeHistory)) %>% 
-  ggplot(aes(x=score, y=value, color = LifeHistory))+
-    geom_boxplot() +
+  ggplot(aes(x=score, y=value, color = LifeHistory)) +
+  # geom_point() +
+  geom_boxplot() +
   ggtitle("Nat superficiel") 
 
 
@@ -92,11 +107,20 @@ species_nat <- ab_nat %>%
 
 MEAN_CSR %>% 
   filter(code_sp %in% species_nat) %>% 
+  filter(treatment=="Nat") %>% 
   select(code_sp,LifeHistory,C,S,R) %>%
   gather(key = score, value = value, -c(code_sp, LifeHistory)) %>% 
   ggplot(aes(x=score, y=value, color = LifeHistory))+
   geom_boxplot() +
+  # geom_point()
   ggtitle("Nat") 
 
 
-
+# Autres traits ####
+tete <- MEAN_CSR %>% 
+  select(code_sp,treatment,LifeHistory,SeedMass) %>%
+  filter(treatment%in% c("Nat","Fer")) %>% 
+  ggplot(aes(x=LifeHistory, y=SeedMass, color = LifeHistory))+
+  # geom_point()+
+  geom_boxplot() +
+  facet_wrap(~treatment)

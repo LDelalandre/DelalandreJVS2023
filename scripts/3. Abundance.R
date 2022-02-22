@@ -107,8 +107,6 @@ write.csv2(ab_maud,"outputs/data/abundance_natif.csv",row.names=F)
 
 
 
-
-
 # Merge to traits (do it in another file) ####
 # To be cleaned from now on.
 # Duplicated rows containing the same species
