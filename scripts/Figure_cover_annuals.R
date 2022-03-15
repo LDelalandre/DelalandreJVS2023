@@ -39,9 +39,13 @@ error.bar <- function(x, y, upper, lower=upper, length=0.1,...){
 CWM2_fer <- read.csv2("outputs/data/Pierce CSR/Traits_CWM_fer_completed.csv")
 CWM2_nat <- read.csv2("outputs/data/Pierce CSR/Traits_CWM_nat_completed.csv")
 
+CWM3_fer <- read.csv2("outputs/data/Pierce CSR/Traits_CWM_fer.csv") # not yet completed CSR
+CWM3_nat <- read.csv2("outputs/data/Pierce CSR/Traits_CWM_nat.csv")
+
 # 4) Abundance ####
 ab_fer <- read.csv2("outputs/data/abundance_fertile.csv")
-ab_nat <- read.csv2("outputs/data/abundance_natif.csv")
+ab_nat <- read.csv2("outputs/data/abundance_natif.csv") %>% 
+  filter(!code_sp =="STRIFSCAB") # /!\ à corriger à la source !!
 
 soil_Maud <- data.frame(PC1score = c(-3.08,-2.85,-2.52,-1.78,-1.60,-1.56,-0.03,0.16,1.97,2.66,4.05,4.58),
                         depth = c("S","S","S","S","I","I","I","I","D","D","D","D" ),
@@ -101,10 +105,125 @@ ann_fer <- ab_fer %>%
 ann_nat <- ab_nat %>% 
   group_by(LifeHistory,depth,paddock,line) %>% 
   summarise(tot_relat_ab = sum(relat_ab)) %>% 
-  filter(LifeHistory =="annual") %>% 
+  filter(LifeHistory =="annual") %>%
   mutate(year = 2009) %>% 
   relocate(LifeHistory,year,depth,paddock,line,tot_relat_ab) %>% 
   mutate(line = as.character(line))
+
+# (Test modèles) ####
+# abondance absolue
+ab_nat %>% 
+  filter(LifeHistory=="annual") %>% 
+  group_by(depth,paddock,PC1score,line) %>% 
+  summarize(abundance = mean(abundance)) %>% 
+  ggplot(aes(x=PC1score,y=abundance,label=paddock))+
+    geom_point()
+  # geom_smooth(method = "lm")
+
+#abondance relative
+ann_nat_all <- ab_nat %>% 
+  group_by(LifeHistory,depth,paddock,line) %>% 
+  summarise(tot_relat_ab = sum(relat_ab)) %>% 
+  # filter(LifeHistory =="annual") %>% 
+  mutate(year = 2009) %>% 
+  relocate(LifeHistory,year,depth,paddock,line,tot_relat_ab) %>% 
+  mutate(line = as.character(line))
+
+ann_nat_all %>% 
+  group_by(depth,paddock,line) %>% 
+  summarize(sum = sum(tot_relat_ab))
+
+ann_nat_soil <- merge(ann_nat,soil_Maud,by = c("depth","paddock"))
+ggplot(ann_nat_soil,aes(x=PC1score, y=tot_relat_ab))+
+  geom_point() 
+  # geom_smooth(method="lm")
+mod <- lm(data = ann_nat_soil, tot_relat_ab ~ PC1score)
+plot(mod)
+anova(mod)
+summary(mod)
+
+ggplot(ann_nat_soil,aes(x=depth, y=tot_relat_ab))+
+  geom_boxplot() 
+mod <- lm(data = ann_nat_soil, tot_relat_ab ~ depth)
+# plot(mod)
+anova(mod)
+summary(mod)
+
+# graphe avec les pérennes aussi
+ann_nat_soil_all <- merge(ann_nat_all,soil_Maud,by = c("depth","paddock"))
+ggplot(ann_nat_soil_all,aes(x=depth, y=tot_relat_ab,color= LifeHistory))+
+  geom_boxplot() 
+
+# richesse absolue
+# NB refaire : j'ai mois de points pour la richesse (par plot) 
+# que pour l'abondance (par transect) --> plus de puissance!
+# evolution richesse absolue comm gt
+richness_per_guild_nat %>% 
+  filter(LifeHistory=="annual") %>% 
+  ggplot(aes(x=PC1score,y=n))+
+  geom_point() 
+  # geom_smooth(method="lm")
+
+#annuelles
+richness_per_guild_nat %>% 
+  filter(LifeHistory=="annual") %>% 
+  ggplot(aes(x=depth,y=n))+
+  geom_boxplot() 
+mod <- lm(data = richness_per_guild_nat %>% filter(LifeHistory=="annual"), 
+          n ~ depth)
+
+# Dans Fer pour comparer richesse absolue
+richness_per_guild_fer %>% 
+  ggplot(aes(x=depth,y=n,color=LifeHistory))+
+  geom_boxplot() +
+  ylim(c(0,85))
+richness_per_guild_nat %>% 
+  ggplot(aes(x=depth,y=n,color=LifeHistory))+
+  geom_boxplot() +
+  ylim(c(0,85))
+
+
+mod <- lm(data = richness_per_guild_nat %>% filter(LifeHistory=="annual"), 
+          n ~ PC1score)
+# plot(mod)
+anova(mod)
+summary(mod)
+# NB refaire par transect et pas plot pour la puissance stat.
+
+# " pérennes"  
+richness_per_guild_nat %>% 
+  filter(LifeHistory=="perennial") %>% 
+  ggplot(aes(x=PC1score,y=n))+
+  geom_point()+
+  geom_smooth(method="lm")
+
+# toutes
+richness_per_guild_nat %>% 
+  group_by(PC1score,depth) %>%
+  summarize(n=sum(n)) %>%
+  ggplot(aes(x=PC1score,y=n))+
+  geom_point()+
+  geom_smooth(method="lm")
+
+# plot annuals rich relat
+ggplot(richness_per_guild_toplot %>% filter(!(depth == "Fer")),
+       aes(x=PC1score,y=relative_richness_annual)) +
+  geom_point()
+mod <- lm(data = richness_per_guild_toplot %>% filter(!(depth == "Fer")), 
+          relative_richness_annual ~ PC1score)
+# plot(mod)
+anova(mod)
+summary(mod)
+
+ggplot(richness_per_guild_toplot %>% filter(!(depth == "Fer")),
+       aes(x=depth,y=relative_richness_annual)) +
+  geom_boxplot()
+mod <- lm(data = richness_per_guild_toplot %>% filter(!(depth == "Fer")), 
+          relative_richness_annual ~ depth)
+# plot(mod)
+anova(mod)
+summary(mod)
+# fin ds tests 
 
 cover_annuals <- rbind(ann_fer,ann_nat)
 cover_annuals$depth <- factor(cover_annuals$depth , levels = c("Fer","D","I","S"))
@@ -198,6 +317,38 @@ ggplot(C_ab_ann_fer %>% filter(score=="CWM_C"),aes(x=value,y=tot_relat_ab))+
 C_rich_ann_fer <- merge(CSR_toplot_fer %>% rename(line = id_com),ann_fer,by=c("depth","line"))
 ggplot(C_ab_ann_fer %>% filter(score=="CWM_C"),aes(x=value,y=tot_relat_ab))+
   geom_point()
+
+
+# 2bis) Ellenberg ####
+ellenberg_toplot_nat <- CWM3_nat %>% 
+  mutate(id_com = paste(depth,paddock,line,sep = "_")) %>% 
+  select(id_com,depth,CWM_light,CWM_moisture,CWM_nitrogen,CWM_pH) %>% 
+  gather(key = "score", value = "value", -c(depth,id_com) ) 
+
+ellenberg_toplot_fer <- CWM3_fer %>% 
+  mutate(depth = "Fer") %>% 
+  select(id_transect_quadrat,depth,CWM_light,CWM_moisture,CWM_nitrogen,CWM_pH) %>% 
+  gather(key = "score", value = "value", -c(depth,id_transect_quadrat) ) %>% 
+  rename(id_com = id_transect_quadrat)
+
+ellenberg_toplot <- rbind(ellenberg_toplot_nat,ellenberg_toplot_fer)
+ellenberg_toplot$score <- factor(ellenberg_toplot$score , levels = c("CWM_light","CWM_nitrogen","CWM_moisture"))
+ellenberg_toplot$depth <- factor(ellenberg_toplot$depth , levels = c("Fer","D","I","S"))
+
+
+boxplot(
+  value ~ score * depth , data = ellenberg_toplot, 
+  # xaxt = "n",
+  xlab = "", 
+  ylab = "Score (%)",
+  col = c("black", "grey","white"),
+  medlwd = 1
+)
+legend(
+  "topleft", title = "Score",
+  legend = c("light", "nitrogen", "moisture"), fill = c("black", "grey","white"),
+  cex = 0.7
+)
 
 # 3) Vegetation cover ####
 tot_ab_fer <- ab_fer %>% 

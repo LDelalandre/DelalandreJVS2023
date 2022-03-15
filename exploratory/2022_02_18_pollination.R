@@ -27,6 +27,8 @@ info_baseflor <- baseflor %>%
   mutate(species_2 = map_chr(nomH,remove_subsp_name)) %>% 
   select(species_1,species_2,everything()) %>% 
   filter( (species_1 %in% sp_list$species) | (species_2 %in% sp_list$species)) %>% 
-  select(inflorescence,sexualité,ordre_maturation,pollinisation,fruit,dissémination,floraison,
-         CARACTERISATION_ECOLOGIQUE_(HABITAT_OPTIMAL),
+  select(species_1,species_2,inflorescence,sexualité,ordre_maturation,pollinisation,fruit,dissémination,floraison,
+         CARACTERISATION_ECOLOGIQUE_.HABITAT_OPTIMAL.,
          )
+
+write.csv2(info_baseflor,"outputs/data/baseflor_annuals.csv",row.names=F)

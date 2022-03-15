@@ -23,19 +23,25 @@ MEAN_CSR <- read.csv2("outputs/data/Pierce CSR/Traits_mean_sp_per_trtmt_complete
   mutate(S=str_replace(S,",",".") %>% as.numeric())%>% 
   mutate(R=str_replace(R,",",".") %>% as.numeric())
 
+# Add Ellenberg info ####
+ellenberg_fage <- read.csv2("outputs/data/ellenberg_la_fage.csv") %>% 
+  rename(species = AccSpeciesName)
+MEAN_CSR_ellenberg <- MEAN_CSR %>% 
+  left_join(ellenberg_fage,by="species")
+
 # Compute CWM of traits and CSR scores ####
 # I can compute CWM of CSR in the two ways (CWM of traits and CSR, and CSR and CWM of these index).
 
 # i) Fer ####
 ab_traits_fer <- ab_fer %>% 
-  left_join(MEAN_CSR %>% filter(treatment == "Fer"),
+  left_join(MEAN_CSR_ellenberg %>% filter(treatment == "Fer"),
             by = c("species","code_sp","LifeForm1","treatment")) 
   
 # I keep it with species level I case I want to compute distance to CWM for some species
 CWM_sp_fer <- ab_traits_fer %>% 
   ungroup() %>% 
   group_by(id_transect_quadrat) %>% 
-  mutate_at(vars(L_Area:R),
+  mutate_at(vars(L_Area:temperature),
             .funs = list(CWM = ~ weighted.mean(.,relat_ab,na.rm=T) )) %>% 
   rename_at( vars( contains( "_CWM") ), list( ~paste("CWM", gsub("_CWM", "", .), sep = "_") ) ) %>% 
   unique()
@@ -67,7 +73,7 @@ write.csv2(CWM_annuals_fer,"outputs/data/CWM_annuals_fer.csv" ,row.names=F)
 
 # ii) Nat ####
 ab_traits_nat <- ab_nat %>% 
-  left_join(MEAN_CSR %>% filter(treatment == "Nat"),
+  left_join(MEAN_CSR_ellenberg %>% filter(treatment == "Nat"),
             by = c("species","code_sp","LifeHistory")) 
 # /!\ pb: Anthyllis vulneraria has two LifeForm1 : it adds lines as new species. To be corrected.
 
@@ -75,7 +81,7 @@ ab_traits_nat <- ab_nat %>%
 CWM_sp_nat <- ab_traits_nat %>% 
   ungroup() %>% 
   group_by(depth,paddock) %>% 
-  mutate_at(vars(L_Area:R),
+  mutate_at(vars(L_Area:temperature),
             .funs = list(CWM = ~ weighted.mean(.,relat_ab,na.rm=T) )) %>% 
   rename_at( vars( contains( "_CWM") ), list( ~paste("CWM", gsub("_CWM", "", .), sep = "_") ) ) %>% 
   unique()

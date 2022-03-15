@@ -1,7 +1,7 @@
 source("scripts/1. Packages.R")
 
 MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment.csv")
-names_LH <- MEAN %>% 
+names_LH <- MEAN %>% # correspondence name, short name, lifehistory
   select(code_sp,species,LifeHistory) %>% 
   unique()
 
@@ -11,7 +11,7 @@ ABUNDANCE <- read.csv2("data/abundance/pooled_abundance_data.csv") %>%
                                grepl("P",paddock) ~"Nat",
                                grepl("N",paddock) ~"Nat",
                                grepl("T",paddock) ~"Tem"))
-
+# I use abondance data from the 2005 survey
 ab_diachro_2005 <- ABUNDANCE %>% 
   filter(dataset == "Diachro") %>% 
   filter(year == 2005) %>%  # /!\ No measure available after 2005! Should I keep 2006, or several years?

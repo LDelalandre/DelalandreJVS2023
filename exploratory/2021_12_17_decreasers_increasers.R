@@ -72,6 +72,7 @@ ggplot(diachro_nat %>% filter(abundance>0),aes(x=year,y=abundance))+
 ggplot(diachro2 %>% filter(species == "Arenaria serpyllifolia"),aes(x=year,y=mean_ab))+
   geom_point()
 
+
 diachro3 <- diachro2 %>% 
   ungroup() %>% 
   group_by(species) %>%
@@ -102,8 +103,12 @@ sp_manip <- c("BUPLBALD",
           "FILAPYRAM")
 
 diachro4 <- diachro3 %>% 
-  merge(names_LH,by="species") %>% 
+  merge(names_LH,by="species") 
+
+diachro5 <- diachro4 %>% 
   filter(code_sp %in% sp_manip)
+
+write.csv2(diachro4,"outputs/data/temporal_evolution_fer.csv",row.names = F)
 
 
 # Lien à abondance ####
@@ -129,11 +134,26 @@ annuals <- names_LH %>%
   pull(code_sp) %>% 
   unique()
 
+lines_kept <- diachro_tot %>% 
+  filter(GESTION == "NATIF50") %>% 
+  filter(ANNEE == 1995) %>% 
+  pull(LIGNE_STANDARD) %>% 
+  unique()
+
 diachro_nat <- diachro_tot %>% 
   filter(GESTION == "NATIF50") %>% 
   group_by(ANNEE,LIGNE_STANDARD) %>% 
+  filter(LIGNE_STANDARD %in% lines_kept) %>% 
   mutate(AB_relat = AB/sum(AB)) %>% 
-  filter(!(ANNEE %in% c(1972,1976)))
+  filter(!(ANNEE %in% c(1972,1976))) %>% 
+  ungroup()
+
+# ajouter les abondances nulles
+diachro_nat_zeros <- diachro_nat %>% 
+  expand(ANNEE,LIGNE_STANDARD,CODE_ESP) %>% 
+  full_join(diachro_nat,by=c("ANNEE","LIGNE_STANDARD","CODE_ESP")) %>% 
+  select(-GESTION) %>% 
+  replace(is.na(.), 0)
 
 
 # evolution de la richesse des annuelles
@@ -143,33 +163,35 @@ diachro_nat %>%
   group_by(ANNEE) %>% 
   unique() %>% 
   summarize(richness = n())
-  
-# Nombre de transects au cours des années
-nb_transects <- diachro_nat %>% 
-  select(ANNEE,LIGNE_STANDARD) %>% 
-  unique() %>% 
-  group_by(ANNEE) %>% 
-  summarize(NB_TRANSECTS=n())
-# prendre les 63 transects de 1995 sur chaque année. 
-# Regarder l'évolution par rapport à la position spatiale dans ces transects ?
-  
-# evolution de la richesse des annuelles corrigée pour nombre de relevés
-# NB c'est pas propre, et le mieux c'est de regarder en proportion du nombre de points contacts, comme a fait Adeline
-diachro_nat %>% 
-  merge(nb_transects, by = "ANNEE") %>% 
-  select(CODE_ESP,ANNEE,NB_TRANSECTS) %>% 
-  group_by(ANNEE) %>% 
-  unique() %>% 
-  geom_point()
 
 # Evolution de l'abondance de chaque espèce
 diachro_nat %>% 
   filter(CODE_ESP %in% annuals) %>% 
-  filter(!(ANNEE %in% c(1972,1976))) %>% 
-  merge(nb_transects, by = "ANNEE") %>%
-  mutate(AB_corr = AB/NB_TRANSECTS) %>% 
-  ggplot(aes(x=ANNEE,y=AB))+
-  geom_point() +
+  ggplot(aes(x=ANNEE,y=AB_relat))+
+  geom_point()  +
   facet_wrap(~CODE_ESP) +
   geom_smooth(method="lm")
+
+diachro_nat_zeros %>% 
+  filter(CODE_ESP %in% annuals) %>% 
+  group_by(ANNEE,CODE_ESP) %>% 
+  summarize(mean_AB = mean(AB)) %>% 
+  ggplot(aes(x=ANNEE,y=mean_AB))+
+  geom_point()  +
+  facet_wrap(~CODE_ESP) +
+  geom_smooth(method="lm")
+
+
+# correlation abondance temps
+tete <- diachro_nat_zeros %>% 
+  mutate(delta_year = ANNEE - 1978) %>% 
+  group_by(CODE_ESP,ANNEE,delta_year) %>% 
+  summarize(mean_ab = mean(AB)) %>% 
+  summarize(Rs = cor(delta_year,mean_ab,method = "spearman"),
+            pval = cor.test(delta_year, mean_ab, method = "spearman")$p.value)
+
+# 
+# A faire
+# 1) Mesurer increasers et dec du natif
+# 2) Reproduire figure Adeline p. 104
   

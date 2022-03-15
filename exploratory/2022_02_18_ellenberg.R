@@ -33,10 +33,14 @@ TRY.fage.ellenberg3 <- TRY.fage.ellenberg2 %>%
 # On a plusieurs jeux de données d'origine, avec des valeurs d'indices différentes 
 # par espèce. Je moyenne tout ça en première approximation.
 
-ellenberg_annuals <- TRY.fage.ellenberg3 %>% 
+ellenberg_fage <- TRY.fage.ellenberg3 %>% 
   group_by(AccSpeciesName) %>%
-  summarize_at(c("light","moisture","nitrogen","pH","temperature"),mean,na.rm=T) %>% 
+  summarize_at(c("light","moisture","nitrogen","pH","temperature"),mean,na.rm=T) 
+ellenberg_annuals <- ellenberg_fage %>% 
   filter(AccSpeciesName %in% Annuals)
+
+write.csv2(ellenberg_fage,"outputs/data/ellenberg_la_fage.csv",row.names = F)
+write.csv2(ellenberg_annuals,"outputs/data/ellenberg_annuals.csv",row.names = F)
 
 # A comparer avec les abondances dans le nat sup chez Maud
 ab_maud_ann <- read.csv2("outputs/data/abundance_natif.csv") %>% 
