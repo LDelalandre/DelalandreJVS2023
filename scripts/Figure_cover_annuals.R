@@ -43,9 +43,9 @@ CWM3_fer <- read.csv2("outputs/data/Pierce CSR/Traits_CWM_fer.csv") # not yet co
 CWM3_nat <- read.csv2("outputs/data/Pierce CSR/Traits_CWM_nat.csv")
 
 # 4) Abundance ####
-ab_fer <- read.csv2("outputs/data/abundance_fertile.csv")
-ab_nat <- read.csv2("outputs/data/abundance_natif.csv") %>% 
-  filter(!code_sp =="STRIFSCAB") # /!\ à corriger à la source !!
+ab_fer <- read.csv2("outputs/data/abundance_fertile.csv") %>% 
+  rename(line = id_transect_quadrat)
+ab_nat <- read.csv2("outputs/data/abundance_natif.csv") 
 
 soil_Maud <- data.frame(PC1score = c(-3.08,-2.85,-2.52,-1.78,-1.60,-1.56,-0.03,0.16,1.97,2.66,4.05,4.58),
                         depth = c("S","S","S","S","I","I","I","I","D","D","D","D" ),
@@ -67,17 +67,18 @@ par(mar = c(2, 5.5, 0.1, 1),mfrow = c(6,1),mpg = c(1,1,0))
 # 0) Number of annual species ####
 # NB : must be done at the level of plot, I guess.
 richness_per_guild_nat <- ab_nat %>% 
-  count(depth,paddock,LifeHistory) %>% 
+  count(depth,paddock,LifeHistory,line) %>% 
   merge(soil_Maud,by=c("depth","paddock"))
 
 richness_per_guild_fer <- ab_fer %>%
   mutate(LifeHistory = if_else(LifeForm1=="The","annual","perennial")) %>% 
   mutate(depth = "Fer") %>% 
-  count(depth,paddock,LifeHistory) %>% 
+  count(depth,paddock,LifeHistory,line) %>% 
   mutate(PC1score = NA)
 
 richness_per_guild <- rbind(richness_per_guild_nat,richness_per_guild_fer)
 richness_per_guild$depth <- factor(richness_per_guild$depth , levels = c("Fer","D","I","S"))
+# richness_per_guild$depth <- factor(richness_per_guild$depth , levels = c("D","I","S","Fer")) # changé pour l'anova. A re cahnger
 
 richness_per_guild_toplot <- richness_per_guild %>% 
   spread(LifeHistory,n) %>% 
@@ -86,17 +87,36 @@ richness_per_guild_toplot <- richness_per_guild %>%
 
 boxplot(relative_richness_annual *100 ~ depth,
         data = richness_per_guild_toplot,
-        # ylim=c(0,100),
+        ylim=c(0,90),
         xlab = NA,
         ylab = "Relative richness \n of annuals (%)",
         xaxt = "n",
         medlwd = 1)
 
+mod <- lm(relative_richness_annual ~ depth, data = richness_per_guild_toplot)
+anova(mod)
+summary(mod)
+shapiro.test(residuals(mod))
+lmtest::bptest(mod)
+lmtest::dwtest(mod)
+
+posthoc <- multcomp::cld(emmeans::emmeans(mod, specs = "depth",  type = "response",
+                                          adjust = "tuckey"),
+                         Letters = "abcdefghi", details = T)
+
+comp <- as.data.frame(posthoc$emmeans) %>% 
+  arrange(factor(depth, levels = levels(richness_per_guild_toplot$depth)))
+
+text(x=c(1:4),y=c(82,30,40,50), labels = comp$.group)
+# peut-être faire test non paramétrique (kruskal-wallis)
+
+
+
+
 # 1) Annual cover ####
 ann_fer <- ab_fer %>% 
   mutate(LifeHistory = if_else(LifeForm1=="The","annual","perennial")) %>% 
-  group_by(LifeHistory,year,paddock,id_transect_quadrat) %>% 
-  dplyr::rename(line = id_transect_quadrat) %>% 
+  group_by(LifeHistory,year,paddock,line) %>% 
   summarise(tot_relat_ab = sum(relat_ab)) %>% 
   filter(LifeHistory =="annual") %>% 
   mutate(depth = "Fer") %>% 
@@ -110,134 +130,37 @@ ann_nat <- ab_nat %>%
   relocate(LifeHistory,year,depth,paddock,line,tot_relat_ab) %>% 
   mutate(line = as.character(line))
 
-# (Test modèles) ####
-# abondance absolue
-ab_nat %>% 
-  filter(LifeHistory=="annual") %>% 
-  group_by(depth,paddock,PC1score,line) %>% 
-  summarize(abundance = mean(abundance)) %>% 
-  ggplot(aes(x=PC1score,y=abundance,label=paddock))+
-    geom_point()
-  # geom_smooth(method = "lm")
-
-#abondance relative
-ann_nat_all <- ab_nat %>% 
-  group_by(LifeHistory,depth,paddock,line) %>% 
-  summarise(tot_relat_ab = sum(relat_ab)) %>% 
-  # filter(LifeHistory =="annual") %>% 
-  mutate(year = 2009) %>% 
-  relocate(LifeHistory,year,depth,paddock,line,tot_relat_ab) %>% 
-  mutate(line = as.character(line))
-
-ann_nat_all %>% 
-  group_by(depth,paddock,line) %>% 
-  summarize(sum = sum(tot_relat_ab))
-
-ann_nat_soil <- merge(ann_nat,soil_Maud,by = c("depth","paddock"))
-ggplot(ann_nat_soil,aes(x=PC1score, y=tot_relat_ab))+
-  geom_point() 
-  # geom_smooth(method="lm")
-mod <- lm(data = ann_nat_soil, tot_relat_ab ~ PC1score)
-plot(mod)
-anova(mod)
-summary(mod)
-
-ggplot(ann_nat_soil,aes(x=depth, y=tot_relat_ab))+
-  geom_boxplot() 
-mod <- lm(data = ann_nat_soil, tot_relat_ab ~ depth)
-# plot(mod)
-anova(mod)
-summary(mod)
-
-# graphe avec les pérennes aussi
-ann_nat_soil_all <- merge(ann_nat_all,soil_Maud,by = c("depth","paddock"))
-ggplot(ann_nat_soil_all,aes(x=depth, y=tot_relat_ab,color= LifeHistory))+
-  geom_boxplot() 
-
-# richesse absolue
-# NB refaire : j'ai mois de points pour la richesse (par plot) 
-# que pour l'abondance (par transect) --> plus de puissance!
-# evolution richesse absolue comm gt
-richness_per_guild_nat %>% 
-  filter(LifeHistory=="annual") %>% 
-  ggplot(aes(x=PC1score,y=n))+
-  geom_point() 
-  # geom_smooth(method="lm")
-
-#annuelles
-richness_per_guild_nat %>% 
-  filter(LifeHistory=="annual") %>% 
-  ggplot(aes(x=depth,y=n))+
-  geom_boxplot() 
-mod <- lm(data = richness_per_guild_nat %>% filter(LifeHistory=="annual"), 
-          n ~ depth)
-
-# Dans Fer pour comparer richesse absolue
-richness_per_guild_fer %>% 
-  ggplot(aes(x=depth,y=n,color=LifeHistory))+
-  geom_boxplot() +
-  ylim(c(0,85))
-richness_per_guild_nat %>% 
-  ggplot(aes(x=depth,y=n,color=LifeHistory))+
-  geom_boxplot() +
-  ylim(c(0,85))
-
-
-mod <- lm(data = richness_per_guild_nat %>% filter(LifeHistory=="annual"), 
-          n ~ PC1score)
-# plot(mod)
-anova(mod)
-summary(mod)
-# NB refaire par transect et pas plot pour la puissance stat.
-
-# " pérennes"  
-richness_per_guild_nat %>% 
-  filter(LifeHistory=="perennial") %>% 
-  ggplot(aes(x=PC1score,y=n))+
-  geom_point()+
-  geom_smooth(method="lm")
-
-# toutes
-richness_per_guild_nat %>% 
-  group_by(PC1score,depth) %>%
-  summarize(n=sum(n)) %>%
-  ggplot(aes(x=PC1score,y=n))+
-  geom_point()+
-  geom_smooth(method="lm")
-
-# plot annuals rich relat
-ggplot(richness_per_guild_toplot %>% filter(!(depth == "Fer")),
-       aes(x=PC1score,y=relative_richness_annual)) +
-  geom_point()
-mod <- lm(data = richness_per_guild_toplot %>% filter(!(depth == "Fer")), 
-          relative_richness_annual ~ PC1score)
-# plot(mod)
-anova(mod)
-summary(mod)
-
-ggplot(richness_per_guild_toplot %>% filter(!(depth == "Fer")),
-       aes(x=depth,y=relative_richness_annual)) +
-  geom_boxplot()
-mod <- lm(data = richness_per_guild_toplot %>% filter(!(depth == "Fer")), 
-          relative_richness_annual ~ depth)
-# plot(mod)
-anova(mod)
-summary(mod)
-# fin ds tests 
-
 cover_annuals <- rbind(ann_fer,ann_nat)
 cover_annuals$depth <- factor(cover_annuals$depth , levels = c("Fer","D","I","S"))
 
 
 boxplot(tot_relat_ab * 100 ~ depth,
         data = cover_annuals, # %>% filter(!(depth == "Fer")),
-        ylim=c(0,10),
+        ylim=c(0,90),
         xlab = NA,
         ylab = "Relative abundance \n of annuals (%)",
         xaxt = "n",
         medlwd = 1)
-# Est-ce qu'il faut que je bosse au niveau de la ligne, ou du parc? Au niveau du parc, j'ai deux points pour le fertile,
-# sauf si je prends plusieurs années.
+
+
+mod <- lm(tot_relat_ab ~ depth, data = cover_annuals)
+anova(mod)
+summary(mod)
+shapiro.test(residuals(mod))
+lmtest::bptest(mod)
+lmtest::dwtest(mod)
+
+posthoc <- multcomp::cld(emmeans::emmeans(mod, specs = "depth",  type = "response",
+                                          adjust = "tuckey"),
+                         Letters = "abcdefghi", details = T)
+
+comp <- as.data.frame(posthoc$emmeans) %>% 
+  arrange(factor(depth, levels = levels(cover_annuals$depth)))
+
+text(x=c(1:4),y=c(82,30,40,50), labels = comp$.group)
+
+
+
 
 # 2) CWM CSR scores ####
 CSR_toplot_nat <- CWM2_nat %>% 
@@ -308,15 +231,15 @@ legend(
 #        pch = c(1,4,3))
 
 
-# Link score C in fertile and abundance of annuals
-C_ab_ann_fer <- merge(CSR_toplot_fer %>% rename(line = id_com),ann_fer,by=c("depth","line"))
-ggplot(C_ab_ann_fer %>% filter(score=="CWM_C"),aes(x=value,y=tot_relat_ab))+
-  geom_point()
-# Il faudrait faire un vrai modèle stat, avec plusieurs variables explicatives...
-
-C_rich_ann_fer <- merge(CSR_toplot_fer %>% rename(line = id_com),ann_fer,by=c("depth","line"))
-ggplot(C_ab_ann_fer %>% filter(score=="CWM_C"),aes(x=value,y=tot_relat_ab))+
-  geom_point()
+# # Link score C in fertile and abundance of annuals
+# C_ab_ann_fer <- merge(CSR_toplot_fer %>% rename(line = id_com),ann_fer,by=c("depth","line"))
+# ggplot(C_ab_ann_fer %>% filter(score=="CWM_C"),aes(x=value,y=tot_relat_ab))+
+#   geom_point()
+# # Il faudrait faire un vrai modèle stat, avec plusieurs variables explicatives...
+# 
+# C_rich_ann_fer <- merge(CSR_toplot_fer %>% rename(line = id_com),ann_fer,by=c("depth","line"))
+# ggplot(C_ab_ann_fer %>% filter(score=="CWM_C"),aes(x=value,y=tot_relat_ab))+
+#   geom_point()
 
 
 # 2bis) Ellenberg ####
@@ -338,22 +261,23 @@ ellenberg_toplot$depth <- factor(ellenberg_toplot$depth , levels = c("Fer","D","
 
 boxplot(
   value ~ score * depth , data = ellenberg_toplot, 
-  # xaxt = "n",
+  xaxt = "n",
   xlab = "", 
-  ylab = "Score (%)",
+  ylab = "Ellenberg's indicator \n value",
   col = c("black", "grey","white"),
   medlwd = 1
 )
 legend(
-  "topleft", title = "Score",
+  "right", title = "Indicator",
   legend = c("light", "nitrogen", "moisture"), fill = c("black", "grey","white"),
   cex = 0.7
 )
 
 # 3) Vegetation cover ####
+# La comparaison natif fertile n'est pas valable...
 tot_ab_fer <- ab_fer %>% 
-  group_by(year,paddock,id_transect_quadrat) %>% 
-  dplyr::rename(line = id_transect_quadrat) %>% 
+  group_by(year,paddock,line) %>% 
+  # dplyr::rename(line = id_transect_quadrat) %>% 
   summarise(tot_ab = sum(abundance)) %>% 
   mutate(depth = "Fer") %>% 
   relocate(year,depth,paddock,line,tot_ab)
@@ -455,3 +379,134 @@ summary(lm_cover)
 multcomp::cld(emmeans::emmeans(lm_cover, specs = "depth", type = "response",
                                adjust = "tuckey"),
               Letters = "abcdefghi", details = T)
+
+
+# Tests brouillons
+# En gros : si je bosse sur le natif seul, il y a un effet du gradient de prof de sol.
+# Mais cet effet est noyé par la grosse différence avec le fertile, qui 
+# embarque la majorité de la variance.
+
+# C'est aussi visible avec un test non paramétrique (kruskal-wallis)
+cover_annuals %>% 
+  ggplot(aes(x=depth,y=tot_relat_ab))+
+  geom_point()
+kruskal.test(tot_relat_ab  ~ depth,data = cover_annuals )
+FSA::dunnTest(tot_relat_ab ~ depth,data = cover_annuals )
+
+kruskal.test(tot_relat_ab  ~ depth,data = cover_annuals %>% filter(!(depth=="Fer")) )
+FSA::dunnTest(tot_relat_ab ~ depth,data = cover_annuals %>% filter(!(depth=="Fer")) )
+
+# (Test modèles) ####
+# abondance absolue
+ab_nat %>% 
+  filter(LifeHistory=="annual") %>% 
+  group_by(depth,paddock,PC1score,line) %>% 
+  summarize(abundance = mean(abundance)) %>% 
+  ggplot(aes(x=PC1score,y=abundance,label=paddock))+
+  geom_point()
+# geom_smooth(method = "lm")
+
+#abondance relative
+ann_nat_all <- ab_nat %>% 
+  group_by(LifeHistory,depth,paddock,line) %>% 
+  summarise(tot_relat_ab = sum(relat_ab)) %>% 
+  # filter(LifeHistory =="annual") %>% 
+  mutate(year = 2009) %>% 
+  relocate(LifeHistory,year,depth,paddock,line,tot_relat_ab) %>% 
+  mutate(line = as.character(line))
+
+ann_nat_all %>% 
+  group_by(depth,paddock,line) %>% 
+  summarize(sum = sum(tot_relat_ab))
+
+ann_nat_soil <- merge(ann_nat,soil_Maud,by = c("depth","paddock"))
+ggplot(ann_nat_soil,aes(x=PC1score, y=tot_relat_ab))+
+  geom_point() 
+# geom_smooth(method="lm")
+mod <- lm(data = ann_nat_soil, tot_relat_ab ~ PC1score)
+plot(mod)
+anova(mod)
+summary(mod)
+
+ggplot(ann_nat_soil,aes(x=depth, y=tot_relat_ab))+
+  geom_boxplot() 
+mod <- lm(data = ann_nat_soil, tot_relat_ab ~ depth)
+# plot(mod)
+anova(mod)
+summary(mod)
+
+# graphe avec les pérennes aussi
+ann_nat_soil_all <- merge(ann_nat_all,soil_Maud,by = c("depth","paddock"))
+ggplot(ann_nat_soil_all,aes(x=depth, y=tot_relat_ab,color= LifeHistory))+
+  geom_boxplot() 
+
+# richesse absolue
+# NB refaire : j'ai mois de points pour la richesse (par plot) 
+# que pour l'abondance (par transect) --> plus de puissance!
+# evolution richesse absolue comm gt
+richness_per_guild_nat %>% 
+  filter(LifeHistory=="annual") %>% 
+  ggplot(aes(x=PC1score,y=n))+
+  geom_point() 
+# geom_smooth(method="lm")
+
+#annuelles
+richness_per_guild_nat %>% 
+  filter(LifeHistory=="annual") %>% 
+  ggplot(aes(x=depth,y=n))+
+  geom_boxplot() 
+mod <- lm(data = richness_per_guild_nat %>% filter(LifeHistory=="annual"), 
+          n ~ depth)
+
+# Dans Fer pour comparer richesse absolue
+richness_per_guild_fer %>% 
+  ggplot(aes(x=depth,y=n,color=LifeHistory))+
+  geom_boxplot() +
+  ylim(c(0,85))
+richness_per_guild_nat %>% 
+  ggplot(aes(x=depth,y=n,color=LifeHistory))+
+  geom_boxplot() +
+  ylim(c(0,85))
+
+
+mod <- lm(data = richness_per_guild_nat %>% filter(LifeHistory=="annual"), 
+          n ~ PC1score)
+# plot(mod)
+anova(mod)
+summary(mod)
+# NB refaire par transect et pas plot pour la puissance stat.
+
+# " pérennes"  
+richness_per_guild_nat %>% 
+  filter(LifeHistory=="perennial") %>% 
+  ggplot(aes(x=PC1score,y=n))+
+  geom_point()+
+  geom_smooth(method="lm")
+
+# toutes
+richness_per_guild_nat %>% 
+  group_by(PC1score,depth) %>%
+  summarize(n=sum(n)) %>%
+  ggplot(aes(x=PC1score,y=n))+
+  geom_point()+
+  geom_smooth(method="lm")
+
+# plot annuals rich relat
+ggplot(richness_per_guild_toplot %>% filter(!(depth == "Fer")),
+       aes(x=PC1score,y=relative_richness_annual)) +
+  geom_point()
+mod <- lm(data = richness_per_guild_toplot %>% filter(!(depth == "Fer")), 
+          relative_richness_annual ~ PC1score)
+# plot(mod)
+anova(mod)
+summary(mod)
+
+ggplot(richness_per_guild_toplot %>% filter(!(depth == "Fer")),
+       aes(x=depth,y=relative_richness_annual)) +
+  geom_boxplot()
+mod <- lm(data = richness_per_guild_toplot %>% filter(!(depth == "Fer")), 
+          relative_richness_annual ~ depth)
+# plot(mod)
+anova(mod)
+summary(mod)
+# fin ds tests 

@@ -7,10 +7,48 @@ data_file <- "LaFage_PlantTraitsDP_vp.xlsx"
 LeafMorpho1 <-  read.xlsx(paste0("data/traits/",data_file), sheet = "LeafMorpho_traits", startRow = 1, colNames = TRUE)  
 LeafMorpho_leo <- read.csv2("data/traits/leafMorpho_3.csv")
 LeafMorpho <- rbind(LeafMorpho1,LeafMorpho_leo)
+
 # LeafDimensions <- read.xlsx(paste0("data/traits/",data_file), sheet = "LeafDimensions (àsupprimer)", startRow = 1, colNames = TRUE)
-LeafCN <- read.xlsx(paste0("data/traits/",data_file), sheet = "LeafC&N", startRow = 1, colNames = TRUE) 
+LeafCN1 <- read.xlsx(paste0("data/traits/",data_file), sheet = "LeafC&N", startRow = 1, colNames = TRUE) 
 LeafP <- read.xlsx(paste0("data/traits/",data_file), sheet = "LeafP", startRow = 1, colNames = TRUE) 
-Leaf13C <- read.xlsx(paste0("data/traits/",data_file), sheet = "Leaf13C", startRow = 1, colNames = TRUE) 
+Leaf13C1 <- read.xlsx(paste0("data/traits/",data_file), sheet = "Leaf13C", startRow = 1, colNames = TRUE) 
+
+# measurements C, N, 13C spring
+MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment.csv") %>% 
+  filter(!(species == "Geranium dissectum - limbe")) %>% 
+  filter(!(species == "Geranium dissectum - pétiole")) %>% 
+  filter(!(species == "Carex humilis?"))
+
+names_LH <- MEAN %>% 
+  select(code_sp,species,LifeForm1) %>% 
+  unique() %>% 
+  rename(Code_Sp = code_sp,Species=species)
+
+
+Leafchim_leo <- read.csv2(paste0("data/traits/leafchim_leo.csv"))
+# Species name and LifeForm
+L2 <- Leafchim_leo %>% 
+  merge(names_LH,by="Code_Sp") %>% 
+  mutate(LifeForm2=NA)
+# Day of measurement
+L3 <- LeafMorpho_leo %>% 
+  select(Code_Sp,Day,Plot,Treatment) %>% 
+  unique() %>% 
+  merge(L2,by=c("Code_Sp","Plot"))
+# Family
+fam <- read.csv2("data/traits/names and family.csv")
+L4 <- merge(L3,fam,by="Species")
+# Rep
+L5 <- L4 %>% 
+  group_by(Species,Plot) %>% 
+  mutate(Rep = paste("RCN",Rep,sep=""))
+
+LeafCN_leo <- L5[,colnames(LeafCN)]
+Leaf13C_leo <- L5[,colnames(Leaf13C)]
+
+LeafCN <- rbind(LeafCN1,LeafCN_leo)
+Leaf13C <- rbind(Leaf13C1,Leaf13C_leo)
+
 Biovolume <- read.xlsx(paste0("data/traits/",data_file), sheet = "Biovolume", startRow = 1, colNames = TRUE) %>% 
   mutate(Hrepro = as.numeric(Hrepro))
 Pheno <- read.xlsx(paste0("data/traits/",data_file), sheet = "Pheno", startRow = 1, colNames = TRUE) %>% 
