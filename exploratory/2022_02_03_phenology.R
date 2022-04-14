@@ -74,7 +74,7 @@ get_day_of_year <- function(Month,Day2){
     pull(day_of_year)
 }
 
-pheno_leo <- read.xlsx("data/phenology/Pheno_leo.xlsx",sheet="rawdata") %>% 
+pheno_leo <- read.xlsx("data/phenology/Pheno_leo.xlsx",sheet="rawdata_seeds") %>% 
   mutate(code_sp = toupper(code_sp)) %>% 
   mutate(Day = as.Date(date- 25569, origin = "1970-01-01")) %>% 
   separate(col = Day,into = c("Year","Month","Day2")) %>% 
@@ -85,6 +85,11 @@ pheno_leo <- read.xlsx("data/phenology/Pheno_leo.xlsx",sheet="rawdata") %>%
 
 ggplot(pheno_leo,aes(x=treatment,y=Disp))+
   geom_boxplot()
+
+ggplot(MEAN_pheno %>% filter(LifeHistory=="annual"),aes(x=treatment,y=Disp))+
+  geom_boxplot()
+
+# J'estime la phénologie de la dispersion trop tard avec mes récoltes...
 
 sp_info <- MEAN_pheno %>% 
   mutate(from = "database") %>% 

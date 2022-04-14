@@ -16,6 +16,9 @@ annuals <- names_LH %>%
   select(species,code_sp) %>%  
   filter(!grepl("-",code_sp))
 
+write.csv2(annuals,"outputs/data/ellenberg_annuals_braund-blanquet.csv",row.names=F)
+aaa <- read.csv2("outputs/data/ellenberg_annuals_braund-blanquet.csv")
+
 sp_manip <- c("BUPLBALD",
               "ALYSALYS","CAPSBURS","EROPVERN","HORNPETR",
               "ARENSERP","CERAGLOM","CERAPUMI","MINUHYBR",
@@ -69,6 +72,21 @@ ab_fer <- read.csv2("outputs/data/abundance_fertile.csv") %>%
 ab_nat <- read.csv2("outputs/data/abundance_natif.csv")%>% 
   filter(LifeHistory == "annual") %>% 
   mutate(transect=paste(paddock,depth,line,sep="_"))
+
+Nat <- ab_nat %>% 
+  group_by(code_sp) %>% 
+  summarize(abundance_nat=mean(relat_ab))
+Fer <- ab_fer %>% 
+  group_by(code_sp) %>% 
+  summarize(abundance_fer=mean(relat_ab))
+NatFer <- full_join(Nat,Fer,by="code_sp") %>% 
+  mutate(abundance_fer = abundance_fer %>%   replace(is.na(.), 0)) %>% 
+  mutate(abundance_nat = abundance_nat %>%   replace(is.na(.), 0))
+ggplot(NatFer,aes(x=abundance_nat,abundance_fer,label=code_sp)) +
+  geom_point() +
+  # ggrepel::geom_text_repel() +
+  geom_abline(slope = 1,intercept=0) 
+
 
 # Add info for species whose abundance = 0
 ab_spread <- ab_fer %>% 

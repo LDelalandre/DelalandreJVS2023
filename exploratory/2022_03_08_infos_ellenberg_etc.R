@@ -94,7 +94,7 @@ mod <- lm(Rs ~ light, data = jointot %>% filter(!is.na(Rs)))
 anova(mod)
 summary(mod)
 
-# azote très structurant
+# azote très structurant - marginalement significatif. R² très faible: 10% de la variance expliquée.
 ellenberg_evolution %>% 
   filter(!is.na(nitrogen)) %>% 
   ggplot(aes(y=Rs,x=as.factor(nitrogen),label = code_sp))+
@@ -121,8 +121,9 @@ ellenberg_evolution %>%
 
 # Lumière, donc compétition, structurante
 ellenberg_evolution %>% 
-  ggplot(aes(y=Rs,x=light,label = code_sp))+
-  geom_point() 
+  filter(!is.na(light)) %>% 
+  ggplot(aes(y=Rs,x=as.factor(light),label = code_sp))+
+  geom_point() +
   ggrepel::geom_text_repel()
 # Stylé ! ont besoin de peu de compétition pour s'en sortir dans le natif.
 ellenberg_evolution %>% 
@@ -138,7 +139,7 @@ ellenberg_evolution %>%
 
 # pH
 ellenberg_evolution %>% 
-  ggplot(aes(x=Rs,y=pH,label = code_sp))+
+  ggplot(aes(y=Rs,x=pH,label = code_sp))+
   geom_point() +
   ggrepel::geom_text_repel()
 

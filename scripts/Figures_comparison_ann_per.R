@@ -13,47 +13,18 @@ MEAN_CSR <- read.csv2("outputs/data/Pierce CSR/Traits_mean_sp_per_trtmt_complete
 # MEAN_CSR2 <- MEAN_CSR %>% 
 #   select(LifeHistory,C,S,R)
 
+#__________________________________________________
+# Option 1 : prendre les traits des espèces mesurés dans l'un ou l'autre traitement ####
 
-# Avoir autant de fois l'espèce qu'elle apparait dans les relevés (mauvaise option)
-ab_traits_fer_CSR <- ab_fer %>% 
-  left_join(MEAN_CSR %>% filter(treatment == "Fer"),
-            by = c("species","code_sp","LifeForm1","treatment")) %>% 
-    select(code_sp,LifeHistory,C,S,R) %>% 
-  filter(!is.na(C))
-
-ab_traits_nat_CSR <- ab_nat %>% 
-  mutate(id_com=paste(depth,paddock,line,sep="_")) %>% 
-  left_join(MEAN_CSR %>% filter(treatment == "Nat"),
-            by = c("species","code_sp","LifeHistory")) %>% 
-  select(depth,id_com,code_sp,LifeHistory,C,S,R)%>% 
-  filter(!is.na(C))
-
-ab_traits_nat_CSR %>% 
-  filter(depth=="S") %>% 
-  # unique() %>% 
-  # filter(LifeHistory == "perennial") %>%
-  ggplot(aes(x=S))+
-  geom_density() +
-  xlim(c(0,100))
-
-ab_traits_nat_CSR %>% 
-  filter(depth=="S") %>% 
-  filter(id_com == "S_P8_2") %>% 
-  unique() %>%
-  # filter(LifeHistory == "perennial") %>%
-  ggplot(aes(x=S))+
-  geom_density() +
-  xlim(c(0,100))
-
-# Option 2 : prendre les traits des espèces mesurés dans l'un ou l'autre traitement ####
+# i) CSR ####
 MEAN_CSR %>% 
   select(code_sp,treatment,LifeHistory,C,S,R) %>%
   gather(key = score, value = value, -c(code_sp, LifeHistory,treatment)) %>% 
   # filter(score == "R") %>% 
   filter(treatment%in% c("Nat","Fer")) %>% 
   ggplot(aes(x=score, y=value, color = LifeHistory))+
-  geom_point()+
-  # geom_boxplot() +
+  # geom_point()+
+  geom_boxplot() +
   facet_wrap(~treatment) 
 
 data.anovaCSR <- MEAN_CSR %>% 
@@ -62,12 +33,34 @@ data.anovaCSR <- MEAN_CSR %>%
   filter(treatment%in% c("Nat","Fer"))
 
 options(contrasts=c("contr.treatment","contr.treatment"))
-lmCSR <- lm(R ~ treatment * LifeHistory, data = data.anovaCSR) 
+lmCSR <- lm(S ~ treatment * LifeHistory, data = data.anovaCSR)
+plot(lmCSR)
+shapiro.test(residuals(lmCSR)) # normality of residuals
+lmtest::bptest(lmCSR) # homoscedasticity
+lmtest::dwtest(lmCSR)  # non-independence of residuals!
 anova(lmCSR)
 summary(lmCSR)
 
+# Interprétation facile 
 
-# Option 3 : sélectionner les espèces qui apparaissent dans les relevés de maud superficiel et diachro ####
+
+# ii) Autres traits ####
+trait <- "Flo"
+
+MEAN_CSR %>% 
+  # select(code_sp,treatment,LifeHistory,SeedMass) %>%
+  filter(treatment %in% c("Nat","Fer")) %>% 
+  ggplot(aes_string(x="LifeHistory", y=trait, color = "LifeHistory"))+
+  # geom_point()+
+  geom_boxplot() +
+  facet_wrap(~treatment) +
+  ggsignif::geom_signif()
+
+
+#____________________________________________________________
+# Option 2 : sélectionner les espèces qui apparaissent dans les relevés de maud superficiel et diachro ####
+# C'est peut-être le plus cohérent, mais on n'a pas assez de points pour
+# que les tests soient suffisamment puissants...
 
 # dans le fertile
 species_fer <- ab_fer %>% 
@@ -89,7 +82,7 @@ species_S <- ab_nat %>%
   pull(code_sp) %>% 
   unique()
 
-tata <- MEAN_CSR %>% 
+MEAN_CSR %>% 
   filter(code_sp %in% species_S) %>%
   filter(treatment=="Nat") %>% 
   select(code_sp,LifeHistory,C,S,R) %>%
@@ -116,11 +109,72 @@ MEAN_CSR %>%
   ggtitle("Nat") 
 
 
-# Autres traits ####
-tete <- MEAN_CSR %>% 
-  select(code_sp,treatment,LifeHistory,SeedMass) %>%
+# Dans le fertile et le natif superficiel
+MEAN_CSR_fer <- MEAN_CSR %>% 
+  filter(code_sp %in% species_fer) %>% 
+  filter(treatment=="Fer")
+MEAN_CSR_natsup <- MEAN_CSR %>% 
+  filter(code_sp %in% species_nat) %>% 
+  filter(treatment=="Nat")
+MEAN_CSR_extremes <- rbind(MEAN_CSR_fer,MEAN_CSR_natsup)
+
+MEAN_CSR_extremes %>% 
+  select(code_sp,treatment,LifeHistory,C,S,R) %>%
+  gather(key = score, value = value, -c(code_sp, LifeHistory,treatment)) %>% 
+  # filter(score == "R") %>% 
   filter(treatment%in% c("Nat","Fer")) %>% 
-  ggplot(aes(x=LifeHistory, y=SeedMass, color = LifeHistory))+
+  ggplot(aes(x=score, y=value, color = LifeHistory))+
   # geom_point()+
   geom_boxplot() +
-  facet_wrap(~treatment)
+  facet_wrap(~treatment) 
+
+data.anovaCSR <- MEAN_CSR_extremes %>% 
+  select(code_sp,treatment,LifeHistory,C,S,R) %>%
+  # gather(key = score, value = value, -c(code_sp, LifeHistory,treatment)) %>% 
+  filter(treatment%in% c("Nat","Fer"))
+
+options(contrasts=c("contr.treatment","contr.treatment"))
+lmCSR <- lm(R ~ treatment * LifeHistory, data = data.anovaCSR)
+# plot(lmCSR)
+shapiro.test(residuals(lmCSR)) # normality of residuals
+lmtest::bptest(lmCSR) # homoscedasticity
+lmtest::dwtest(lmCSR)  # non-independence of residuals!
+anova(lmCSR)
+summary(lmCSR)
+
+
+
+
+
+
+# Mass grave ####
+# Avoir autant de fois l'espèce qu'elle apparait dans les relevés (mauvaise option)
+ab_traits_fer_CSR <- ab_fer %>% 
+  left_join(MEAN_CSR %>% filter(treatment == "Fer"),
+            by = c("species","code_sp","LifeForm1","treatment")) %>% 
+  select(code_sp,LifeHistory,C,S,R) %>% 
+  filter(!is.na(C))
+
+ab_traits_nat_CSR <- ab_nat %>% 
+  mutate(id_com=paste(depth,paddock,line,sep="_")) %>% 
+  left_join(MEAN_CSR %>% filter(treatment == "Nat"),
+            by = c("species","code_sp","LifeHistory")) %>% 
+  select(depth,id_com,code_sp,LifeHistory,C,S,R)%>% 
+  filter(!is.na(C))
+
+ab_traits_nat_CSR %>% 
+  filter(depth=="S") %>% 
+  # unique() %>% 
+  filter(LifeHistory == "perennial") %>%
+  ggplot(aes(x=S))+
+  geom_density() +
+  xlim(c(0,100))
+
+ab_traits_nat_CSR %>% 
+  filter(depth=="S") %>% 
+  filter(id_com == "S_P8_2") %>% 
+  unique() %>%
+  # filter(LifeHistory == "perennial") %>%
+  ggplot(aes(x=S))+
+  geom_density() +
+  xlim(c(0,100))

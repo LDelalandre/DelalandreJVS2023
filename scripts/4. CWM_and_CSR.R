@@ -29,6 +29,7 @@ ellenberg_fage <- read.csv2("outputs/data/ellenberg_la_fage.csv") %>%
 MEAN_CSR_ellenberg <- MEAN_CSR %>% 
   left_join(ellenberg_fage,by="species")
 
+
 # Compute CWM of traits and CSR scores ####
 # I can compute CWM of CSR in the two ways (CWM of traits and CSR, and CSR and CWM of these index).
 

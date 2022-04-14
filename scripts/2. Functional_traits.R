@@ -1,11 +1,14 @@
 source("scripts/1. Packages.R")
 
+# List of species
+names_LH <- read.csv2("data/species_names_lifehistory.csv")
 
 # 1) Import plant trait values ####
 data_file <- "LaFage_PlantTraitsDP_vp.xlsx"
 
 LeafMorpho1 <-  read.xlsx(paste0("data/traits/",data_file), sheet = "LeafMorpho_traits", startRow = 1, colNames = TRUE)  
-LeafMorpho_leo <- read.csv2("data/traits/leafMorpho_3.csv")
+LeafMorpho_leo <- read.csv2("data/traits/leafMorpho_3.csv") %>% 
+  filter(!(Code_Sp %in% c("EROPVERN","STELMEDI"))) # senescent leaves
 LeafMorpho <- rbind(LeafMorpho1,LeafMorpho_leo)
 
 # LeafDimensions <- read.xlsx(paste0("data/traits/",data_file), sheet = "LeafDimensions (àsupprimer)", startRow = 1, colNames = TRUE)
@@ -13,19 +16,9 @@ LeafCN1 <- read.xlsx(paste0("data/traits/",data_file), sheet = "LeafC&N", startR
 LeafP <- read.xlsx(paste0("data/traits/",data_file), sheet = "LeafP", startRow = 1, colNames = TRUE) 
 Leaf13C1 <- read.xlsx(paste0("data/traits/",data_file), sheet = "Leaf13C", startRow = 1, colNames = TRUE) 
 
-# measurements C, N, 13C spring
-MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment.csv") %>% 
-  filter(!(species == "Geranium dissectum - limbe")) %>% 
-  filter(!(species == "Geranium dissectum - pétiole")) %>% 
-  filter(!(species == "Carex humilis?"))
-
-names_LH <- MEAN %>% 
-  select(code_sp,species,LifeForm1) %>% 
-  unique() %>% 
-  rename(Code_Sp = code_sp,Species=species)
-
-
-Leafchim_leo <- read.csv2(paste0("data/traits/leafchim_leo.csv"))
+# measurements C, N, 13C spring 2021
+Leafchim_leo <- read.csv2(paste0("data/traits/leafchim_leo.csv")) %>% 
+  filter(!(Code_Sp %in% c("EROPVERN","STELMEDI"))) # senescent leaves
 # Species name and LifeForm
 L2 <- Leafchim_leo %>% 
   merge(names_LH,by="Code_Sp") %>% 
@@ -43,8 +36,10 @@ L5 <- L4 %>%
   group_by(Species,Plot) %>% 
   mutate(Rep = paste("RCN",Rep,sep=""))
 
-LeafCN_leo <- L5[,colnames(LeafCN)]
-Leaf13C_leo <- L5[,colnames(Leaf13C)]
+LeafCN_leo <- L5[,colnames(LeafCN1)] %>% 
+  mutate(LCC = 10*LCC) %>% 
+  mutate(LNC = 10*LNC) # to change the unit from % to mg/g.
+Leaf13C_leo <- L5[,colnames(Leaf13C1)]
 
 LeafCN <- rbind(LeafCN1,LeafCN_leo)
 Leaf13C <- rbind(Leaf13C1,Leaf13C_leo)
@@ -57,7 +52,7 @@ Pheno <- read.xlsx(paste0("data/traits/",data_file), sheet = "Pheno", startRow =
 Seed <- read.xlsx(paste0("data/traits/",data_file), sheet = "Seed", startRow = 1, colNames = TRUE) 
 
 # 2) Mean trait value per species * treatment ####
-mean_attribute_per_species <- function(dataset){
+mean_attribute_per_species <- function(dataset,subset_gt_nat = F){
   dataset2 <- dataset %>% 
     mutate(Trtmt = str_sub(Treatment,1,3) ) %>% 
     filter(Trtmt %in% c("Fer",'Nat','Tem','Che')) %>% 
@@ -69,6 +64,10 @@ mean_attribute_per_species <- function(dataset){
     # NB : /!\ I sould keep family and lifeform info, but only when these are variables are clean in the dataset.
     # (sinon, ça découple une espèce en deux artificiellement dans le calcul de la moyenne).
     select(-c(nameOfProject,measurementDeterminedBy,Rep))
+  if (subset_gt_nat == T){
+    dataset2 <- dataset2 %>% 
+      filter(Treatment %in% c("Fer_Clc","Fer_Dlm","Nat_Sab"))
+  }
   
   # Variables on which we want to summarize:
   vars <- dataset2 %>% 
@@ -83,13 +82,26 @@ mean_attribute_per_species <- function(dataset){
 
 
 # Compile mean of all the traits in one dataset
-MEAN_list <- list( mean_attribute_per_species(LeafMorpho),
-                   mean_attribute_per_species(LeafCN),
-                   mean_attribute_per_species(LeafP),
-                   mean_attribute_per_species(Leaf13C),
-                   mean_attribute_per_species(Biovolume),
-                   mean_attribute_per_species(Pheno),
-                   mean_attribute_per_species(Seed) )
+take_nat_sab_only <- T
+
+if(take_nat_sab_only == F){
+  MEAN_list <- list( mean_attribute_per_species(LeafMorpho),
+                     mean_attribute_per_species(LeafCN),
+                     mean_attribute_per_species(LeafP),
+                     mean_attribute_per_species(Leaf13C),
+                     mean_attribute_per_species(Biovolume),
+                     mean_attribute_per_species(Pheno),
+                     mean_attribute_per_species(Seed) )
+} else{
+  MEAN_list <- list( mean_attribute_per_species(LeafMorpho, subset_gt_nat = T),
+                     mean_attribute_per_species(LeafCN, subset_gt_nat = T),
+                     mean_attribute_per_species(LeafP, subset_gt_nat = T),
+                     mean_attribute_per_species(Leaf13C, subset_gt_nat = T),
+                     mean_attribute_per_species(Biovolume, subset_gt_nat = T),
+                     mean_attribute_per_species(Pheno, subset_gt_nat = T),
+                     mean_attribute_per_species(Seed, subset_gt_nat = T) )
+}
+
 MEAN <- MEAN_list[[1]]
 MEAN$Species <- recode(MEAN$Species,"Cirsium acaulon" = "Cirsium acaule")
 for (i in 2:length(MEAN_list)){
@@ -105,7 +117,10 @@ MEAN2 <- MEAN %>%
   filter(!(treatment %in% c("Tem","Che")))
 
 
-write.csv2(MEAN2,"outputs/data/mean_attribute_per_treatment.csv",row.names=F)
 
-
+if(take_nat_sab_only == F){
+  write.csv2(MEAN2,"outputs/data/mean_attribute_per_treatment.csv",row.names=F)
+} else{
+  write.csv2(MEAN2,"outputs/data/mean_attribute_per_treatment_subset_nat_sab.csv",row.names=F)
+}
 
