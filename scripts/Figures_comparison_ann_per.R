@@ -15,6 +15,7 @@ MEAN_CSR <- read.csv2("outputs/data/Pierce CSR/Traits_mean_sp_per_trtmt_complete
 
 #__________________________________________________
 # Option 1 : prendre les traits des espèces mesurés dans l'un ou l'autre traitement ####
+# En comparant nat_sab et fer
 
 # i) CSR ####
 MEAN_CSR %>% 
@@ -34,7 +35,9 @@ data.anovaCSR <- MEAN_CSR %>%
 
 options(contrasts=c("contr.treatment","contr.treatment"))
 lmCSR <- lm(S ~ treatment * LifeHistory, data = data.anovaCSR)
-plot(lmCSR)
+
+par(mfrow=c(2,2)) ; plot(lmCSR) # diagnostic_graphs
+par(mfrow= c(1,1)) ; plot(density(residuals(lmCSR))) # normality_graph
 shapiro.test(residuals(lmCSR)) # normality of residuals
 lmtest::bptest(lmCSR) # homoscedasticity
 lmtest::dwtest(lmCSR)  # non-independence of residuals!
@@ -45,7 +48,10 @@ summary(lmCSR)
 
 
 # ii) Autres traits ####
-trait <- "Flo"
+
+trait <- "SLA"
+trait <- "R"
+trait <- "Disp"
 
 MEAN_CSR %>% 
   # select(code_sp,treatment,LifeHistory,SeedMass) %>%
@@ -145,36 +151,3 @@ summary(lmCSR)
 
 
 
-
-
-# Mass grave ####
-# Avoir autant de fois l'espèce qu'elle apparait dans les relevés (mauvaise option)
-ab_traits_fer_CSR <- ab_fer %>% 
-  left_join(MEAN_CSR %>% filter(treatment == "Fer"),
-            by = c("species","code_sp","LifeForm1","treatment")) %>% 
-  select(code_sp,LifeHistory,C,S,R) %>% 
-  filter(!is.na(C))
-
-ab_traits_nat_CSR <- ab_nat %>% 
-  mutate(id_com=paste(depth,paddock,line,sep="_")) %>% 
-  left_join(MEAN_CSR %>% filter(treatment == "Nat"),
-            by = c("species","code_sp","LifeHistory")) %>% 
-  select(depth,id_com,code_sp,LifeHistory,C,S,R)%>% 
-  filter(!is.na(C))
-
-ab_traits_nat_CSR %>% 
-  filter(depth=="S") %>% 
-  # unique() %>% 
-  filter(LifeHistory == "perennial") %>%
-  ggplot(aes(x=S))+
-  geom_density() +
-  xlim(c(0,100))
-
-ab_traits_nat_CSR %>% 
-  filter(depth=="S") %>% 
-  filter(id_com == "S_P8_2") %>% 
-  unique() %>%
-  # filter(LifeHistory == "perennial") %>%
-  ggplot(aes(x=S))+
-  geom_density() +
-  xlim(c(0,100))
