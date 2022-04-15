@@ -2,6 +2,7 @@ source("scripts/1. Packages.R")
 
 # List of species
 names_LH <- read.csv2("data/species_names_lifehistory.csv")
+names_family <- read.csv2("data/traits/names and family.csv")
 
 # 1) Import plant trait values ####
 data_file <- "LaFage_PlantTraitsDP_vp.xlsx"
@@ -46,9 +47,47 @@ Leaf13C <- rbind(Leaf13C1,Leaf13C_leo)
 
 Biovolume <- read.xlsx(paste0("data/traits/",data_file), sheet = "Biovolume", startRow = 1, colNames = TRUE) %>% 
   mutate(Hrepro = as.numeric(Hrepro))
-Pheno <- read.xlsx(paste0("data/traits/",data_file), sheet = "Pheno", startRow = 1, colNames = TRUE) %>% 
+
+# Pheno ####
+Pheno1 <- read.xlsx(paste0("data/traits/",data_file), sheet = "Pheno", startRow = 1, colNames = TRUE) %>% 
   mutate(Rep = "None") %>% 
   mutate(Day = "None")
+
+day_month <- read.table("data/phenology/day_month.txt",header=T)
+get_day_of_year <- function(Month,Day2){
+  day_month %>% 
+    filter(month == Month) %>% 
+    filter(day_of_month == Day2) %>% 
+    pull(day_of_year)
+}
+colnames <- colnames(Pheno1)
+
+pheno_leo <- read.xlsx("data/phenology/Pheno_leo.xlsx", sheet = "rawdata_seeds", startRow = 1, colNames = TRUE) %>% 
+  mutate(Day2 = as.Date(date - 25569, origin = "1970-01-01")) %>% 
+  mutate(Day = str_replace_all(Day2,"-","")) %>% 
+  filter(!(plot=="C1")) # wrong pheno estimation in the fertile treatment
+
+pheno_leo_DP <- pheno_leo %>% 
+  mutate(Code_Sp = toupper(code_sp)) %>%
+  filter(!(Code_Sp == "rhinpumi")) %>% # mesuré trop tard
+  mutate(Site= "La Fage", Block = "None",Plot = plot, Treatment = "Nat_Sab",Year = 2021,
+         ) %>% 
+  left_join(names_LH,by="Code_Sp") %>% 
+  left_join(names_family,by="Species") %>% 
+  separate(col = Day2,into = c("Year","Month","Day")) %>% 
+  mutate(Year = as.numeric(Year), Month = as.numeric(Month), Day = as.numeric(Day)) %>% 
+  mutate(Disp = map2_dbl(Month,Day,get_day_of_year)) %>% 
+  select(-c(code_sp,date,plot)) %>% 
+  mutate(LifeForm2 = NA) %>%  # A compléter pour le data paper
+  mutate(Flo = NA, Mat_Per = NA, nameOfProject = "Annuals",measurementDeterminedBy = "Léo Delalandre") %>% 
+  mutate(Rep = "None") %>% 
+  group_by(Species) %>% 
+  filter(Disp == min (Disp)) %>%  # NB: une valeur de phéno par espèce*traitment dans la BDD ; je prends la min !
+  select(all_of(colnames))
+
+Pheno <- rbind(Pheno1,pheno_leo_DP)
+
+# Seed
 Seed <- read.xlsx(paste0("data/traits/",data_file), sheet = "Seed", startRow = 1, colNames = TRUE) 
 
 # 2) Mean trait value per species * treatment ####

@@ -84,10 +84,12 @@ pheno_leo <- read.xlsx("data/phenology/Pheno_leo.xlsx",sheet="rawdata_seeds") %>
   mutate(Treatment = if_else(plot %in% c("C1","C2"),true = "Fer_Clc", false = "Nat_Sab")) 
 
 ggplot(pheno_leo,aes(x=treatment,y=Disp))+
-  geom_boxplot()
+  geom_point()
 
-ggplot(MEAN_pheno %>% filter(LifeHistory=="annual"),aes(x=treatment,y=Disp))+
-  geom_boxplot()
+ggplot(pheno_leo %>%filter(treatment=="Nat"),
+       aes(x=treatment,y=Disp))+
+  geom_point() +
+  facet_wrap(~code_sp)
 
 # J'estime la phénologie de la dispersion trop tard avec mes récoltes...
 
