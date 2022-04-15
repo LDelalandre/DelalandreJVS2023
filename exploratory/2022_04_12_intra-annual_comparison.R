@@ -4,7 +4,7 @@ library(rstatix)
 
 
 #______________________________________________________________________________
-# Comparaison annuelles spring ####
+# Comparaison annuelles spring - norme de réaction ####
 
 # /!\ Importer donnees de scripts/2. Functional_traits.R 
 
@@ -26,10 +26,10 @@ ann_nat <- Leaf13C %>%
 
 ann_both <- intersect(ann_fer,ann_nat)
 
-LeafMorpho_ann_both <- Leaf13C %>% 
+LeafMorpho_ann_both <- Pheno %>% 
   filter(measurementDeterminedBy == "Léo Delalandre") %>%
   filter(Code_Sp %in% ann_both)
-ggplot(LeafMorpho_ann_both,aes(x=Treatment,y= LNC ,label = Code_Sp)) +
+ggplot(LeafMorpho_ann_both,aes(x=Treatment,y= Disp ,label = Code_Sp)) +
   geom_point() +
   # geom_boxplot() +
   facet_wrap(~ Code_Sp) +
@@ -41,7 +41,7 @@ tempo_evol <- read.csv2("outputs/data/temporal_evolution_fer.csv") %>%
 
 logratio <- LeafMorpho_ann_both %>% 
   group_by(Code_Sp,Treatment) %>% 
-  summarize(mean = mean(Ldelta13C)) %>%
+  summarize(mean = mean(LDMC)) %>%
   spread(key = Treatment,value = mean) %>% 
   mutate(LR = log(Fer_Clc/Nat_Sab))
 
@@ -50,11 +50,30 @@ LR_tempo <- left_join(logratio,tempo_evol,by="Code_Sp")
 ggplot(LR_tempo,aes(x=Rs,y=LR,label=Code_Sp))+
   geom_point() +
   geom_label()
-  geom_smooth(method="lm")
+  # geom_smooth(method="lm")
 
 # regarder ça sur toute la base de données (pérennes comprises), pas que les annuelles dans les deux
 
+# phéno
+list_ann_nat <- Pheno %>% 
+  filter(LifeForm1=="The") %>% 
+  filter(Treatment == "Nat_Sab") %>% 
+  pull(Code_Sp)
 
+list_ann_fer <- Pheno %>% 
+  filter(LifeForm1=="The") %>% 
+  filter(Treatment %in%  c("Fer_Clc","Fer_Dlm")) %>% 
+  pull(Code_Sp)
+
+common <- intersect(list_ann_fer,list_ann_nat)
+Pheno %>% 
+  unique() %>% 
+  filter(Code_Sp %in% common) %>%
+  filter(Treatment%in% c("Nat_Sab","Fer_Clc","Fer_Dlm")) %>% 
+  spread(key = Treatment,value = Disp)
+  
+# Models, intra-annual comparison ####
+  
 # Pour le LCC: la comparaison n'est jamais significative
 
 # Pour le carbone 13, le SLA :
@@ -69,6 +88,8 @@ ggplot(LR_tempo,aes(x=Rs,y=LR,label=Code_Sp))+
 # espèces c'est valable : Alyssum, Cerapumi, Filago, Geramoll...et Geradiss en sens contraire aux attendus)
 # Et idem  pour le leaf_area et le LNC (pas étonnant pour ces derniers)
 
+  
+  
 # Tests appariés 
 # Faire un modèle mixte ?
 
@@ -100,6 +121,8 @@ summary(mod_ldmc)
 # Dans le fertile, augmentation du LDMC, diminution de la surface 
 # foliaire, et SLA inchangé. Regarder en scores CSR.
 
+# --> Calculer les scores CSR par individu !
+
 m0_ldmc <- lm(LDMC ~ Code_Sp * Treatment,data=data_LDMC)
 shapiro.test(residuals(m0_ldmc)) # normality of residuals
 lmtest::bptest(m0_ldmc) # no homoscedasticity
@@ -108,6 +131,6 @@ summary(m0_ldmc)
 anova(m0_ldmc)
   
 #______________________________________________________________________________
-# Moyennes par espèce ####
+# Moyennes par espèce
 # C'est moins intéressant de travailler sur des moyennes par espèce :
 # on perd en puissance statistique.
