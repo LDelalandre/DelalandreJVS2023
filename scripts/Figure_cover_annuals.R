@@ -56,13 +56,13 @@ soil_Maud <- data.frame(PC1score = c(-3.08,-2.85,-2.52,-1.78,-1.60,-1.56,-0.03,0
 # II) Figure ####
 # NB: Version pré-finale, à modifier sous inkscape
 #specify path to save PDF to
-destination = "outputs/figures/Fig_envir_cover/main figure.pdf"
+destination = "outputs/figures/1_abundance_richness_annuals.pdf"
 
 #open PDF
 pdf(file=destination,width = 3, height = 7)
 
 #specify to save plots in 2x2 grid
-par(mar = c(2, 5.5, 0.1, 1),mfrow = c(6,1),mpg = c(1,1,0))
+par(mar = c(2, 5.5, 0.1, 1),mfrow = c(4,1),mpg = c(1,1,0))
 
 # 0) Number of annual species ####
 # NB : must be done at the level of plot, I guess.
@@ -93,6 +93,13 @@ boxplot(relative_richness_annual *100 ~ depth,
         xaxt = "n",
         medlwd = 1)
 
+boxplot(annual ~ depth,
+        data = richness_per_guild_toplot,
+        xlab = NA,
+        ylab = "Richness of annuals",
+        xaxt = "n",
+        medlwd = 1)
+
 mod <- lm(relative_richness_annual ~ depth, data = richness_per_guild_toplot)
 anova(mod)
 summary(mod)
@@ -107,60 +114,62 @@ posthoc <- multcomp::cld(emmeans::emmeans(mod, specs = "depth",  type = "respons
 comp <- as.data.frame(posthoc$emmeans) %>% 
   arrange(factor(depth, levels = levels(richness_per_guild_toplot$depth)))
 
-text(x=c(1:4),y=c(82,30,40,50), labels = comp$.group)
+text(x=c(1:4),y=c(82,30,40,50), labels = comp_glm$.group)
 # peut-être faire test non paramétrique (kruskal-wallis)
 
+# test glm ####
+# glm " mais ça marche pas, je suis sur de la richesse relative, donc proportion, pas poisson !!
+# donc je regarde la RS absolue des annuelles, "annual", et pas relat, "relative_richness_annual"
+mod_glm <- glm(annual ~ depth, family = "quasipoisson", data = richness_per_guild_toplot)
+# quasipoisson to deal with overdispersion.
 
+# mod_glm <- MASS::glm.nb(annual ~ depth, data = richness_per_guild_toplot)
 
+anova(mod_glm)
+summary(mod_glm)
 
-# 1) Annual cover ####
-ann_fer <- ab_fer %>% 
-  mutate(LifeHistory = if_else(LifeForm1=="The","annual","perennial")) %>% 
-  group_by(LifeHistory,year,paddock,line) %>% 
-  summarise(tot_relat_ab = sum(relat_ab)) %>% 
-  filter(LifeHistory =="annual") %>% 
-  mutate(depth = "Fer") %>% 
-  relocate(LifeHistory,year,depth,paddock,line,tot_relat_ab)
-
-ann_nat <- ab_nat %>% 
-  group_by(LifeHistory,depth,paddock,line) %>% 
-  summarise(tot_relat_ab = sum(relat_ab)) %>% 
-  filter(LifeHistory =="annual") %>%
-  mutate(year = 2009) %>% 
-  relocate(LifeHistory,year,depth,paddock,line,tot_relat_ab) %>% 
-  mutate(line = as.character(line))
-
-cover_annuals <- rbind(ann_fer,ann_nat)
-cover_annuals$depth <- factor(cover_annuals$depth , levels = c("Fer","D","I","S"))
-
-
-boxplot(tot_relat_ab * 100 ~ depth,
-        data = cover_annuals, # %>% filter(!(depth == "Fer")),
-        ylim=c(0,90),
-        xlab = NA,
-        ylab = "Relative abundance \n of annuals (%)",
-        xaxt = "n",
-        medlwd = 1)
-
-
-mod <- lm(tot_relat_ab ~ depth, data = cover_annuals)
-anova(mod)
-summary(mod)
-shapiro.test(residuals(mod))
-lmtest::bptest(mod)
-lmtest::dwtest(mod)
-
-posthoc <- multcomp::cld(emmeans::emmeans(mod, specs = "depth",  type = "response",
+posthoc_glm <- multcomp::cld(emmeans::emmeans(mod_glm, specs = "depth",  type = "response",
                                           adjust = "tuckey"),
                          Letters = "abcdefghi", details = T)
 
-comp <- as.data.frame(posthoc$emmeans) %>% 
-  arrange(factor(depth, levels = levels(cover_annuals$depth)))
-
-text(x=c(1:4),y=c(82,30,40,50), labels = comp$.group)
+comp_glm <- as.data.frame(posthoc_glm$emmeans) %>% 
+  arrange(factor(depth, levels = levels(richness_per_guild_toplot$depth)))
 
 
+# hypothèses
+mean(richness_per_guild_toplot$annual) # en moyenne, annuelles représentent 20% de la richesse
+set.seed(1234) # permet de simuler toujours les mêmes comptages.
+theoretic_count <-rpois(76,3.236842)
 
+# on incorpore ces comptages théoriques dans un data frame
+tc_df <-data.frame(theoretic_count)
+
+# on plot simultanémaent les comptages observés et les comptages théoriques
+ggplot(richness_per_guild_toplot,aes(annual))+
+  geom_bar(fill="#1E90FF") +
+  geom_bar(data=tc_df, aes(theoretic_count,fill="#1E90FF", alpha=0.5))+
+  theme_classic() +
+  theme(legend.position="none") 
+
+summary(mod_glm)
+# 
+
+
+plot(residuals(mod_glm) ~ 
+       predict(mod_glm,type="link"),xlab=expression(hat(eta)),
+     ylab="Deviance residuals",pch=20,col="blue")
+
+pchisq(mod_glm$deviance, df=mod_glm$df.residual, lower.tail=FALSE)
+
+ssr <- sum(residuals(mod_glm, type="pearson")^2)
+pchisq(ssr, mod_glm$df.residual)
+# Tester si le rapport devince sur residuals est différent de 1
+
+# On ne rejette pas l'hypothèse nulle que le modèle est bien spécifié. Je reste là-dessus ?
+# the deviance goodness of fit test for Poisson regression. The null hypothesis is that our model is correctly specified
+# https://thestatsgeek.com/2014/04/26/deviance-goodness-of-fit-test-for-poisson-regression/
+
+# fin test glm  ####
 
 # 2) CWM CSR scores ####
 CSR_toplot_nat <- CWM2_nat %>% 
@@ -243,72 +252,62 @@ legend(
 
 
 # 2bis) Ellenberg ####
-ellenberg_toplot_nat <- CWM3_nat %>% 
-  mutate(id_com = paste(depth,paddock,line,sep = "_")) %>% 
-  select(id_com,depth,CWM_light,CWM_moisture,CWM_nitrogen,CWM_pH) %>% 
-  gather(key = "score", value = "value", -c(depth,id_com) ) 
-
-ellenberg_toplot_fer <- CWM3_fer %>% 
-  mutate(depth = "Fer") %>% 
-  select(id_transect_quadrat,depth,CWM_light,CWM_moisture,CWM_nitrogen,CWM_pH) %>% 
-  gather(key = "score", value = "value", -c(depth,id_transect_quadrat) ) %>% 
-  rename(id_com = id_transect_quadrat)
-
-ellenberg_toplot <- rbind(ellenberg_toplot_nat,ellenberg_toplot_fer)
-ellenberg_toplot$score <- factor(ellenberg_toplot$score , levels = c("CWM_light","CWM_nitrogen","CWM_moisture"))
-ellenberg_toplot$depth <- factor(ellenberg_toplot$depth , levels = c("Fer","D","I","S"))
-
-
-boxplot(
-  value ~ score * depth , data = ellenberg_toplot, 
-  xaxt = "n",
-  xlab = "", 
-  ylab = "Ellenberg's indicator \n value",
-  col = c("black", "grey","white"),
-  medlwd = 1
-)
-legend(
-  "right", title = "Indicator",
-  legend = c("light", "nitrogen", "moisture"), fill = c("black", "grey","white"),
-  cex = 0.7
-)
+# ellenberg_toplot_nat <- CWM3_nat %>% 
+#   mutate(id_com = paste(depth,paddock,line,sep = "_")) %>% 
+#   select(id_com,depth,CWM_light,CWM_moisture,CWM_nitrogen,CWM_pH) %>% 
+#   gather(key = "score", value = "value", -c(depth,id_com) ) 
+# 
+# ellenberg_toplot_fer <- CWM3_fer %>% 
+#   mutate(depth = "Fer") %>% 
+#   select(id_transect_quadrat,depth,CWM_light,CWM_moisture,CWM_nitrogen,CWM_pH) %>% 
+#   gather(key = "score", value = "value", -c(depth,id_transect_quadrat) ) %>% 
+#   rename(id_com = id_transect_quadrat)
+# 
+# ellenberg_toplot <- rbind(ellenberg_toplot_nat,ellenberg_toplot_fer)
+# ellenberg_toplot$score <- factor(ellenberg_toplot$score , levels = c("CWM_light","CWM_nitrogen","CWM_moisture"))
+# ellenberg_toplot$depth <- factor(ellenberg_toplot$depth , levels = c("Fer","D","I","S"))
+# 
+# 
+# boxplot(
+#   value ~ score * depth , data = ellenberg_toplot, 
+#   xaxt = "n",
+#   xlab = "", 
+#   ylab = "Ellenberg's indicator \n value",
+#   col = c("black", "grey","white"),
+#   medlwd = 1
+# )
+# legend(
+#   "right", title = "Indicator",
+#   legend = c("light", "nitrogen", "moisture"), fill = c("black", "grey","white"),
+#   cex = 0.7
+# )
 
 # 3) Vegetation cover ####
 # La comparaison natif fertile n'est pas valable...
-tot_ab_fer <- ab_fer %>% 
-  group_by(year,paddock,line) %>% 
-  # dplyr::rename(line = id_transect_quadrat) %>% 
-  summarise(tot_ab = sum(abundance)) %>% 
-  mutate(depth = "Fer") %>% 
-  relocate(year,depth,paddock,line,tot_ab)
+# tot_ab_fer <- ab_fer %>% 
+#   group_by(year,paddock,line) %>% 
+#   # dplyr::rename(line = id_transect_quadrat) %>% 
+#   summarise(tot_ab = sum(abundance)) %>% 
+#   mutate(depth = "Fer") %>% 
+#   relocate(year,depth,paddock,line,tot_ab)
+# 
+# tot_ab_nat <- ab_nat %>% 
+#   group_by(depth,paddock,line) %>% 
+#   summarise(tot_ab = sum(abundance)) %>% 
+#   mutate(year = 2009) %>% 
+#   relocate(year,depth,paddock,line,tot_ab) %>% 
+#   mutate(line = as.character(line))
+# 
+# cover <- rbind(tot_ab_fer,tot_ab_nat)
+# cover$depth <- factor(cover$depth , levels = c("Fer","D","I","S"))
+# 
+# boxplot(tot_ab ~depth, data = cover ,
+#         xlab = NA,
+#         ylab = "Number of point \n intersept",
+#         medlwd = 1,
+#         xaxt = "n")
 
-tot_ab_nat <- ab_nat %>% 
-  group_by(depth,paddock,line) %>% 
-  summarise(tot_ab = sum(abundance)) %>% 
-  mutate(year = 2009) %>% 
-  relocate(year,depth,paddock,line,tot_ab) %>% 
-  mutate(line = as.character(line))
 
-cover <- rbind(tot_ab_fer,tot_ab_nat)
-cover$depth <- factor(cover$depth , levels = c("Fer","D","I","S"))
-
-boxplot(tot_ab ~depth, data = cover ,
-        xlab = NA,
-        ylab = "Number of point \n intersept",
-        medlwd = 1,
-        xaxt = "n")
-
-# 4) Biomass consumption ####
-boxplot(disturbance$Tx_CalcPic ~ disturbance$Trtmt ,  
-        width=c(1,4),
-        # col=c("orange" , "seagreen"),
-        xlab = NA,
-        ylab = "Proportion of \n biomass eaten",
-        xaxt = "n",
-        # log = "x",
-        at = c(1,2),
-        medlwd = 1
-)
 
 # 5) Biomass production ####
 biomass <- read.xlsx("data/environment/Biomasses et indices La Fage.xlsx", 
@@ -349,6 +348,72 @@ error.bar(BarPlot,to_barplot,to_barplot_se)
 dev.off() 
 
 
+
+# 4) Independent figure : biomass consumption ####
+jpeg("outputs/figures/1_disturbance.jpeg")
+boxplot(disturbance$Tx_CalcPic ~ disturbance$Trtmt ,  
+        width=c(1,4),
+        # col=c("orange" , "seagreen"),
+        xlab = "Zone of origin",
+        ylab = "Proportion of biomass eaten",
+        # xaxt = "n",
+        at = c(1,2),
+        medlwd = 1
+)
+dev.off()
+
+
+# 1) Annual cover ####
+jpeg("outputs/figures/1_cover.jpeg")
+ann_fer <- ab_fer %>% 
+  mutate(LifeHistory = if_else(LifeForm1=="The","annual","perennial")) %>% 
+  group_by(LifeHistory,year,paddock,line) %>% 
+  summarise(tot_relat_ab = sum(relat_ab)) %>% 
+  filter(LifeHistory =="annual") %>% 
+  mutate(depth = "Fer") %>% 
+  relocate(LifeHistory,year,depth,paddock,line,tot_relat_ab)
+
+ann_nat <- ab_nat %>% 
+  group_by(LifeHistory,depth,paddock,line) %>% 
+  summarise(tot_relat_ab = sum(relat_ab)) %>% 
+  filter(LifeHistory =="annual") %>%
+  mutate(year = 2009) %>% 
+  relocate(LifeHistory,year,depth,paddock,line,tot_relat_ab) %>% 
+  mutate(line = as.character(line))
+
+cover_annuals <- rbind(ann_fer,ann_nat)
+cover_annuals$depth <- factor(cover_annuals$depth , levels = c("Fer","D","I","S"))
+
+
+boxplot(tot_relat_ab * 100 ~ depth,
+        data = cover_annuals, # %>% filter(!(depth == "Fer")),
+        ylim=c(0,90),
+        xlab = NA,
+        ylab = "Relative abundance \n of annuals (%)",
+        xaxt = "n",
+        medlwd = 1)
+
+
+mod <- lm(tot_relat_ab ~ depth, data = cover_annuals)
+anova(mod)
+summary(mod)
+shapiro.test(residuals(mod)) # not normal --> kruskal-wallis ?
+lmtest::bptest(mod)
+lmtest::dwtest(mod)
+
+posthoc <- multcomp::cld(emmeans::emmeans(mod, specs = "depth",  type = "response",
+                                          adjust = "tuckey"),
+                         Letters = "abcdefghi", details = T)
+
+comp <- as.data.frame(posthoc$emmeans) %>% 
+  arrange(factor(depth, levels = levels(cover_annuals$depth)))
+
+text(x=c(1:4),y=c(82,30,40,50), labels = comp$.group)
+
+dev.off()
+
+# plutôt faire kruskal test
+
 # III) Stats ####
 
 # 0) Annual richness ####
@@ -359,7 +424,11 @@ multcomp::cld(emmeans::emmeans(lm_richness, specs = "depth", type = "response",
                                adjust = "tuckey"),
               Letters = "abcdefghi", details = T)
 
-
+shapiro.test(residuals(lm_richness)) # non normality of residuals
+lmtest::bptest(lm_richness) # non homoscedasticity
+lmtest::dwtest(lm_richness)  # non-independence of residuals!
+plot(lm_richness)
+# faire un glm poisson
 
 # 1) Annual cover ####
 cover_annuals_nat <- cover_annuals %>% 
@@ -396,7 +465,13 @@ FSA::dunnTest(tot_relat_ab ~ depth,data = cover_annuals )
 kruskal.test(tot_relat_ab  ~ depth,data = cover_annuals %>% filter(!(depth=="Fer")) )
 FSA::dunnTest(tot_relat_ab ~ depth,data = cover_annuals %>% filter(!(depth=="Fer")) )
 
-# (Test modèles) ####
+cover_annuals %>% 
+  ggplot(aes(x=tot_relat_ab))+
+  geom_histogram(sts="identity")+
+  facet_wrap(~depth)
+# On n'a pas la même forme de distribution dans les trois cas de figure --> pas approprié d'utiliser Kruskal pour fertile...
+
+# (Test modèles en continu, etc.) ####
 # abondance absolue
 ab_nat %>% 
   filter(LifeHistory=="annual") %>% 
