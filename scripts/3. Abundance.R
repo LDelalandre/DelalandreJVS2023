@@ -67,3 +67,44 @@ ab_maud <- read.xlsx("data/abundance/maud_Relevés d'abondance La Fage Juin 2009
   mutate(relat_ab = abundance/sum(abundance))
 
 write.csv2(ab_maud,"outputs/data/abundance_natif.csv",row.names=F)
+
+
+# Comparison abundances between the two treatments
+ab_diachro_2004_nat <- ABUNDANCE %>% 
+  filter(dataset == "Diachro") %>% 
+  filter(year == 2004) %>%  # /!\ No measure available after 2005! Should I keep 2006, or several years?
+  filter(treatment == "Nat") %>%
+  # add relative abundance
+  group_by(id_transect_quadrat) %>% 
+  mutate(relat_ab = abundance/sum(abundance))
+
+ab_maud_mean <- ab_maud %>% 
+  group_by(code_sp,LifeHistory) %>% 
+  summarize(mean_relat_ab_maud = mean(relat_ab))
+
+ab_diachro_nat_mean <- ab_diachro_2004_nat %>% 
+  group_by(paddock,id_transect_quadrat) %>% 
+  mutate(relat_ab = abundance/sum(abundance)) %>% 
+  mutate(LifeHistory = if_else(LifeForm1=="The","annual","perennial")) %>% 
+  ungroup() %>% 
+  group_by(code_sp,LifeHistory) %>% 
+  summarize(mean_relat_ab_diachro = mean(relat_ab))
+
+compare_ab <- full_join(ab_maud_mean,ab_diachro_nat_mean,by=c("code_sp","LifeHistory"))  
+
+ggplot(compare_ab,aes(x=log(mean_relat_ab_maud),y=log(mean_relat_ab_diachro),label=code_sp,color=LifeHistory))+
+  geom_point() 
+  geom_smooth(method="lm")
+  # ggrepel::geom_text_repel()
+
+mod <- lm(log(mean_relat_ab_maud)~log(mean_relat_ab_diachro),data = compare_ab) 
+shapiro.test(residuals(mod)) # normality of residuals
+lmtest::bptest(mod) # no homoscedasticity
+lmtest::dwtest(mod) # autocorrelation
+summary(mod)
+anova(mod)
+
+mod$coefficients
+sum <- summary(mod)
+sum$adj.r.squared
+sum$r.squared

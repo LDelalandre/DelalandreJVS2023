@@ -131,7 +131,7 @@ PCA_sp_names <- ggplot (coord_ind,aes(x=Dim.1,y=Dim.2,label = Code_Sp,colour=Lif
 plot_d1 <- boxplot_dimension(coord_ind,dim = "Dim.1")
 plot_d2 <- boxplot_dimension(coord_ind,dim = "Dim.2")
 PCA_fer_boxplot <- plot_pca_boxplot(PCA_fer,plot_d1,plot_d2)
-ggsave("outputs/plots/PCA_fertile.png",PCA_fer_boxplot,height = 20, width =20)
+ggsave("figures/2_PCA_fertile.png",PCA_fer_boxplot,height = 20, width =20)
 
 
 # ii) Natif ####
@@ -147,7 +147,8 @@ coord_var <- pca_output[[2]]
 var.explain.dim1 <- pca_output[[3]]
 var.explain.dim2 <- pca_output[[4]]
 
-PCA_nat <- plot_pca(coord_ind,coord_var,var.explain.dim1,var.explain.dim2 )
+PCA_nat <- plot_pca(coord_ind,coord_var,var.explain.dim1,var.explain.dim2 ) +
+  ggtitle("Nat_Sab")
 
 PCA_sp_names <- ggplot (coord_ind,aes(x=Dim.1,y=Dim.2,label = Code_Sp,colour=Lifelength))+
   ggrepel::geom_label_repel() # With species names
@@ -160,7 +161,7 @@ ggsave("outputs/plots/PCA_natif.png",PCA_nat_boxplot,height = 20, width =20)
 
 # iii) Both PCA graphs ####
 PCA <- grid.arrange(PCA_fer,PCA_nat, ncol=2)
-ggsave("outputs/plots/PCA.png",PCA,height = 20, width =20)
+ggsave("outputs/figures/2_PCA_annuals_perennials.png",PCA,height = 20, width =20)
 
 
 # iv) ANOVA Position on axes ####
@@ -179,9 +180,16 @@ info_anova[[4]] # anova
 info_anova[[5]] # summary
 
 
+
 #_______________________________________________________________
-# 2) Annuals only ####
+# 2) Annuals whoses traits were measured ####
+# Not very interesting : does not reflect abundance at all.
+# Rq here on Fer and Nat_Sab
+
+# J'ai enlevé des outliers (deux). Est-ce justifié ? Je pense que oui.
 traits_pca_annuals <- MEAN %>% 
+  filter(!(code_sp=="FILAPYRA")) %>% # /!\  outlier (lien SLA-dispersion) !
+  filter(!(code_sp == "CREPVESI-HAE")) %>% # /!\  outlier
   filter(LifeHistory == "annual") %>% 
   select(!!c("code_sp","treatment",traits)) %>%  # subset of the traits that I want of analyse
   group_by(code_sp,treatment) %>% 
@@ -189,6 +197,7 @@ traits_pca_annuals <- MEAN %>%
   mutate(ddd = paste(code_sp,treatment,sep = "_")) %>% 
   column_to_rownames("ddd") %>% 
   select(-c(code_sp,treatment))
+  
   
 ACP1<-PCA(traits_pca_annuals,graph = FALSE)
 factoextra::fviz_eig(ACP1, addlabels = TRUE) # percentage of variance explained
@@ -217,33 +226,41 @@ PCA2 <- ggplot(coord_ind,aes(x=Dim.1,y=Dim.2,colour=treatment))+ #,label = sp_tr
   ylab(paste("Dim2",var.explain.dim2,"% variance explained")) +
   scale_colour_manual(values=c("#009E73","#E69F00")) 
 
+ggsave("outputs/figures/3_PCA_annuals.jpg",PCA2)
+
 PCA_label <- ggplot(coord_ind,aes(x=Dim.1,y=Dim.2,colour=treatment,label = sp_tr))+
-  ggrepel::geom_label_repel()+
+  ggrepel::geom_label_repel() +
   geom_hline(aes(yintercept=0), size=.2,linetype="longdash") + 
   geom_vline(aes(xintercept = 0),linetype = "longdash", size=.2)+
   coord_equal() +
-  geom_point() +
-  geom_segment(data=coord_var, aes(x=0, y=0, xend=Dim.1*7-0.2, yend=Dim.2*7-0.2), 
-               arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
-  # geom_text_repel(data=coord_var, aes(x=Dim.1*7, Dim.2*7, label=rowname), size = 4, vjust=1, color="black") +
-  ggtitle("Annuals in fer and nat sup") +
-  # theme(legend.position = "none")+
-  xlab(paste("Dim1",var.explain.dim1,"% variance explained"))+
-  ylab(paste("Dim2",var.explain.dim2,"% variance explained")) +
-  scale_colour_manual(values=c("#009E73","#E69F00")) 
+  geom_point() 
+  # geom_segment(data=coord_var, aes(x=0, y=0, xend=Dim.1*7-0.2, yend=Dim.2*7-0.2), 
+  #              arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
+  # # geom_text_repel(data=coord_var, aes(x=Dim.1*7, Dim.2*7, label=rowname), size = 4, vjust=1, color="black") +
+  # ggtitle("Annuals in fer and nat sup") +
+  # # theme(legend.position = "none")+
+  # xlab(paste("Dim1",var.explain.dim1,"% variance explained"))+
+  # ylab(paste("Dim2",var.explain.dim2,"% variance explained")) +
+  # scale_colour_manual(values=c("#009E73","#E69F00")) 
 
 # With species names
 # ggplot (coord_ind,aes(x=Dim.1,y=Dim.2,label = Code_Sp,colour=Lifelength))+
 #   geom_text()
+dimension <- 2
+anov_dim <- compute_anova_dim_x(coord_ind,dimension)
 
+par(mfrow=c(2,2)) ; plot(anov_dim) # diagnostic_graphs
+par(mfrow= c(1,1)) ; plot(density(residuals(anov_dim))) # normality_graph
+
+# Compare scores on axis "dimension" between annuals and perennials
+info_anova <- info_anova_dim_x(anov_dim,dimension)
+info_anova[[1]] # normality
+info_anova[[2]] # homoscedasticity
+info_anova[[3]] # independence of residuals
+info_anova[[4]] # anova
+info_anova[[5]] # summary
 #___________________________________________________________________
-# 3) Annuals in both treatments ####
-# traits <- c("LDMC","SLA","L_Area",
-#             "LCC","LNC","Ldelta13C","LPC",
-#             "Hveg"  ,    "Hrepro"   , "Dmax"  , #    "Dmin" ,
-#             "Flo","Disp","Mat_Per", #"Mat",
-#             "SeedMass"
-# )
+# 3) Annuals in abundance relevés in Fer and Nat_Sab ####
 
 ab_fer <- read.csv2("outputs/data/abundance_fertile.csv")
 # Prenons l'abondance dans le diachro sur plusieurs années pour voir si je capte plus d'sp
@@ -296,10 +313,6 @@ ggplot(data_traits_for_PCA,aes(x=LDMC,y=SLA,color = treatment))+
   scale_colour_manual(values=c("#009E73","#E69F00")) +
   geom_function(fun = draw_curve,color="black")
 
-ggplot(data_traits_for_PCA,aes(x=LNC,y=SLA,color = treatment))+
-  geom_point() +
-  scale_colour_manual(values=c("#009E73","#E69F00"))
-
 data_traits_for_PCA_fer <- data_traits_for_PCA %>% 
   ungroup() %>% 
   # filter(code_sp %in% annuals) %>%
@@ -347,7 +360,7 @@ PCA2 <- ggplot(coord_ind,aes(x=Dim.1,y=Dim.2,colour=treatment))+
   scale_colour_manual(values=c("#009E73","#E69F00")) 
 
 PCA_label <- ggplot(coord_ind,aes(x=Dim.1,y=Dim.2,colour=treatment,label = sp_tr))+
-  ggrepel::geom_label_repel()+
+  ggrepel::geom_label_repel() +
   geom_hline(aes(yintercept=0), size=.2,linetype="longdash") + 
   geom_vline(aes(xintercept = 0),linetype = "longdash", size=.2)+
   coord_equal() +
@@ -391,9 +404,22 @@ PCA_annuals
 PCA2
 
 
+# ANOVA Position on axes
+dimension <- 2
+anov_dim <- compute_anova_dim_x(coord_ind,dimension)
 
+par(mfrow=c(2,2)) ; plot(anov_dim) # diagnostic_graphs
+par(mfrow= c(1,1)) ; plot(density(residuals(anov_dim))) # normality_graph
 
+# Compare scores on axis "dimension" between annuals and perennials
+info_anova <- info_anova_dim_x(anov_dim,dimension)
+info_anova[[1]] # normality
+info_anova[[2]] # homoscedasticity
+info_anova[[3]] # independence of residuals
+info_anova[[4]] # anova
+info_anova[[5]] # summary
 
+# Différenciation légère sur axe 1 (Lié notamment à la dispersion), et sur l'axe 2.
 
 #______________________________________________________
 # 4) CWM of annuals in both treatments ####
@@ -441,6 +467,9 @@ PCA2 <- ggplot(coord_ind,aes(x=Dim.1,y=Dim.2,colour=treatment))+
   ylab(paste("Dim2",var.explain.dim2,"% variance explained")) + 
   scale_colour_manual(values=c("#009E73","#E69F00"))
 
+
+ggsave("outputs/figures/3_PCA_annuals_CWM.jpg",PCA2)
+
 # With species names
 # ggplot (coord_ind,aes(x=Dim.1,y=Dim.2,label = Code_Sp,colour=Lifelength))+
 #   geom_text()
@@ -471,16 +500,29 @@ PCA_annuals
 PCA2
 
 
+dimension <- 1
+anov_dim <- compute_anova_dim_x(coord_ind,dimension)
+
+par(mfrow=c(2,2)) ; plot(anov_dim) # diagnostic_graphs
+par(mfrow= c(1,1)) ; plot(density(residuals(anov_dim))) # normality_graph
+
+# Compare scores on axis "dimension" between annuals and perennials
+info_anova <- info_anova_dim_x(anov_dim,dimension)
+info_anova[[1]] # normality
+info_anova[[2]] # homoscedasticity
+info_anova[[3]] # independence of residuals
+info_anova[[4]] # anova
+info_anova[[5]] # summary
 
 
 # Relationships SLA - LDMC ####
 
-
-
-ggplot(MEAN,aes(x=LDMC,y=SLA,color = LifeHistory))+
+relat_sla_ldmc <- ggplot(MEAN,aes(x=LDMC,y=SLA,color = LifeHistory))+
   geom_point() +
   # facet_wrap(~treatment) +
   xlim(c(0,800)) +
   ylim(c(0,70)) +
-  geom_function(fun = draw_curve,color="black") +
-  facet_grid(vars(treatment),vars(LifeHistory))
+  geom_function(fun = draw_curve,color="black") 
+  facet_grid(vars(treatment),vars(LifeHistory)) 
+
+ggsave("outputs/figures/Appendix/Relationship_SLA_LDMC.jpg",relat_sla_ldmc)

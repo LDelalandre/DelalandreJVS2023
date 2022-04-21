@@ -54,7 +54,7 @@ soil_Maud <- data.frame(PC1score = c(-3.08,-2.85,-2.52,-1.78,-1.60,-1.56,-0.03,0
 
 
 # II) Figure ####
-# NB: Version pré-finale, à modifier sous inkscape
+
 #specify path to save PDF to
 destination = "outputs/figures/1_abundance_richness_annuals.pdf"
 
@@ -64,94 +64,44 @@ pdf(file=destination,width = 3, height = 7)
 #specify to save plots in 2x2 grid
 par(mar = c(2, 5.5, 0.1, 1),mfrow = c(4,1),mpg = c(1,1,0))
 
-# 1) Richness of annual species ####
-richness_per_guild_nat <- ab_nat %>% 
-  count(depth,paddock,LifeHistory,line) %>% 
-  merge(soil_Maud,by=c("depth","paddock"))
 
-richness_per_guild_fer <- ab_fer %>%
-  mutate(LifeHistory = if_else(LifeForm1=="The","annual","perennial")) %>% 
-  mutate(depth = "Fer") %>% 
-  count(depth,paddock,LifeHistory,line) %>% 
-  mutate(PC1score = NA)
+# 4) Bar plot of INN and INP ####
+BarPlot <- barplot(to_barplot,
+                   beside = TRUE, names.arg = c("Fer", "D","I","S"),#names.arg = IN2$soil, # yaxt = "n",
+                   ylim=c(0, max(c(IN2$meanINN,IN2$meanINP)+3)  ),  
+                   col = c("black","grey"),
+                   ylab = "Nutrition index (%)"
+)
+legend("topright",
+       legend = c("INN (%)","INP (%)"),
+       pch = 15,
+       col = c("black","grey"))
+error.bar(BarPlot,to_barplot,to_barplot_se)
 
-richness_per_guild <- rbind(richness_per_guild_nat,richness_per_guild_fer)
-richness_per_guild$depth <- factor(richness_per_guild$depth , levels = c("Fer","D","I","S"))
 
-richness_per_guild_toplot <- richness_per_guild %>% 
-  spread(LifeHistory,n) %>% 
-  replace(is.na(.), 0) %>% 
-  mutate(relative_richness_annual = annual / (annual + perennial))
 
-# relative richness
-# boxplot(relative_richness_annual *100 ~ depth,
-#         data = richness_per_guild_toplot,
-#         ylim=c(0,90),
-#         xlab = NA,
-#         ylab = "Relative richness \n of annuals (%)",
-#         xaxt = "n",
-#         medlwd = 1)
 
-# Absolute richness
-boxplot(annual ~ depth,
-        data = richness_per_guild_toplot,
+# 3) Biomass production ####
+biomass <- read.xlsx("data/environment/Biomasses et indices La Fage.xlsx", 
+                     sheet = "2009", 
+                     startRow = 1, colNames = TRUE, rowNames = F) %>% 
+  mutate(Dates = as.Date(Dates- 25569, origin = "1970-01-01"))
+
+biomass_may <- biomass %>% 
+  filter(Parcs %in% c("C1","C2","1","6","8","10")) %>% 
+  filter(Dates == "2009-05-01") %>% 
+  mutate(rdt.T.ha = as.numeric(rdt.T.ha)) %>% 
+  mutate(Position = str_sub(Position,1,1)) %>% 
+  mutate(Position = case_when(is.na(Position) ~ "Fer",
+                              TRUE ~ Position)) 
+biomass_may$Position <- factor(biomass_may$Position , levels = c("Fer","D","I","S"))
+
+boxplot(biomass_may$rdt.T.ha ~ biomass_may$Position,
         xlab = NA,
-        ylim=c(0,14),
-        ylab = "Richness of annuals",
+        ylab = "Productivity (T/ha)",
         xaxt = "n",
-        medlwd = 1)
-
-
-
-
-# peut-être faire test non paramétrique (kruskal-wallis)
-
-# test glm ####
-# glm " mais ça marche pas, je suis sur de la richesse relative, donc proportion, pas poisson !!
-# donc je regarde la RS absolue des annuelles, "annual", et pas relat, "relative_richness_annual"
-mod_glm <- glm(annual ~ depth, family = "quasipoisson", data = richness_per_guild_toplot)
-# quasipoisson to deal with overdispersion.
-posthoc_glm <- multcomp::cld(emmeans::emmeans(mod_glm, specs = "depth",  type = "response",
-                                          adjust = "tuckey"),
-                         Letters = "abcdefghi", details = T)
-
-comp_glm <- as.data.frame(posthoc_glm$emmeans) %>% 
-  arrange(factor(depth, levels = levels(richness_per_guild_toplot$depth))) %>% 
-  mutate(.group = c("a","b","b","c")) # /!\ recode manually significant levels
-
-text(x=c(1:4),y=c(14,6,6,12), labels = comp_glm$.group)
-
-# hypothèses
-anova(mod_glm)
-summary(mod_glm)
-
-mean(richness_per_guild_toplot$annual) # en moyenne, annuelles représentent 20% de la richesse
-set.seed(1234) # permet de simuler toujours les mêmes comptages.
-theoretic_count <-rpois(76,3.236842)
-
-# on incorpore ces comptages théoriques dans un data frame
-tc_df <-data.frame(theoretic_count)
-
-# on plot simultanémaent les comptages observés et les comptages théoriques
-ggplot(richness_per_guild_toplot,aes(annual))+
-  geom_bar(fill="#1E90FF") +
-  geom_bar(data=tc_df, aes(theoretic_count,fill="#1E90FF", alpha=0.5))+
-  theme_classic() +
-  theme(legend.position="none") 
-
-plot(residuals(mod_glm) ~ 
-       predict(mod_glm,type="link"),xlab=expression(hat(eta)),
-     ylab="Deviance residuals",pch=20,col="blue")
-
-# Tester si le rapport deviance sur residuals est différent de 1
-
-# On ne rejette pas l'hypothèse nulle que le modèle est bien spécifié. Je reste là-dessus ?
-# the deviance goodness of fit test for Poisson regression. The null hypothesis is that our model is correctly specified
-# https://thestatsgeek.com/2014/04/26/deviance-goodness-of-fit-test-for-poisson-regression/
-pchisq(mod_glm$deviance, df=mod_glm$df.residual, lower.tail=FALSE)
-
-ssr <- sum(residuals(mod_glm, type="pearson")^2)
-pchisq(ssr, mod_glm$df.residual)
+        medlwd = 1
+)
 
 
 # 2) CWM CSR scores ####
@@ -187,45 +137,95 @@ legend(
 
 
 
-# 3) Biomass production ####
-biomass <- read.xlsx("data/environment/Biomasses et indices La Fage.xlsx", 
-sheet = "2009", 
-startRow = 1, colNames = TRUE, rowNames = F) %>% 
-  mutate(Dates = as.Date(Dates- 25569, origin = "1970-01-01"))
 
-biomass_may <- biomass %>% 
-  filter(Parcs %in% c("C1","C2","1","6","8","10")) %>% 
-  filter(Dates == "2009-05-01") %>% 
-  mutate(rdt.T.ha = as.numeric(rdt.T.ha)) %>% 
-  mutate(Position = str_sub(Position,1,1)) %>% 
-  mutate(Position = case_when(is.na(Position) ~ "Fer",
-                              TRUE ~ Position)) 
-biomass_may$Position <- factor(biomass_may$Position , levels = c("Fer","D","I","S"))
 
-boxplot(biomass_may$rdt.T.ha ~ biomass_may$Position,
+# 1) Richness of annual species ####
+richness_per_guild_nat <- ab_nat %>% 
+  count(depth,paddock,LifeHistory,line) %>% 
+  merge(soil_Maud,by=c("depth","paddock"))
+
+richness_per_guild_fer <- ab_fer %>%
+  mutate(LifeHistory = if_else(LifeForm1=="The","annual","perennial")) %>% 
+  mutate(depth = "Fer") %>% 
+  count(depth,paddock,LifeHistory,line) %>% 
+  mutate(PC1score = NA)
+
+richness_per_guild <- rbind(richness_per_guild_nat,richness_per_guild_fer)
+richness_per_guild$depth <- factor(richness_per_guild$depth , levels = c("Fer","D","I","S"))
+
+richness_per_guild_toplot <- richness_per_guild %>% 
+  spread(LifeHistory,n) %>% 
+  replace(is.na(.), 0) %>% 
+  mutate(relative_richness_annual = annual / (annual + perennial))
+
+# relative richness
+boxplot(relative_richness_annual *100 ~ depth,
+        data = richness_per_guild_toplot,
+        ylim=c(0,90),
         xlab = NA,
-        ylab = "Productivity (T/ha)",
+        ylab = "Relative richness \n of annuals (%)",
         xaxt = "n",
-        medlwd = 1
-)
+        medlwd = 1)
 
-# 4) Bar plot of INN and INP ####
-BarPlot <- barplot(to_barplot,
-                   beside = TRUE, names.arg = c("Fer", "D","I","S"),#names.arg = IN2$soil, # yaxt = "n",
-                   ylim=c(0, max(c(IN2$meanINN,IN2$meanINP)+3)  ),  
-                   col = c("black","grey"),
-                   ylab = "Nutrition index (%)"
-                   )
-legend("topright",
-       legend = c("INN (%)","INP (%)"),
-       pch = 15,
-       col = c("black","grey"))
-error.bar(BarPlot,to_barplot,to_barplot_se)
+
+
+# peut-être faire test non paramétrique (kruskal-wallis)
+
+# test glm ####
+# glm " mais ça marche pas, je suis sur de la richesse relative, donc proportion, pas poisson !!
+# --> A refaire !
+mod_binom <- glm(cbind(annual,perennial) ~ depth, family = "binomial", data=richness_per_guild_toplot)
+# ou family =  binomial(logit)
+
+summary(mod_binom)
+
+# donc je regarde la RS absolue des annuelles, "annual", et pas relat, "relative_richness_annual"
+mod_glm <- glm(relative_richness_annual ~ depth, family = "quasipoisson", data = richness_per_guild_toplot)
+# quasipoisson to deal with overdispersion.
+posthoc_binom <- multcomp::cld(emmeans::emmeans(mod_binom, specs = "depth",  type = "response",
+                                          adjust = "tuckey"),
+                         Letters = "abcdefghi", details = T)
+
+comp_binom <- as.data.frame(posthoc_binom$emmeans) %>% 
+  arrange(factor(depth, levels = levels(richness_per_guild_toplot$depth))) %>% 
+  mutate(.group = c("a","b","b","c")) # /!\ recode manually significant levels
+
+text(x=c(1:4),y=c(85,40,40,60), labels = comp_binom$.group)
+
+# hypothèses
+anova(mod_glm)
+summary(mod_glm)
+
+mean(richness_per_guild_toplot$relative_richness_annual) # en moyenne, annuelles représentent 20% de la richesse
+set.seed(1234) # permet de simuler toujours les mêmes comptages.
+theoretic_count <-rpois(76,3.236842)
+
+# on incorpore ces comptages théoriques dans un data frame
+tc_df <-data.frame(theoretic_count)
+
+# on plot simultanémaent les comptages observés et les comptages théoriques
+ggplot(richness_per_guild_toplot,aes(relative_richness_annual))+
+  geom_bar(fill="#1E90FF") +
+  geom_bar(data=tc_df, aes(theoretic_count,fill="#1E90FF", alpha=0.5))+
+  theme_classic() +
+  theme(legend.position="none")
+
+plot(residuals(mod_glm) ~
+       predict(mod_glm,type="link"),xlab=expression(hat(eta)),
+     ylab="Deviance residuals",pch=20,col="blue")
+
+# Tester si le rapport deviance sur residuals est différent de 1
+
+# On ne rejette pas l'hypothèse nulle que le modèle est bien spécifié. Je reste là-dessus ?
+# the deviance goodness of fit test for Poisson regression. The null hypothesis is that our model is correctly specified
+# https://thestatsgeek.com/2014/04/26/deviance-goodness-of-fit-test-for-poisson-regression/
+pchisq(mod_glm$deviance, df=mod_glm$df.residual, lower.tail=FALSE)
+
+ssr <- sum(residuals(mod_glm, type="pearson")^2)
+pchisq(ssr, mod_glm$df.residual)
 
 #turn off PDF plotting
 dev.off() 
-
-
 
 # III) Independent figure : biomass consumption ####
 jpeg("outputs/figures/1_disturbance.jpeg")
@@ -347,7 +347,7 @@ FSA::dunnTest(tot_relat_ab ~ depth,data = cover_annuals %>% filter(!(depth=="Fer
 
 cover_annuals %>% 
   ggplot(aes(x=tot_relat_ab))+
-  geom_histogram(sts="identity")+
+  geom_histogram(sts="identity") +
   facet_wrap(~depth)
 # On n'a pas la même forme de distribution dans les trois cas de figure --> pas approprié d'utiliser Kruskal pour fertile...
 

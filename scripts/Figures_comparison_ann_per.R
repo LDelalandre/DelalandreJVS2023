@@ -18,7 +18,7 @@ MEAN_CSR <- read.csv2("outputs/data/Pierce CSR/Traits_mean_sp_per_trtmt_complete
 # En comparant nat_sab et fer
 
 # i) CSR ####
-MEAN_CSR %>% 
+boxplot_CSR <- MEAN_CSR %>% 
   select(code_sp,treatment,LifeHistory,C,S,R) %>%
   gather(key = score, value = value, -c(code_sp, LifeHistory,treatment)) %>% 
   # filter(score == "R") %>% 
@@ -27,6 +27,8 @@ MEAN_CSR %>%
   # geom_point()+
   geom_boxplot() +
   facet_wrap(~treatment) 
+
+ggsave("outputs/figures/Appendix/2_boxplot_CSR.jpg",boxplot_CSR)
 
 data.anovaCSR <- MEAN_CSR %>% 
   select(code_sp,treatment,LifeHistory,C,S,R) %>%
