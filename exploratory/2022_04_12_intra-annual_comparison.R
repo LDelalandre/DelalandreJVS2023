@@ -46,7 +46,7 @@ tempo_evol <- read.csv2("outputs/data/temporal_evolution_fer.csv") %>%
 
 logratio_LeafMorpho <- LeafMorpho_ann_both %>% 
   group_by(Code_Sp,Treatment) %>% 
-  mutate(LMA = 1/SLA) %>% 
+  mutate(LMA = 1/SLA*100) %>% 
   summarize(mean = mean(LMA)) %>%
   spread(key = Treatment,value = mean) %>% 
   mutate(LR = log(Fer_Clc/Nat_Sab)) %>% 
@@ -63,62 +63,126 @@ LR_tempo_LeafMorpho <- left_join(logratio_LeafMorpho,tempo_evol,by="Code_Sp")
 LR_tempo_LeafCN <- left_join(logratio_LeafCN,tempo_evol,by="Code_Sp")
 
 # Plots Eric ####
-# i) 3 espèces ####
+
+# i) Rs
+histogram_Rs <- tempo_evol %>% 
+  ggplot(aes(x=Rs)) +
+  geom_histogram(binwidth = 0.1, col = "black",fill = "grey") +
+  theme_classic() +
+  ylab("Species number") +
+  theme(text=element_text(size=15))
+
+histogram_Rs_ann_both <- tempo_evol %>% 
+  filter(Code_Sp %in% ann_both) %>% 
+  ggplot(aes(x=Rs)) +
+  geom_histogram(binwidth = 0.1, col = "black",fill = "grey") +
+  theme_classic() +
+  ylab("Species number") +
+  theme(text=element_text(size=15))
+
+# ii) 3 espèces ####
 
 # LMA
-fig1_LMA <- LeafMorpho_ann_both %>% 
-  group_by(Code_Sp,Treatment) %>% 
-  mutate(LMA = 1/SLA) %>% 
+fspecies <- c("ALYSALYS","BROMHORD","SHERARVE","FILAPYRA")
+
+fig2_LMA <- LeafMorpho_ann_both %>% 
+  group_by(Species,Code_Sp,Treatment) %>% 
+  mutate(LMA = 1/SLA*100) %>% 
   summarize(mean = mean(LMA)) %>% 
-  filter(Code_Sp %in% c("ALYSALYS","SHERARVE","GERAMOLL")) %>% 
-  ggplot(aes(x=Treatment,y=mean,color=Code_Sp,group=Code_Sp)) +
-  geom_point() +
+  filter(Code_Sp %in% fspecies) %>%
+  arrange(factor(Treatment,levels = c("Nat_Sab","Fer_Clc"))) %>% 
+  mutate(Treatment = factor(Treatment,levels = c("Nat_Sab","Fer_Clc"))) %>%
+  mutate(Evolution = if_else(Code_Sp %in% c("ALYSALYS","FILAPYRA"), "decreaser","increaser")) %>% 
+  
+  ggplot(aes(x=Treatment,y=mean,color=Evolution,group=Code_Sp, shape = Species)) +
+  theme_classic() +
+  geom_point(size= 4) +
   geom_line() +
   ylab("LMA") +
-  theme(axis.title.x = element_blank())+
+  theme(axis.title.x = element_blank()) +
   theme(legend.title = element_blank(),
-        legend.position = "bottom") +
-  scale_colour_discrete(labels = c('Alyssum alyssoides', 'Geranium molle',"Sherardia arvensis")) +
-  scale_x_discrete( labels=c("G+F", "GU")) 
+        legend.position = "right") +
+  scale_x_discrete( labels=c( "GU","G+F")) +
+  
+  theme(text=element_text(size=15)) #change font size of all text
+          # axis.text=element_text(size=10), #change font size of axis text
+          # # axis.title=element_text(size=20), #change font size of axis titles
+          # # plot.title=element_text(size=20), #change font size of plot title
+          # legend.text=element_text(size=10), #change font size of legend text
+          # legend.title=element_text(size=10)) #change font size of legend title 
+fig2_LMA
+
 
 # LNC
-fig1_LNC <- LeafCN_ann_both %>% 
-  group_by(Code_Sp,Treatment) %>% 
+fig2_LNC <- LeafCN_ann_both %>% 
+  group_by(Species,Code_Sp,Treatment) %>% 
   summarize(mean = mean(LNC)) %>% 
-  filter(Code_Sp %in% c("ALYSALYS","SHERARVE","GERAMOLL")) %>% 
-  ggplot(aes(x=Treatment,y=mean,color=Code_Sp,group=Code_Sp)) +
-  geom_point() +
+  filter(Code_Sp %in% fspecies) %>%
+  arrange(factor(Treatment,levels = c("Nat_Sab","Fer_Clc"))) %>% 
+  mutate(Treatment = factor(Treatment,levels = c("Nat_Sab","Fer_Clc"))) %>%
+  mutate(Evolution = if_else(Code_Sp %in% c("ALYSALYS","FILAPYRA"), "decreaser","increaser")) %>% 
+  
+  ggplot(aes(x=Treatment,y=mean,color=Evolution,group=Code_Sp, shape = Species)) +
+  theme_classic() +
+  geom_point(size= 4) +
   geom_line() +
   ylab("LNC") +
-  theme(axis.title.x = element_blank())+
+  theme(axis.title.x = element_blank()) +
   theme(legend.title = element_blank(),
-        legend.position = "bottom") +
-  scale_colour_discrete(labels = c('Alyssum alyssoides', 'Geranium molle',"Sherardia arvensis")) +
-  scale_x_discrete( labels=c("G+F", "GU"))
+        legend.position = "right") +
+  scale_x_discrete( labels=c( "GU","G+F")) +
+  
+  theme(text=element_text(size=15))
+fig2_LNC 
 
-# ii) Différence ####
+# iii) Différence ####
 # LMA
-fig2_LMA <- LR_tempo_LeafMorpho %>% 
-  ggplot(aes(x=reorder(Code_Sp,-difference),y=difference,label=Code_Sp))+
-  geom_point() +
-  theme(axis.text.x = element_text(angle = 90)) +
-  geom_abline(intercept = 0,slope = 0)
 
-fig2_LMA_Rs <- ggplot(LR_tempo_LeafMorpho,aes(x=Rs,y=difference,label=Code_Sp))+
-  geom_point() 
+lm_to_plot <- LR_tempo_LeafMorpho %>% 
+  mutate(Evolution = if_else(Rs< 0, "decreaser","increaser")) %>% 
+  filter(!is.na(Evolution))
+
+fig3_LMA_Rs <- 
+  lm_to_plot  %>% 
+  ggplot( ) +
+  ggrepel::geom_label_repel(data = lm_to_plot %>% 
+                              filter(Code_Sp %in% fspecies),
+                            # mutate(sp = c("A. alyssoides","B. hordeaceus","F. pyramidata","S. arvensis") ),
+                            aes(x=Rs,y=difference,label=species,color = Evolution)) +
+  geom_point(aes(x=Rs,y=difference,label=Code_Sp, color = Evolution)) +
+  
+  theme_classic() +
+  ylab("LMA(G+F) - LMA(GU)")+
+  # ggtitle("LMA") +
+  theme(legend.position="none")+
+  theme(text=element_text(size= 15 ))
+fig3_LMA_Rs
+# ggplot shape for subset of points
 
 # LNC
-fig2_LNC <- LR_tempo_LeafCN %>% 
-  ggplot(aes(x=reorder(Code_Sp,-difference),y=difference,label=Code_Sp))+
-  geom_point() +
-  theme(axis.text.x = element_text(angle = 90)) +
-  geom_abline(intercept = 0,slope = 0)
+lnc_to_plot <- LR_tempo_LeafCN %>% 
+  mutate(Evolution = if_else(Rs< 0, "decreaser","increaser")) %>% 
+  filter(!is.na(Evolution))
 
-fig2_LNC_Rs <- ggplot(LR_tempo_LeafCN,aes(x=Rs,y=difference,label=Code_Sp))+
-  geom_point() 
+fig3_LNC_Rs <- 
+  lnc_to_plot  %>% 
+  ggplot( ) +
+  ggrepel::geom_label_repel(data = lnc_to_plot %>% 
+                              filter(Code_Sp %in% fspecies),
+                            # mutate(sp = c("A. alyssoides","B. hordeaceus","F. pyramidata","S. arvensis") ),
+                            aes(x=Rs,y=difference,label=species,color = Evolution)) +
+  geom_point(aes(x=Rs,y=difference,label=Code_Sp, color = Evolution)) +
+  
+  theme_classic() +
+  ylab("LNC(G+F) - LNC(GU+F)")+
+  # ggtitle("LMA") +
+  theme(legend.position="none")+
+  theme(text=element_text(size= 15 ))
+fig3_LNC_Rs
 
 
-# iii) Lien SLA LNC ####
+# iii) Lien SLA LNC et photosynthèse ####
+# log Amass = 0.74 log Nmass –  0.57 log LMA + 2.96
 U <- LeafMorpho_ann_both %>% 
   group_by(Code_Sp,Treatment) %>% 
   mutate(LMA = 1/SLA) %>% 
@@ -128,22 +192,28 @@ V <- LeafCN_ann_both %>%
   group_by(Code_Sp,Treatment) %>% 
   summarize(LNC = mean(LNC))
 
-fig_3_LMA_LNC <- merge(U,V,by=c("Code_Sp","Treatment")) %>% 
-  ggplot(aes(x=LMA,y=LNC)) +
-  facet_wrap(~Treatment) +
-  geom_point()
+PS_evol <- merge(U,V,by=c("Code_Sp","Treatment")) %>% 
+  mutate(logAmass = 0.74 * log(LNC) - 0.57*log(LMA)) %>% 
+  merge(tempo_evol, by = "Code_Sp") %>%
+  select(Code_Sp,logAmass,Rs,Treatment) %>% 
+  spread(key = Treatment,value = logAmass) %>% 
+  mutate(diff_logAmass = Fer_Clc - Nat_Sab)
 
+ggplot(PS_evol, aes(x=Rs,y=diff_logAmass,label=Code_Sp))+
+  geom_point() +
+  ggrepel::geom_label_repel() +
+  theme_classic() +
+  ggtitle("photosynthesis difference")
 
-ggsave("notebook/2022_04_26_Eric_rep_tcheque/fig1_LMA.png",fig1_LMA)
-ggsave("notebook/2022_04_26_Eric_rep_tcheque/fig1_LNC.png",fig1_LNC)
+ggsave("notebook/2022_04_26_Eric_rep_tcheque/fig1_hist_Rs.png",histogram_Rs)
+ggsave("notebook/2022_04_26_Eric_rep_tcheque/fig1_hist_Rs_annuelles_2_trtmts.png",histogram_Rs_ann_both)
 
 ggsave("notebook/2022_04_26_Eric_rep_tcheque/fig2_LMA.png",fig2_LMA)
 ggsave("notebook/2022_04_26_Eric_rep_tcheque/fig2_LNC.png",fig2_LNC)
 
-ggsave("notebook/2022_04_26_Eric_rep_tcheque/fig2_LMA_Rs.png",fig2_LMA_Rs)
-ggsave("notebook/2022_04_26_Eric_rep_tcheque/fig2_LNC_Rs.png",fig2_LNC_Rs)
+ggsave("notebook/2022_04_26_Eric_rep_tcheque/fig3_LMA_Rs.png",fig3_LMA_Rs)
+ggsave("notebook/2022_04_26_Eric_rep_tcheque/fig3_LNC_Rs.png",fig3_LNC_Rs)
 
-ggsave("notebook/2022_04_26_Eric_rep_tcheque/fig3_LMA_LNC.png",fig_3_LMA_LNC)
 
 # Essais ####
 ggplot(LR_tempo,aes(x=Rs,y=LR,label=Code_Sp))+

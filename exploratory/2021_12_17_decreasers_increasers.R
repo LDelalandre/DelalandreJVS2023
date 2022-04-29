@@ -1,5 +1,27 @@
 library(tidyverse)
 
+
+# recompute Rs ####
+diachro <- read.csv2("data/abundance/diachro_releves_tidy2.csv")
+# 33 transects, 16 dans le fertile, 17 dans le natif.
+
+diachro2_all <- diachro %>% 
+  filter(fertilized==T) %>% 
+  group_by(line, year) %>% 
+  mutate(rel_ab = abundance/sum(abundance)) %>% 
+  group_by(species,year) %>% 
+  mutate(delta_year = year - 1978, mean_ab = mean(abundance)) 
+
+diachro3_all <- diachro2_all %>% 
+  ungroup() %>% 
+  group_by(species) %>%
+  summarize(Rs = cor(delta_year,mean_ab,method = "spearman"),
+            pval = cor.test(delta_year, mean_ab, method = "spearman")$p.value) %>% 
+  na.omit()
+
+write.csv2(diachro3_all,"outputs/data/temporal_evol_Rs_all.csv",row.names=F)
+#
+
 MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment.csv") %>% 
   filter(!(species == "Geranium dissectum - limbe")) %>% 
   filter(!(species == "Geranium dissectum - pétiole")) %>% 
