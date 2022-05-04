@@ -1,5 +1,6 @@
 library(tidyverse)
 
+# importer traits
 ann_fer <- LeafMorpho %>% 
   filter(measurementDeterminedBy == "Léo Delalandre") %>% 
   filter(Treatment == "Fer_Clc") %>% 
@@ -49,7 +50,7 @@ data_LDMC_mean <- data_LDMC %>%
   summarize(LDMC = mean(LDMC)) %>% 
   ungroup() %>% 
   group_by(Code_Sp)
-bxp <- ggpaired(data_LDMC_mean, x = "Treatment", y = "LDMC", 
+bxp <- ggpubr::ggpaired(data_LDMC_mean, x = "Treatment", y = "LDMC", 
                 order = c("Fer_Clc", "Nat_Sab"),
                 ylab = "LDMC", xlab = "Treatment")
 bxp

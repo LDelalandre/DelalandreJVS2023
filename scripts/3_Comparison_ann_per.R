@@ -1,4 +1,4 @@
-source("scripts/1. Packages.R")
+source("scripts/Packages.R")
 
 ab_fer <- read.csv2("outputs/data/abundance_fertile.csv")
 ab_nat <- read.csv2("outputs/data/abundance_natif.csv")
@@ -12,6 +12,9 @@ MEAN_CSR <- read.csv2("outputs/data/Pierce CSR/Traits_mean_sp_per_trtmt_complete
 
 # MEAN_CSR2 <- MEAN_CSR %>% 
 #   select(LifeHistory,C,S,R)
+# ATTENTION on peut aussi utiliser ce MEAN là (recalculer les scores CSR dans ce cas) :
+# MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab.csv")%>%
+#   filter(!is.na(SLA))
 
 #__________________________________________________
 # Option 1 : prendre les traits des espèces mesurés dans l'un ou l'autre traitement ####
@@ -23,12 +26,17 @@ boxplot_CSR <- MEAN_CSR %>%
   gather(key = score, value = value, -c(code_sp, LifeHistory,treatment)) %>% 
   # filter(score == "R") %>% 
   filter(treatment%in% c("Nat","Fer")) %>% 
+  mutate(zone = if_else(treatment == "Fer", "G+F","GU")) %>% 
   ggplot(aes(x=score, y=value, color = LifeHistory))+
-  # geom_point()+
+  theme_classic()+
+  ylab("Score (%)")+
+  theme(axis.title.x=element_blank())+
   geom_boxplot() +
-  facet_wrap(~treatment) 
+  facet_wrap(~zone) 
 
-ggsave("outputs/figures/Appendix/2_boxplot_CSR.jpg",boxplot_CSR)
+boxplot_CSR
+
+ggsave("draft/boxplot_CSR.jpg",boxplot_CSR)
 
 data.anovaCSR <- MEAN_CSR %>% 
   select(code_sp,treatment,LifeHistory,C,S,R) %>%
@@ -36,7 +44,7 @@ data.anovaCSR <- MEAN_CSR %>%
   filter(treatment%in% c("Nat","Fer"))
 
 options(contrasts=c("contr.treatment","contr.treatment"))
-lmCSR <- lm(S ~ treatment * LifeHistory, data = data.anovaCSR)
+lmCSR <- lm(R ~ treatment * LifeHistory, data = data.anovaCSR)
 
 par(mfrow=c(2,2)) ; plot(lmCSR) # diagnostic_graphs
 par(mfrow= c(1,1)) ; plot(density(residuals(lmCSR))) # normality_graph
@@ -65,8 +73,10 @@ MEAN_CSR %>%
   ggsignif::geom_signif()
 
 
+# Option 2 : MEAN calulé dans Fer et Nat Sup ####
+
 #____________________________________________________________
-# Option 2 : sélectionner les espèces qui apparaissent dans les relevés de maud superficiel et diachro ####
+# Option 3 : sélectionner les espèces qui apparaissent dans les relevés de maud superficiel et diachro ####
 # C'est peut-être le plus cohérent, mais on n'a pas assez de points pour
 # que les tests soient suffisamment puissants...
 

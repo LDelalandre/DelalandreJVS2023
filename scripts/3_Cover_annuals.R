@@ -1,4 +1,4 @@
-source("scripts/1. Packages.R")
+source("scripts/Packages.R")
 
 # https://r-charts.com/base-r/margins/
 
@@ -57,9 +57,11 @@ soil_Maud <- data.frame(PC1score = c(-3.08,-2.85,-2.52,-1.78,-1.60,-1.56,-0.03,0
 
 #specify path to save PDF to
 destination = "outputs/figures/1_abundance_richness_annuals.pdf"
+# destination2 = "outputs/figures/1_abundance_richness_annuals.jpg"
 
 #open PDF
 pdf(file=destination,width = 3, height = 7)
+# png(file=destination2)
 
 #specify to save plots in 2x2 grid
 par(mar = c(2, 5.5, 0.1, 1),mfrow = c(4,1),mpg = c(1,1,0))
@@ -70,7 +72,8 @@ BarPlot <- barplot(to_barplot,
                    beside = TRUE, names.arg = c("Fer", "D","I","S"),#names.arg = IN2$soil, # yaxt = "n",
                    ylim=c(0, max(c(IN2$meanINN,IN2$meanINP)+3)  ),  
                    col = c("black","grey"),
-                   ylab = "Nutrition index (%)"
+                   ylab = "Nutrition index (%)",
+                   xaxt = "n"
 )
 legend("topright",
        legend = c("INN (%)","INP (%)"),
@@ -156,17 +159,21 @@ richness_per_guild$depth <- factor(richness_per_guild$depth , levels = c("Fer","
 richness_per_guild_toplot <- richness_per_guild %>% 
   spread(LifeHistory,n) %>% 
   replace(is.na(.), 0) %>% 
-  mutate(relative_richness_annual = annual / (annual + perennial))
+  mutate(relative_richness_annual = annual / (annual + perennial)) %>% 
+  mutate(zone = case_when(depth == "Fer"~ "G+F",
+                          depth == "D" ~ "GU-D",
+                          depth == "I" ~ "GU-I",
+                          TRUE ~ "GU-S"))
 
 # relative richness
-boxplot(relative_richness_annual *100 ~ depth,
+boxplot(relative_richness_annual *100 ~ zone,
         data = richness_per_guild_toplot,
         ylim=c(0,90),
         xlab = NA,
         ylab = "Relative richness \n of annuals (%)",
-        xaxt = "n",
+        # xaxt = "n",
         medlwd = 1)
-
+# legend("topleft", legend="d", bty='n')
 
 
 # peut-être faire test non paramétrique (kruskal-wallis)
@@ -204,15 +211,15 @@ theoretic_count <-rpois(76,3.236842)
 tc_df <-data.frame(theoretic_count)
 
 # on plot simultanémaent les comptages observés et les comptages théoriques
-ggplot(richness_per_guild_toplot,aes(relative_richness_annual))+
-  geom_bar(fill="#1E90FF") +
-  geom_bar(data=tc_df, aes(theoretic_count,fill="#1E90FF", alpha=0.5))+
-  theme_classic() +
-  theme(legend.position="none")
-
-plot(residuals(mod_glm) ~
-       predict(mod_glm,type="link"),xlab=expression(hat(eta)),
-     ylab="Deviance residuals",pch=20,col="blue")
+# ggplot(richness_per_guild_toplot,aes(relative_richness_annual))+
+#   geom_bar(fill="#1E90FF") +
+#   geom_bar(data=tc_df, aes(theoretic_count,fill="#1E90FF", alpha=0.5))+
+#   theme_classic() +
+#   theme(legend.position="none")
+# 
+# plot(residuals(mod_glm) ~
+#        predict(mod_glm,type="link"),xlab=expression(hat(eta)),
+#      ylab="Deviance residuals",pch=20,col="blue")
 
 # Tester si le rapport deviance sur residuals est différent de 1
 

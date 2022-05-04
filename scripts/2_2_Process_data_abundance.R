@@ -1,9 +1,5 @@
-source("scripts/1. Packages.R")
-
-MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment.csv")
-names_LH <- MEAN %>% # correspondence name, short name, lifehistory
-  select(code_sp,species,LifeHistory) %>% 
-  unique()
+names_LH2 <- read.csv2("data/species_names_lifehistory.csv") %>% 
+  mutate(species= Species, code_sp = Code_Sp)
 
 # Fertilized treatment ####
 ABUNDANCE <- read.csv2("data/abundance/pooled_abundance_data.csv") %>%  
@@ -22,25 +18,16 @@ ab_diachro_2005 <- ABUNDANCE %>%
 
 write.csv2(ab_diachro_2005,"outputs/data/abundance_fertile.csv",row.names=F)
 
-
-# Regarder dans diachro nombre points contacts f(traitement)
-ABUNDANCE %>% 
+ab_diachro_2004 <- ABUNDANCE %>% 
   filter(dataset == "Diachro") %>% 
-  # filter(year == 2004) %>%
-  group_by(id_transect_quadrat,year) %>% 
-  mutate(sumab = sum(abundance)) %>% 
-  ggplot(aes(x=treatment,y=sumab))+
-  geom_boxplot() +
-  facet_wrap(~year) 
-  # ggsave("outputs/plots/comparison_intercept_nat_fer.png",width = 10,height=10)
+  filter(year == 2004) %>%  # /!\ No measure available after 2005! Should I keep 2006, or several years?
+  filter(treatment == "Fer") %>%
+  # add relative abundance
+  group_by(id_transect_quadrat) %>% 
+  mutate(relat_ab = abundance/sum(abundance))
 
-# Regarder la météo
-meteo <- read.csv2("data/environment/Meteo_LaFage_1973-2006.csv")
-meteo %>% 
-  group_by(AN) %>% 
-  summarize(sum_RR = sum(RR), mean_TX = mean(TX), mean_RGC = mean(RGC)) %>% 
-  ggplot(aes(x=AN,y=mean_TX))+
-  geom_line()
+
+
 
 # Unfertilized treatment #### 
 # (Maud's relevés)
@@ -60,19 +47,21 @@ ab_maud <- read.xlsx("data/abundance/maud_Relevés d'abondance La Fage Juin 2009
   # select(-Ligne) %>% 
   full_join(soil_Maud,.,by=c("paddock","depth")) %>% 
   filter(abundance >0 ) %>% 
-  merge(names_LH, by="species") %>% 
+  merge(names_LH2, by="species") %>% 
   # add relative abundance
   group_by(line,depth,paddock) %>% 
   filter(!code_sp =="STRIFSCAB")%>% # /!\ à corriger à la source !!
-  mutate(relat_ab = abundance/sum(abundance))
+  mutate(relat_ab = abundance/sum(abundance)) %>% 
+  mutate(LifeHistory = if_else(LifeForm1 == "The","annual","perennial"))
 
 write.csv2(ab_maud,"outputs/data/abundance_natif.csv",row.names=F)
 
 
-# Comparison abundances between the two treatments
+# Comparison abundances between the two measurements ####
 ab_diachro_2004_nat <- ABUNDANCE %>% 
   filter(dataset == "Diachro") %>% 
-  filter(year == 2004) %>%  # /!\ No measure available after 2005! Should I keep 2006, or several years?
+  filter(year == 2004) %>%  # /!\ No measure available after 2005! Should I keep 2004 instead of 2005 ?
+  # voir ce que ça change !
   filter(treatment == "Nat") %>%
   # add relative abundance
   group_by(id_transect_quadrat) %>% 
@@ -92,8 +81,9 @@ ab_diachro_nat_mean <- ab_diachro_2004_nat %>%
 
 compare_ab <- full_join(ab_maud_mean,ab_diachro_nat_mean,by=c("code_sp","LifeHistory"))  
 
-ggplot(compare_ab,aes(x=log(mean_relat_ab_maud),y=log(mean_relat_ab_diachro),label=code_sp,color=LifeHistory))+
-  geom_point() 
+ggplot(compare_ab,aes(x=log(mean_relat_ab_maud),y=log(mean_relat_ab_diachro),
+                      label=code_sp))+ # ,color=LifeHistory
+  geom_point()  +
   geom_smooth(method="lm")
   # ggrepel::geom_text_repel()
 
@@ -108,3 +98,40 @@ mod$coefficients
 sum <- summary(mod)
 sum$adj.r.squared
 sum$r.squared
+
+
+# Comparison abundance annuals in both treatments ####
+ab_fer <- read.csv2("outputs/data/abundance_fertile.csv") %>% 
+  filter(LifeForm1=="The") %>% 
+  rename(transect = id_transect_quadrat) %>% 
+  mutate(code_sp = case_when(species == "Crepis vesicaria ssp. haenseleri" ~ "CREPVESI",
+                             species == "Vicia sativa ssp. sativa" ~ "VICISATI",
+                             TRUE ~ code_sp))
+
+ab_nat <- read.csv2("outputs/data/abundance_natif.csv")%>% 
+  filter(LifeHistory == "annual") %>% 
+  mutate(transect=paste(paddock,depth,line,sep="_"))
+
+Nat <- ab_nat %>% 
+  group_by(code_sp) %>% 
+  summarize(abundance_nat=mean(relat_ab))
+Fer <- ab_fer %>% 
+  group_by(code_sp) %>% 
+  summarize(abundance_fer=mean(relat_ab))
+NatFer <- full_join(Nat,Fer,by="code_sp") %>% 
+  mutate(abundance_fer = abundance_fer %>%   replace(is.na(.), 0)) %>% 
+  mutate(abundance_nat = abundance_nat %>%   replace(is.na(.), 0))
+ggplot(NatFer,aes(x= abundance_nat ,y=abundance_fer,label=code_sp)) +
+  geom_point() +
+  # ggrepel::geom_text_repel() +
+  geom_abline(slope = 1,intercept=0) +
+  theme_classic() +
+  labs(x= "Annuals relative abundance in sandy GU",
+       y= "Annuals relative abundance in G+F") 
+
+NatFer2 <- NatFer %>% 
+  filter(abundance_fer>0) %>% 
+  filter(abundance_nat>0)
+cor.test(NatFer2$abundance_nat,NatFer2$abundance_fer)
+# correlation negative, but not significant.
+

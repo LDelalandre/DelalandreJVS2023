@@ -46,6 +46,7 @@ perform_pca <- function(data_traits_for_PCA){
 
 plot_pca <- function(coord_ind,coord_var,var.explain.dim1,var.explain.dim2){
   ggplot(coord_ind,aes(x=Dim.1,y=Dim.2,colour=Lifelength))+
+    theme_classic() +
     geom_hline(aes(yintercept=0), size=.2,linetype="longdash") + 
     geom_vline(aes(xintercept = 0),linetype = "longdash", size=.2)+
     coord_equal() +
@@ -57,7 +58,8 @@ plot_pca <- function(coord_ind,coord_var,var.explain.dim1,var.explain.dim2){
     theme(legend.position = "none") +
     xlab(paste("Dim1",var.explain.dim1,"% variance explained"))+
     ylab(paste("Dim2",var.explain.dim2,"% variance explained")) + 
-    theme(text=element_text(size=20))
+    theme(text=element_text(size=20)) 
+    
 }
 
 boxplot_dimension <- function(coord_ind,dim){
@@ -131,7 +133,7 @@ PCA_sp_names <- ggplot (coord_ind,aes(x=Dim.1,y=Dim.2,label = Code_Sp,colour=Lif
 plot_d1 <- boxplot_dimension(coord_ind,dim = "Dim.1")
 plot_d2 <- boxplot_dimension(coord_ind,dim = "Dim.2")
 PCA_fer_boxplot <- plot_pca_boxplot(PCA_fer,plot_d1,plot_d2)
-ggsave("figures/2_PCA_fertile.png",PCA_fer_boxplot,height = 20, width =20)
+ggsave("figures/PCA_fertile.png",PCA_fer_boxplot,height = 20, width =20)
 
 
 # ii) Natif ####
@@ -157,11 +159,11 @@ plot_d1 <- boxplot_dimension(coord_ind,dim = "Dim.1")
 plot_d2 <- boxplot_dimension(coord_ind,dim = "Dim.2")
 PCA_nat_boxplot <- plot_pca_boxplot(PCA_nat,plot_d1,plot_d2)
 
-ggsave("outputs/plots/PCA_natif.png",PCA_nat_boxplot,height = 20, width =20)
+ggsave("outputs/figures/PCA_natif.png",PCA_nat_boxplot,height = 20, width =20)
 
 # iii) Both PCA graphs ####
-PCA <- grid.arrange(PCA_fer,PCA_nat, ncol=2)
-ggsave("outputs/figures/2_PCA_annuals_perennials.png",PCA,height = 20, width =20)
+PCA <- grid.arrange(PCA_fer,PCA_nat, ncol=2,heights = 100)
+ggsave("draft/PCA_annuals_perennials.png",PCA,height = 20, width =20)
 
 
 # iv) ANOVA Position on axes ####
@@ -183,7 +185,7 @@ info_anova[[5]] # summary
 
 #_______________________________________________________________
 # 2) Annuals whoses traits were measured ####
-# Not very interesting : does not reflect abundance at all.
+# Reflects partly abundance, since the most abundant were measured (even in my case).
 # Rq here on Fer and Nat_Sab
 
 # J'ai enlevé des outliers (deux). Est-ce justifié ? Je pense que oui.
@@ -213,6 +215,7 @@ coord_ind <- data.frame(ACP1$ind$coord) %>%
   mutate(treatment = str_sub(sp_tr,-3L,-1L))
 
 PCA2 <- ggplot(coord_ind,aes(x=Dim.1,y=Dim.2,colour=treatment))+ #,label = sp_tr
+  theme_classic()+
   geom_hline(aes(yintercept=0), size=.2,linetype="longdash") + 
   geom_vline(aes(xintercept = 0),linetype = "longdash", size=.2)+
   coord_equal() +
@@ -224,9 +227,10 @@ PCA2 <- ggplot(coord_ind,aes(x=Dim.1,y=Dim.2,colour=treatment))+ #,label = sp_tr
   # theme(legend.position = "none")+
   xlab(paste("Dim1",var.explain.dim1,"% variance explained"))+
   ylab(paste("Dim2",var.explain.dim2,"% variance explained")) +
-  scale_colour_manual(values=c("#009E73","#E69F00")) 
+  scale_colour_manual(values=c("#009E73","#E69F00")) +
+  ggtitle("Annual species")
 
-ggsave("outputs/figures/3_PCA_annuals.jpg",PCA2)
+ggsave("draft/PCA_annuals.jpg",PCA2)
 
 PCA_label <- ggplot(coord_ind,aes(x=Dim.1,y=Dim.2,colour=treatment,label = sp_tr))+
   ggrepel::geom_label_repel() +
@@ -246,7 +250,7 @@ PCA_label <- ggplot(coord_ind,aes(x=Dim.1,y=Dim.2,colour=treatment,label = sp_tr
 # With species names
 # ggplot (coord_ind,aes(x=Dim.1,y=Dim.2,label = Code_Sp,colour=Lifelength))+
 #   geom_text()
-dimension <- 2
+dimension <- 1
 anov_dim <- compute_anova_dim_x(coord_ind,dimension)
 
 par(mfrow=c(2,2)) ; plot(anov_dim) # diagnostic_graphs
@@ -454,6 +458,7 @@ treatment <- coord_ind$teatment
 
 
 PCA2 <- ggplot(coord_ind,aes(x=Dim.1,y=Dim.2,colour=treatment))+
+  theme_classic()+
   geom_hline(aes(yintercept=0), size=.2,linetype="longdash") + 
   geom_vline(aes(xintercept = 0),linetype = "longdash", size=.2)+
   coord_equal() +
@@ -465,10 +470,11 @@ PCA2 <- ggplot(coord_ind,aes(x=Dim.1,y=Dim.2,colour=treatment))+
   # theme(legend.position = "none")+
   xlab(paste("Dim1",var.explain.dim1,"% variance explained"))+
   ylab(paste("Dim2",var.explain.dim2,"% variance explained")) + 
-  scale_colour_manual(values=c("#009E73","#E69F00"))
+  scale_colour_manual(values=c("#009E73","#E69F00"))+
+  ggtitle("CWM computed on annual plant guilds")
 
 
-ggsave("outputs/figures/3_PCA_annuals_CWM.jpg",PCA2)
+ggsave("draft/PCA_annuals_CWM.jpg",PCA2)
 
 # With species names
 # ggplot (coord_ind,aes(x=Dim.1,y=Dim.2,label = Code_Sp,colour=Lifelength))+
