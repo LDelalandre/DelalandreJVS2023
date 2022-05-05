@@ -1,4 +1,5 @@
 library(tidyverse)
+source("scripts/Data_traits.R")
 
 # importer traits
 ann_fer <- LeafMorpho %>% 
@@ -50,11 +51,10 @@ data_LDMC_mean <- data_LDMC %>%
   summarize(LDMC = mean(LDMC)) %>% 
   ungroup() %>% 
   group_by(Code_Sp)
-bxp <- ggpubr::ggpaired(data_LDMC_mean, x = "Treatment", y = "LDMC", 
-                order = c("Fer_Clc", "Nat_Sab"),
-                ylab = "LDMC", xlab = "Treatment")
-bxp
+bxp <- ggplot(data_LDMC_mean, aes(x = Treatment, y = LDMC)) + 
+            geom_boxplot()
 
+bxp
 
 library("lmerTest")
 mod0_ldmc <- lme4::lmer(L_Area~ (1|Code_Sp),data = data_LDMC)

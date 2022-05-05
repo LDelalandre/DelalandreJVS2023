@@ -45,23 +45,14 @@ mean_attribute_per_species <- function(dataset,subset_gt_nat = F){
 take_nat_sab_only <-  T
 
 # Generate a list of mean attributes per sp*treatment
-if(take_nat_sab_only == F){
-  MEAN_list <- list( mean_attribute_per_species(LeafMorpho),
-                     mean_attribute_per_species(LeafCN),
-                     mean_attribute_per_species(LeafP),
-                     mean_attribute_per_species(Leaf13C),
-                     mean_attribute_per_species(Biovolume),
-                     mean_attribute_per_species(Pheno),
-                     mean_attribute_per_species(Seed) )
-} else{
-  MEAN_list <- list( mean_attribute_per_species(LeafMorpho, subset_gt_nat = T),
-                     mean_attribute_per_species(LeafCN, subset_gt_nat = T),
-                     mean_attribute_per_species(LeafP, subset_gt_nat = T),
-                     mean_attribute_per_species(Leaf13C, subset_gt_nat = T),
-                     mean_attribute_per_species(Biovolume, subset_gt_nat = T),
-                     mean_attribute_per_species(Pheno, subset_gt_nat = T),
-                     mean_attribute_per_species(Seed, subset_gt_nat = T) )
-}
+MEAN_list <- list( mean_attribute_per_species(LeafMorpho, subset_gt_nat = take_nat_sab_only),
+                   mean_attribute_per_species(LeafCN, subset_gt_nat = take_nat_sab_only),
+                   mean_attribute_per_species(LeafP, subset_gt_nat = take_nat_sab_only),
+                   mean_attribute_per_species(Leaf13C, subset_gt_nat = take_nat_sab_only),
+                   mean_attribute_per_species(Biovolume, subset_gt_nat = take_nat_sab_only),
+                   mean_attribute_per_species(Pheno, subset_gt_nat = take_nat_sab_only),
+                   mean_attribute_per_species(Seed, subset_gt_nat = take_nat_sab_only) )
+
 
 
 # Convert the list into a data frame

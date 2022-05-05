@@ -1,5 +1,6 @@
 # This script imports trait values measured before my PhD 
 # and includes data that I measured in spring 2021.
+library(openxlsx)
 
 # Characteristics of the species  ####
 names_LH <- read.csv2("data/species_names_lifehistory.csv")

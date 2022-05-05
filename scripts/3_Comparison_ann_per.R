@@ -4,24 +4,28 @@ ab_fer <- read.csv2("outputs/data/abundance_fertile.csv")
 ab_nat <- read.csv2("outputs/data/abundance_natif.csv")
 
 MEAN_CSR <- read.csv2("outputs/data/Pierce CSR/Traits_mean_sp_per_trtmt_completed.csv",dec=",") %>% 
+  
   # merge(name_LH,by="Code_Sp") %>% 
   # relocate(C,S,R) %>% 
   mutate(C=str_replace(C,",",".") %>% as.numeric())%>% 
   mutate(S=str_replace(S,",",".") %>% as.numeric())%>% 
   mutate(R=str_replace(R,",",".") %>% as.numeric())
 
-# MEAN_CSR2 <- MEAN_CSR %>% 
-#   select(LifeHistory,C,S,R)
-# ATTENTION on peut aussi utiliser ce MEAN là (recalculer les scores CSR dans ce cas) :
-# MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab.csv")%>%
-#   filter(!is.na(SLA))
+MEAN_CSR_shallow <- read.csv2("outputs/data/Pierce CSR/Traits_mean_sp_per_trtmt_subset_nat_sab_completed.csv",dec=",") %>% 
+  # merge(name_LH,by="Code_Sp") %>% 
+  # relocate(C,S,R) %>% 
+  mutate(C=str_replace(C,",",".") %>% as.numeric())%>% 
+  mutate(S=str_replace(S,",",".") %>% as.numeric())%>% 
+  mutate(R=str_replace(R,",",".") %>% as.numeric())
+
 
 #__________________________________________________
 # Option 1 : prendre les traits des espèces mesurés dans l'un ou l'autre traitement ####
 # En comparant nat_sab et fer
 
 # i) CSR ####
-boxplot_CSR <- MEAN_CSR %>% 
+# All the Natif
+boxplot_CSR<- MEAN_CSR %>% 
   select(code_sp,treatment,LifeHistory,C,S,R) %>%
   gather(key = score, value = value, -c(code_sp, LifeHistory,treatment)) %>% 
   # filter(score == "R") %>% 
@@ -32,13 +36,31 @@ boxplot_CSR <- MEAN_CSR %>%
   ylab("Score (%)")+
   theme(axis.title.x=element_blank())+
   geom_boxplot() +
+  # geom_point() +
   facet_wrap(~zone) 
 
 boxplot_CSR
 
-ggsave("draft/boxplot_CSR.jpg",boxplot_CSR)
+# Natif: only shallow (sandy) soil
+boxplot_CSR_shallow <- MEAN_CSR_shallow %>% 
+  select(code_sp,treatment,LifeHistory,C,S,R) %>%
+  gather(key = score, value = value, -c(code_sp, LifeHistory,treatment)) %>% 
+  # filter(score == "R") %>% 
+  filter(treatment%in% c("Nat","Fer")) %>% 
+  mutate(zone = if_else(treatment == "Fer", "G+F","GU-S")) %>% 
+  ggplot(aes(x=score, y=value, color = LifeHistory))+
+  theme_classic()+
+  ylab("Score (%)")+
+  theme(axis.title.x=element_blank())+
+  geom_boxplot() +
+  # geom_point() +
+  facet_wrap(~zone) 
 
-data.anovaCSR <- MEAN_CSR %>% 
+boxplot_CSR_shallow
+
+ggsave("draft/boxplot_CSR.jpg",boxplot_CSR_shallow)
+
+data.anovaCSR <- MEAN_CSR2 %>% 
   select(code_sp,treatment,LifeHistory,C,S,R) %>%
   # gather(key = score, value = value, -c(code_sp, LifeHistory,treatment)) %>% 
   filter(treatment%in% c("Nat","Fer"))
