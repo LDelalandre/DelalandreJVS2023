@@ -144,3 +144,34 @@ CWM_annuals_nat <- ab_traits_nat %>%
 
 write.csv2(CWM_annuals_nat,"outputs/data/CWM_annuals_nat.csv" ,row.names=F)
 
+
+# 3) CWM in the guild of perennials ####
+# i) Fer ####
+CWM_perennials_fer <- ab_traits_fer %>% 
+  filter(LifeHistory == "perennial") %>% 
+  group_by(id_transect_quadrat) %>% 
+  mutate(relat_ab = abundance/sum(abundance)) %>% 
+  mutate_at(vars(L_Area:R),
+            .funs = list(CWM = ~ weighted.mean(.,relat_ab,na.rm=T) )) %>% 
+  rename_at( vars( contains( "_CWM") ), list( ~paste("CWM", gsub("_CWM", "", .), sep = "_") ) ) %>% 
+  unique() %>% 
+  select(paddock, id_transect_quadrat,starts_with("CWM")) %>% 
+  unique() %>% 
+  rename_at( vars( contains( "CWM_") ), list( ~ gsub("CWM_", "", .) ) )
+
+write.csv2(CWM_perennials_fer,"outputs/data/CWM_perennials_fer.csv" ,row.names=F)
+
+# ii) Nat ####
+CWM_perennials_nat <- ab_traits_nat %>% 
+  filter(LifeHistory == "perennial") %>% 
+  group_by(paddock,line,depth) %>% 
+  mutate(relat_ab = abundance/sum(abundance)) %>% 
+  mutate_at(vars(L_Area:R),
+            .funs = list(CWM = ~ weighted.mean(.,relat_ab,na.rm=T) )) %>% 
+  rename_at( vars( contains( "_CWM") ), list( ~paste("CWM", gsub("_CWM", "", .), sep = "_") ) ) %>% 
+  unique() %>% 
+  select(depth,paddock,line, starts_with("CWM")) %>% 
+  unique() %>% 
+  rename_at( vars( contains( "CWM_") ), list( ~ gsub("CWM_", "", .) ) )
+
+write.csv2(CWM_perennials_nat,"outputs/data/CWM_perennials_nat.csv" ,row.names=F)

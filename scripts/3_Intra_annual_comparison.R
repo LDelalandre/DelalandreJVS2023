@@ -106,3 +106,127 @@ abundance_annuals_both_treatments
 cor.test(NatFer$abundance_nat,NatFer$abundance_fer)
 
 ggsave("outputs/figures/Appendix/3_Correlation_abundance_both_treatments.jpg")
+
+ab_nat %>% 
+  pull(paddock) %>% 
+  unique()
+
+library("vegan")
+x_abundance <- ab_fer %>%
+  select(code_sp,transect,relat_ab) %>% 
+  rbind(ab_nat %>%  
+          filter(depth == "S") %>% # INTRA NAT SUP ONLY
+          select(code_sp,transect,relat_ab) ) %>% 
+  spread(key = code_sp,value = relat_ab) %>% 
+  column_to_rownames("transect") %>% 
+  replace(is.na(.),0) %>% 
+  as.matrix()
+
+x_abundance_paddock <- ab_fer %>%
+  ungroup() %>% 
+  group_by(paddock) %>% 
+  mutate(sum = sum(abundance)) %>% 
+  group_by(code_sp,paddock) %>% 
+  summarize(relat_ab = sum(abundance)/sum) %>%
+  unique() %>% 
+  select(code_sp,paddock,relat_ab) %>% 
+  
+  rbind(ab_nat %>%   
+          group_by(paddock) %>% 
+          mutate(sum = sum(abundance)) %>% 
+          group_by(code_sp,paddock) %>% 
+          summarize(relat_ab = sum(abundance)/sum) %>%
+          unique() %>% 
+          select(code_sp,paddock,relat_ab) ) %>% 
+  spread(key = code_sp,value = relat_ab) %>% 
+  column_to_rownames("paddock") %>% 
+  replace(is.na(.),0) %>% 
+  as.matrix()
+
+x_presence <- ab_fer %>%
+  mutate(presence = if_else(relat_ab == 0,0,1)) %>%
+  select(code_sp,transect,presence) %>% 
+  rbind(ab_nat %>%   
+          mutate(presence = if_else(relat_ab == 0,0,1)) %>%
+          select(code_sp,transect,presence) ) %>% 
+  spread(key = code_sp,value = presence) %>% 
+  column_to_rownames("transect") %>% 
+  replace(is.na(.),0) %>% 
+  as.matrix()
+
+
+# comparer présence dans chaque traitement
+list_sp_each <- ab_fer %>%
+  mutate(presence = if_else(relat_ab == 0,0,1)) %>%
+  select(code_sp,transect,presence) %>% 
+  rbind(ab_nat %>%   
+          filter(depth == "S") %>% # INTRA NAT SUP ONLY
+          mutate(presence = if_else(relat_ab == 0,0,1)) %>%
+          select(code_sp,transect,presence) ) %>% 
+  mutate(treatment = if_else(str_detect(transect ,"F"),"Fer","Nat_Sab")) %>% 
+  select(-transect) %>%
+  unique() %>% 
+  spread(key = code_sp,value = presence) %>%
+  column_to_rownames("treatment") %>% 
+  replace(is.na(.),0) %>% 
+  as.matrix()
+
+distance <- vegdist(x = list_sp_each,method="jaccard")
+distance # 50% of species replacement 
+
+# Distance for all transects
+distance <- vegdist(x = x_abundance,method="bray")
+
+transects <- x_abundance %>% rownames()
+df_transects <- data.frame(transect = transects, number = c(1:length(transects)))
+df_transects_row <- df_transects %>% 
+  mutate(row = number) %>% 
+  mutate(transect1 = transect) %>% 
+  select(row,transect1)
+df_transects_col <- df_transects %>% 
+  mutate(col = number) %>% 
+  mutate(transect2 = transect) %>% 
+  select(col,transect2)
+
+
+# Transform it into a data frame
+dist.to.df <- function(d){
+  size <- attr(d, "Size")
+  return(
+    data.frame(
+      subset(expand.grid(row=2:size, col=1:(size-1)), row > col),
+      distance=as.numeric(d),
+      row.names = NULL
+    )
+  )
+}
+
+df_dist <- dist.to.df(distance) 
+
+df_dist2 <- df_dist %>% 
+  merge(df_transects_row,by="row")%>% 
+  merge(df_transects_col,by="col")
+
+
+df_dist3 <- df_dist2 %>%
+  mutate(comparison = case_when(
+    str_detect(transect1 ,"F") & str_detect(transect2 ,"F") ~ "intra_fer",
+    str_detect(transect1 ,"F") & str_detect(transect2 ,"P") ~ "inter",
+    str_detect(transect1 ,"P") & str_detect(transect2 ,"F") ~ "inter",
+    str_detect(transect1 ,"P") & str_detect(transect2 ,"P") ~ "intra_nat"
+    ))
+
+# Si on bosse sur les paddocks
+# df_dist3 <- df_dist2 %>% 
+#   mutate(comparison = case_when( 
+#     str_detect(transect1 ,"C") & str_detect(transect2 ,"C") ~ "intra_fer",
+#     str_detect(transect1 ,"C") & str_detect(transect2 ,"P") ~ "inter",
+#     str_detect(transect1 ,"P") & str_detect(transect2 ,"C") ~ "inter",
+#     str_detect(transect1 ,"P") & str_detect(transect2 ,"P") ~ "intra_nat"
+#   ))
+
+df_dist3 %>% 
+  ggplot(aes(x=distance))+
+  geom_histogram(binwidth = 0.1) +
+  facet_wrap(~comparison) +
+  theme_classic()

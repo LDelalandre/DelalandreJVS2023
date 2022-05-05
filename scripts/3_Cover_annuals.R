@@ -172,7 +172,15 @@ boxplot(relative_richness_annual *100 ~ zone,
         xlab = NA,
         ylab = "Relative richness \n of annuals (%)",
         # xaxt = "n",
-        medlwd = 1)
+        medlwd = 1,
+        xaxt = "n")
+axis(1,                         # Define x-axis manually
+     at = 1:4,
+     labels = c(expression(paste("G"^'+',"F",sep='')),
+                expression(paste("GU"[D],sep='')),
+                expression(paste("GU"[I],sep='')),
+                expression(paste("GU"[S],sep=''))) )
+
 # legend("topleft", legend="d", bty='n')
 
 
@@ -181,13 +189,14 @@ boxplot(relative_richness_annual *100 ~ zone,
 # test glm ####
 # glm " mais ça marche pas, je suis sur de la richesse relative, donc proportion, pas poisson !!
 # --> A refaire !
+mod_binom0 <- glm(cbind(annual,perennial) ~ 1, family = "binomial", data=richness_per_guild_toplot)
 mod_binom <- glm(cbind(annual,perennial) ~ depth, family = "binomial", data=richness_per_guild_toplot)
 # ou family =  binomial(logit)
-
+anova(mod_binom)
 summary(mod_binom)
 
 # donc je regarde la RS absolue des annuelles, "annual", et pas relat, "relative_richness_annual"
-mod_glm <- glm(relative_richness_annual ~ depth, family = "quasipoisson", data = richness_per_guild_toplot)
+# mod_glm <- glm(relative_richness_annual ~ depth, family = "quasipoisson", data = richness_per_guild_toplot)
 # quasipoisson to deal with overdispersion.
 posthoc_binom <- multcomp::cld(emmeans::emmeans(mod_binom, specs = "depth",  type = "response",
                                           adjust = "tuckey"),
@@ -226,10 +235,10 @@ tc_df <-data.frame(theoretic_count)
 # On ne rejette pas l'hypothèse nulle que le modèle est bien spécifié. Je reste là-dessus ?
 # the deviance goodness of fit test for Poisson regression. The null hypothesis is that our model is correctly specified
 # https://thestatsgeek.com/2014/04/26/deviance-goodness-of-fit-test-for-poisson-regression/
-pchisq(mod_glm$deviance, df=mod_glm$df.residual, lower.tail=FALSE)
-
-ssr <- sum(residuals(mod_glm, type="pearson")^2)
-pchisq(ssr, mod_glm$df.residual)
+# pchisq(mod_glm$deviance, df=mod_glm$df.residual, lower.tail=FALSE)
+# 
+# ssr <- sum(residuals(mod_glm, type="pearson")^2)
+# pchisq(ssr, mod_glm$df.residual)
 
 #turn off PDF plotting
 dev.off() 

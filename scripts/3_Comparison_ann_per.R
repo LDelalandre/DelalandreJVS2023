@@ -41,6 +41,14 @@ boxplot_CSR<- MEAN_CSR %>%
 
 boxplot_CSR
 
+variable_names <- list(
+  "G+F" = expression(paste("G"^'+',"F",sep='')),
+  "GU-S" = expression(paste("GU"[S],sep='')) )
+
+variable_labeller <- function(variable,value){
+  return(variable_names[value])
+}
+
 # Natif: only shallow (sandy) soil
 boxplot_CSR_shallow <- MEAN_CSR_shallow %>% 
   select(code_sp,treatment,LifeHistory,C,S,R) %>%
@@ -54,7 +62,8 @@ boxplot_CSR_shallow <- MEAN_CSR_shallow %>%
   theme(axis.title.x=element_blank())+
   geom_boxplot() +
   # geom_point() +
-  facet_wrap(~zone) 
+  facet_wrap(~zone,labeller=variable_labeller) 
+  
 
 boxplot_CSR_shallow
 

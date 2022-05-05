@@ -51,13 +51,13 @@ plot_pca <- function(coord_ind,coord_var,var.explain.dim1,var.explain.dim2){
     geom_vline(aes(xintercept = 0),linetype = "longdash", size=.2)+
     coord_equal() +
     geom_point(size=4) +
-    geom_segment(data=coord_var, aes(x=0, y=0, xend=Dim.1*7-0.2, yend=Dim.2*7-0.2), 
+    geom_segment(data=coord_var, aes(x=0, y=0, xend=Dim.1*5.5-0.2, yend=Dim.2*5.5-0.2), 
                  arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
-    geom_text_repel(data=coord_var, aes(x=Dim.1*7, Dim.2*7, label=rowname), size = 6, vjust=1, color="black") +
+    geom_text_repel(data=coord_var, aes(x=Dim.1*5.5, Dim.2*5.5, label=rowname), size = 6, vjust=1, color="black") +
     ggtitle(trtmt) +
     theme(legend.position = "none") +
-    xlab(paste("Dim1",var.explain.dim1,"% variance explained"))+
-    ylab(paste("Dim2",var.explain.dim2,"% variance explained")) + 
+    xlab(paste0("Dim1 (",var.explain.dim1,"%)"))+
+    ylab(paste0("Dim2 (",var.explain.dim2,"%)")) + 
     theme(text=element_text(size=20)) 
     
 }
@@ -125,7 +125,8 @@ coord_var <- pca_output[[2]]
 var.explain.dim1 <- pca_output[[3]]
 var.explain.dim2 <- pca_output[[4]]
 
-PCA_fer <- plot_pca(coord_ind,coord_var,var.explain.dim1,var.explain.dim2 )
+PCA_fer <- plot_pca(coord_ind,coord_var,var.explain.dim1,var.explain.dim2 ) +
+  ggtitle((expression(paste("G"^'+',"F",sep=''))))
 
 PCA_sp_names <- ggplot (coord_ind,aes(x=Dim.1,y=Dim.2,label = Code_Sp,colour=Lifelength))+
   ggrepel::geom_label_repel() # With species names
@@ -150,7 +151,7 @@ var.explain.dim1 <- pca_output[[3]]
 var.explain.dim2 <- pca_output[[4]]
 
 PCA_nat <- plot_pca(coord_ind,coord_var,var.explain.dim1,var.explain.dim2 ) +
-  ggtitle("Nat_Sab")
+  ggtitle((expression(paste("GU"[S],sep=''))))
 
 PCA_sp_names <- ggplot (coord_ind,aes(x=Dim.1,y=Dim.2,label = Code_Sp,colour=Lifelength))+
   ggrepel::geom_label_repel() # With species names
@@ -199,6 +200,34 @@ traits_pca_annuals <- MEAN %>%
   mutate(ddd = paste(code_sp,treatment,sep = "_")) %>% 
   column_to_rownames("ddd") %>% 
   select(-c(code_sp,treatment))
+
+# compute CSR scores on these plants
+forCSR_ann_database <- traits_pca_annuals %>%
+  rownames_to_column("sp_tr") %>% 
+  select(sp_tr,L_Area,LDMC,SLA) %>%
+  mutate(L_Area=L_Area*100) %>% # to change unit from cm² to mm²
+  mutate(LDMC=LDMC/1000*100) # change from mg/g to %
+write.csv2(forCSR_ann_releves,
+           "outputs/data/Pierce CSR/Traits_annuals_database.csv" ,row.names=F)
+
+CSR_ann_database <- read.csv2("outputs/data/Pierce CSR/Traits_annuals_database_completed.csv" ) %>% 
+  mutate(C=str_replace(C,",",".") %>% as.numeric())%>% 
+  mutate(S=str_replace(S,",",".") %>% as.numeric())%>% 
+  mutate(R=str_replace(R,",",".") %>% as.numeric()) %>% 
+  mutate(treatment = if_else(str_detect(sp_tr,"F"),"Fer","Nat"))
+
+CSR_ann_database_gathered <- CSR_ann_database %>% 
+  select(C,S,R,treatment) %>% 
+  gather(key = score,value = value,-treatment) 
+
+CSR_ann_database_gathered %>% 
+  ggplot(aes(x= score,y=value, color = treatment)) +
+  theme_classic()+
+  geom_boxplot()   +
+  scale_colour_manual(values=c("#009E73","#E69F00"),
+                      labels = c(expression(paste("G"^'+',"F",sep='')),
+                                 expression(paste("GU"[S],sep=''))) ) 
+####
   
   
 ACP1<-PCA(traits_pca_annuals,graph = FALSE)
@@ -227,8 +256,12 @@ PCA2 <- ggplot(coord_ind,aes(x=Dim.1,y=Dim.2,colour=treatment))+ #,label = sp_tr
   # theme(legend.position = "none")+
   xlab(paste("Dim1",var.explain.dim1,"% variance explained"))+
   ylab(paste("Dim2",var.explain.dim2,"% variance explained")) +
-  scale_colour_manual(values=c("#009E73","#E69F00")) +
-  ggtitle("Annual species")
+  scale_colour_manual(values=c("#009E73","#E69F00"),
+                      labels = c(expression(paste("G"^'+',"F",sep='')),
+                                 expression(paste("GU"[S],sep=''))) )+
+  scale_fill_manual('Program Type', values=c('pink','blue')) +
+  labs(color = "Origin") +
+  ggtitle("Species traits")
 
 ggsave("draft/PCA_annuals.jpg",PCA2)
 
@@ -335,6 +368,37 @@ data_traits_for_PCA_nat <- data_traits_for_PCA %>%
 
 data_traits_for_PCA2 <- rbind(data_traits_for_PCA_fer,data_traits_for_PCA_nat)
 
+# compute CSR scores on these plants
+forCSR_ann_releves <- data_traits_for_PCA2 %>%
+  rownames_to_column("sp_tr") %>% 
+  select(sp_tr,L_Area,LDMC,SLA) %>%
+  mutate(L_Area=L_Area*100) %>% # to change unit from cm² to mm²
+  mutate(LDMC=LDMC/1000*100) # change from mg/g to %
+write.csv2(forCSR_ann_releves,
+           "outputs/data/Pierce CSR/Traits_annuals_releves.csv" ,row.names=F)
+
+CSR_ann_releves <- read.csv2("outputs/data/Pierce CSR/Traits_annuals_releves_completed.csv" ) %>% 
+  mutate(C=str_replace(C,",",".") %>% as.numeric())%>% 
+  mutate(S=str_replace(S,",",".") %>% as.numeric())%>% 
+  mutate(R=str_replace(R,",",".") %>% as.numeric()) %>% 
+  mutate(treatment = if_else(str_detect(sp_tr,"F"),"Fer","Nat"))
+
+CSR_ann_releves_gathered <- CSR_ann_releves %>% 
+  select(C,S,R,treatment) %>% 
+  gather(key = score,value = value,-treatment) 
+
+CSR_ann_releves_gathered %>% 
+  ggplot(aes(x= score,y=value, color = treatment)) +
+  theme_classic()+
+  geom_boxplot()   +
+  scale_colour_manual(values=c("#009E73","#E69F00"),
+                    labels = c(expression(paste("G"^'+',"F",sep='')),
+                               expression(paste("GU"[S],sep=''))) ) 
+
+t.test(CSR_ann_releves$C ~ CSR_ann_releves$treatment)
+t.test(CSR_ann_releves$S ~ CSR_ann_releves$treatment)
+t.test(CSR_ann_releves$R ~ CSR_ann_releves$treatment)
+
 
 ACP1<-PCA(data_traits_for_PCA2,graph = FALSE)
 factoextra::fviz_eig(ACP1, addlabels = TRUE) # percentage of variance explained
@@ -362,6 +426,7 @@ PCA2 <- ggplot(coord_ind,aes(x=Dim.1,y=Dim.2,colour=treatment))+
   xlab(paste("Dim1",var.explain.dim1,"% variance explained"))+
   ylab(paste("Dim2",var.explain.dim2,"% variance explained")) +
   scale_colour_manual(values=c("#009E73","#E69F00")) 
+PCA2
 
 PCA_label <- ggplot(coord_ind,aes(x=Dim.1,y=Dim.2,colour=treatment,label = sp_tr))+
   ggrepel::geom_label_repel() +
@@ -426,23 +491,49 @@ info_anova[[5]] # summary
 # Différenciation légère sur axe 1 (Lié notamment à la dispersion), et sur l'axe 2.
 
 #______________________________________________________
-# 4) CWM of annuals in both treatments ####
+# 4) GWM of annuals in both treatments ####
+# Guild Weighted Mean
 CWM_annuals_fer <- read.csv2("outputs/data/CWM_annuals_fer.csv" ) %>% 
+  mutate(id_transect_quadrat = paste0("annual",id_transect_quadrat)) %>% 
   column_to_rownames("id_transect_quadrat") %>% 
-  select(-c(paddock))
+  select(-c(paddock)) 
 CWM_annuals_nat <- read.csv2("outputs/data/CWM_annuals_nat.csv" ) %>% 
-  mutate(id_transect_quadrat = paste(paddock,depth,line,sep="_")) %>% 
+  mutate(id_transect_quadrat = paste("annual",paddock,depth,line,sep="_")) %>% 
   column_to_rownames("id_transect_quadrat") %>% 
   select(-c(paddock,depth,line))
 
 CWM_annuals <- rbind(CWM_annuals_fer,CWM_annuals_nat) %>% 
   select(all_of(traits))
 
+CWM_perennials_fer <- read.csv2("outputs/data/CWM_perennials_fer.csv" ) %>% 
+  mutate(id_transect_quadrat = paste0("perennial",id_transect_quadrat)) %>%
+  column_to_rownames("id_transect_quadrat") %>% 
+  select(-c(paddock))
+CWM_perennials_nat <- read.csv2("outputs/data/CWM_perennials_nat.csv" ) %>% 
+  mutate(id_transect_quadrat = paste("perennial",paddock,depth,line,sep="_")) %>% 
+  column_to_rownames("id_transect_quadrat") %>% 
+  select(-c(paddock,depth,line))
+
+CWM_perennials <- rbind(CWM_perennials_fer,CWM_perennials_nat) %>% 
+  select(all_of(traits)) 
+
+CWM_all <- rbind(CWM_perennials,CWM_annuals)
 
 
+# Plot CSR ####
 
+rbind(CWM_perennials_fer,CWM_perennials_nat,CWM_annuals_fer,CWM_annuals_nat) %>% 
+  rownames_to_column("transect") %>% 
+  mutate(guild = if_else(str_detect(transect,"annual"),"annual","perennial")) %>%
+  mutate(treatment = if_else(str_detect(transect,"F"),"Fer","Nat")) %>% 
+  select(C,S,R,guild,treatment) %>% 
+  gather(key = score,value = value,-c(guild,treatment)) %>% 
+  ggplot(aes(x= score,y=value,color=guild)) +
+    geom_boxplot() +
+    facet_wrap(~ treatment)
 
-ACP1<-PCA(CWM_annuals,graph = FALSE)
+# ACP ####
+ACP1<-PCA(CWM_all,graph = FALSE)
 factoextra::fviz_eig(ACP1, addlabels = TRUE) # percentage of variance explained
 
 
@@ -452,29 +543,44 @@ var.explain.dim1 <- round(ACP1$eig[1,2])
 var.explain.dim2 <- round(ACP1$eig[2,2])
 coord_ind <- data.frame(ACP1$ind$coord) %>% 
   rownames_to_column("transect") %>% 
-  mutate(treatment = if_else(str_detect(transect,"F"),"Fer","Nat"))
+  mutate(treatment = if_else(str_detect(transect,"F"),"Fer","Nat")) %>% 
+  mutate(guild = if_else(str_detect(transect,"annual"),"annual","perennial")) %>% 
+  mutate(treatment_guild = paste(treatment,guild,sep="_"))
 
-treatment <- coord_ind$teatment
+treatment <- coord_ind$treatment
+guild <- coord_ind$guild
 
 
-PCA2 <- ggplot(coord_ind,aes(x=Dim.1,y=Dim.2,colour=treatment))+
+PCA2 <- ggplot(coord_ind,aes(x=Dim.1,y=Dim.2,colour= guild))+
+  # scale_shape_manual(values = c(1,2))+
   theme_classic()+
   geom_hline(aes(yintercept=0), size=.2,linetype="longdash") + 
   geom_vline(aes(xintercept = 0),linetype = "longdash", size=.2)+
   coord_equal() +
-  geom_point() +
-  geom_segment(data=coord_var, aes(x=0, y=0, xend=Dim.1*7-0.2, yend=Dim.2*7-0.2), 
+  geom_point(aes(shape = treatment)) +
+  geom_segment(data=coord_var, aes(x=0, y=0, xend=Dim.1*5-0.2, yend=Dim.2*5-0.2), 
                arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
-  geom_text_repel(data=coord_var, aes(x=Dim.1*7, Dim.2*7, label=rowname), size = 4, vjust=1, color="black") +
-  ggtitle("Annuals in fer and nat sup") +
+  
+  geom_text_repel(data=coord_var, aes(x=Dim.1*5, Dim.2*5, label=rowname), 
+                  size = 4, vjust=1, color="black") +
   # theme(legend.position = "none")+
-  xlab(paste("Dim1",var.explain.dim1,"% variance explained"))+
-  ylab(paste("Dim2",var.explain.dim2,"% variance explained")) + 
-  scale_colour_manual(values=c("#009E73","#E69F00"))+
-  ggtitle("CWM computed on annual plant guilds")
-
+  xlab(paste("Dim1 (",var.explain.dim1,"%)")) +
+  ylab(paste("Dim2 (",var.explain.dim2,"%)")) + 
+  # scale_colour_manual( # values=c("#009E73","#E69F00"),
+  #                      values = c("#F8766D","#00BFC4" ),
+  #                     labels = c(expression(paste("G"^'+',"F",sep='')),
+  #                                expression(paste("GU"[S],sep=''))) ) +
+  scale_shape_manual(values = c(1,2 ),
+                     labels = c(expression(paste("G"^'+',"F",sep='')),
+                                expression(paste("GU"[S],sep=''))) ) +
+  labs(shape = "Origin", color = "Guild") +
+  ggtitle("Traits aggregated at the guild level")
+PCA2
 
 ggsave("draft/PCA_annuals_CWM.jpg",PCA2)
+
+
+
 
 # With species names
 # ggplot (coord_ind,aes(x=Dim.1,y=Dim.2,label = Code_Sp,colour=Lifelength))+
