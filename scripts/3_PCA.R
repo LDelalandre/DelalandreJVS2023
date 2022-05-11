@@ -231,13 +231,14 @@ CSR_ann_database_gathered %>%
   
   
 ACP1<-PCA(traits_pca_annuals,graph = FALSE)
-factoextra::fviz_eig(ACP1, addlabels = TRUE) # percentage of variance explained
-
+var_explained_pca_annual<-factoextra::fviz_eig(ACP1, addlabels = TRUE) # percentage of variance explained
+ggsave("draft/var_explained_pca_annuals.png",var_explained_pca_annual)
 
 coord_var <- data.frame(ACP1$var$coord) %>% 
   rownames_to_column()
 var.explain.dim1 <- round(ACP1$eig[1,2])
 var.explain.dim2 <- round(ACP1$eig[2,2])
+var.explain.dim3 <- round(ACP1$eig[3,2])
 coord_ind <- data.frame(ACP1$ind$coord) %>% 
   rownames_to_column("sp_tr") %>% 
   mutate(code_sp = str_sub(sp_tr,1L,-5L)) %>% 
@@ -254,16 +255,38 @@ PCA2 <- ggplot(coord_ind,aes(x=Dim.1,y=Dim.2,colour=treatment))+ #,label = sp_tr
   geom_text_repel(data=coord_var, aes(x=Dim.1*7, Dim.2*7, label=rowname), size = 4, vjust=1, color="black") +
   ggtitle("Annuals in fer and nat sup") +
   # theme(legend.position = "none")+
-  xlab(paste("Dim1",var.explain.dim1,"% variance explained"))+
-  ylab(paste("Dim2",var.explain.dim2,"% variance explained")) +
+  xlab(paste0("Dim1 (",var.explain.dim1,"%)"))+
+  ylab(paste0("Dim2 (",var.explain.dim2,"%)")) +
   scale_colour_manual(values=c("#009E73","#E69F00"),
                       labels = c(expression(paste("G"^'+',"F",sep='')),
                                  expression(paste("GU"[S],sep=''))) )+
   scale_fill_manual('Program Type', values=c('pink','blue')) +
   labs(color = "Origin") +
-  ggtitle("Species traits")
+  theme(plot.title = element_blank())
 
-ggsave("draft/PCA_annuals.jpg",PCA2)
+
+PCA2_dim3 <- ggplot(coord_ind,aes(x=Dim.1,y=Dim.3,colour=treatment))+ #,label = sp_tr
+  theme_classic()+
+  geom_hline(aes(yintercept=0), size=.2,linetype="longdash") + 
+  geom_vline(aes(xintercept = 0),linetype = "longdash", size=.2)+
+  coord_equal() +
+  geom_point() +
+  geom_segment(data=coord_var, aes(x=0, y=0, xend=Dim.1*7-0.2, yend=Dim.3*7-0.2), 
+               arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
+  geom_text_repel(data=coord_var, aes(x=Dim.1*7, Dim.3*7, label=rowname), size = 4, vjust=1, color="black") +
+  ggtitle("Annuals in fer and nat sup") +
+  # theme(legend.position = "none")+
+  xlab(paste0("Dim1 (",var.explain.dim1,"%)"))+
+  ylab(paste0("Dim3 (",var.explain.dim3,"%)")) +
+  scale_colour_manual(values=c("#009E73","#E69F00"),
+                      labels = c(expression(paste("G"^'+',"F",sep='')),
+                                 expression(paste("GU"[S],sep=''))) )+
+  scale_fill_manual('Program Type', values=c('pink','blue')) +
+  labs(color = "Origin") +
+  theme(plot.title = element_blank())
+  
+PCA_annuals <- gridExtra::grid.arrange(PCA2,PCA2_dim3, ncol=2,heights = 100)
+ggsave("draft/PCA_annuals.jpg",PCA_annuals,width = 15, height = 11)
 
 PCA_label <- ggplot(coord_ind,aes(x=Dim.1,y=Dim.2,colour=treatment,label = sp_tr))+
   ggrepel::geom_label_repel() +

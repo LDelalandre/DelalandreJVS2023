@@ -19,8 +19,7 @@ LeafMorpho <- rbind(LeafMorpho1,LeafMorpho_leo)
 # LeafDimensions <- read.xlsx(paste0("data/traits/",data_file), sheet = "LeafDimensions (àsupprimer)", startRow = 1, colNames = TRUE)
 LeafCN1 <- read.xlsx(paste0("data/traits/",data_file), sheet = "LeafC&N", startRow = 1, colNames = TRUE) 
 LeafP <- read.xlsx(paste0("data/traits/",data_file), sheet = "LeafP", startRow = 1, colNames = TRUE) 
-Leaf13C1 <- read.xlsx(paste0("data/traits/",data_file), sheet = "Leaf13C", startRow = 1, colNames = TRUE) 
-
+Leaf13C1 <- read.xlsx(paste0("data/traits/",data_file), sheet = "Leaf13C", startRow = 1, colNames = TRUE)
 # measurements C, N, 13C spring 2021
 Leafchim_leo <- read.csv2(paste0("data/traits/leafchim_leo.csv")) %>% 
   filter(!(Code_Sp %in% c("EROPVERN","STELMEDI"))) # senescent leaves
@@ -91,6 +90,8 @@ pheno_leo_DP <- pheno_leo %>%
   select(all_of(colnames))
 
 Pheno <- rbind(Pheno1,pheno_leo_DP)
+# Virer filago pyramidata, pour lequel j'ai peut-être estimé trop tard la dispersion (et elle avait aussi lieu
+# dans le fertile!!)
 
 # Seed mass ####
 Seed <- read.xlsx(paste0("data/traits/",data_file), sheet = "Seed", startRow = 1, colNames = TRUE) 

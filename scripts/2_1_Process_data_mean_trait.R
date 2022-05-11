@@ -33,7 +33,7 @@ mean_attribute_per_species <- function(dataset,subset_gt_nat = F){
               Trtmt,LifeHistory,Form)) %>% 
     colnames()
   
-  dataset2 %>%     
+  e <- dataset2 %>%     
     group_by(Species,Trtmt,Code_Sp ,    Form, LifeHistory, LifeForm1) %>% 
     summarise_at( .vars = vars , mean,na.rm=T)
 }

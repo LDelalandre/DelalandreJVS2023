@@ -1,7 +1,96 @@
 library(tidyverse)
 source("scripts/Data_traits.R")
 
-# importer traits
+MEAN <- read.csv2("outputs/data/Pierce CSR/Traits_mean_sp_per_trtmt_subset_nat_sab_completed.csv") %>%
+  filter(!is.na(SLA)) %>% 
+  filter(!species == "Geranium dissectum - pétiole")
+
+
+# MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab.csv") %>%
+#   filter(!is.na(SLA))
+MEAN_annuals <- MEAN %>% 
+  filter(LifeHistory == "annual")
+
+traits <- c("LDMC","SLA","L_Area",
+            "LCC","LNC","Ldelta13C",# "LPC",
+            # "Hveg"  ,    "Hrepro"   , "Dmax"  , #    "Dmin" ,
+            "Disp"#,"Mat_Per", #"Mat","Flo",
+            # "SeedMass"
+            # "C","S","R"
+)
+
+# boxplots traits annuelles ####
+# Comme d'hab, le faire sur les points bruts, et pas moyennés par espèce (et avoir un effet espèce dans le modèle) ?
+
+# 1) Quelles annuelles ont été mesurées dans chaque traitement ? 
+# Combien des abondances des annuelles cela représente-t-il ?
+sp_measured <- MEAN_annuals %>% 
+  select(code_sp,treatment) %>% 
+  unique() %>%
+  mutate(present = 1) %>% 
+  spread(key=treatment,value = present) %>% 
+  replace(is.na(.),0) %>% 
+  arrange(Fer)
+
+sp_measured %>% 
+  summarize(Fer=sum(Fer),Nat=sum(Nat))
+
+sp_measured_both <- sp_measured %>% 
+  filter(Fer==1 & Nat==1) %>% 
+  pull(code_sp)
+
+sp_measured_both %>% length()
+
+# 2) Comparer trait par trait
+
+
+PLOT <- list()
+i <- 0
+for (trait in traits){
+  i <- i+1
+  PLOT[[i]] <- MEAN_annuals %>% 
+    # filter(!(code_sp %in% sp_measured_both)) %>%
+    filter(code_sp %in% sp_measured_both) %>%
+    ggplot(aes_string(x="treatment",y=trait,label="code_sp")) +
+    geom_boxplot() +
+    # geom_point() +
+    # ggrepel::geom_text_repel() +
+    theme_classic() 
+}
+
+gridExtra::grid.arrange( PLOT[[1]],PLOT[[2]], PLOT[[3]],
+                         PLOT[[4]], PLOT[[5]],PLOT[[6]],
+                         PLOT[[7]],
+                         ncol = 4, nrow = 2)
+
+# espèces mesurées dans les deux
+MEAN_annuals %>% 
+  select(code_sp,treatment,Ldelta13C) %>% 
+  spread(key = treatment,value = Ldelta13C) %>% 
+  ggplot(aes(x=Fer,y=Nat)) +
+  geom_point() +
+  geom_abline(slope=1,intercept=0)
+
+# ggpubr::ggarrange(PLOT[[3]],PLOT[[2]],
+#                   labels = c("A","B"),
+#                   ncol = 2,nrow=1
+# )
+
+
+
+
+
+
+# 3) stats 
+mmod <- lme4::lmer(SLA ~ treatment + (1| code_sp), data = MEAN_annuals)
+mmod0 <- lme4::lmer(SLA ~ 1 + (1| code_sp), data = MEAN_annuals)
+anova(mmod0,mmod)
+summary(mmod)
+
+qqnorm(residuals(mmod),main="")
+plot(fitted(mmod),residuals(mmod),xlab="Fitted",ylab="Residuals") ; abline(h=0)
+
+# importer traits ####
 ann_fer <- LeafMorpho %>% 
   filter(measurementDeterminedBy == "Léo Delalandre") %>% 
   filter(Treatment == "Fer_Clc") %>% 
@@ -112,6 +201,7 @@ ab_nat %>%
   unique()
 
 library("vegan")
+# Sp abundance per transect
 x_abundance <- ab_fer %>%
   select(code_sp,transect,relat_ab) %>% 
   rbind(ab_nat %>%  
@@ -122,6 +212,7 @@ x_abundance <- ab_fer %>%
   replace(is.na(.),0) %>% 
   as.matrix()
 
+# Sp abundance per paddock
 x_abundance_paddock <- ab_fer %>%
   ungroup() %>% 
   group_by(paddock) %>% 
@@ -143,6 +234,10 @@ x_abundance_paddock <- ab_fer %>%
   replace(is.na(.),0) %>% 
   as.matrix()
 
+# comparer abundance dans chaque traitement
+# Faire la somme des abondances au niveau du traitement a du sens ou pas ?
+
+# Sp presence per transect
 x_presence <- ab_fer %>%
   mutate(presence = if_else(relat_ab == 0,0,1)) %>%
   select(code_sp,transect,presence) %>% 
@@ -154,9 +249,53 @@ x_presence <- ab_fer %>%
   replace(is.na(.),0) %>% 
   as.matrix()
 
+# abondance moyenne et bootstrap ####
+matrix_ab_each <- NatFer %>%
+  column_to_rownames("code_sp") %>% 
+  t() %>% 
+  as.matrix()
 
-# comparer présence dans chaque traitement
-list_sp_each <- ab_fer %>%
+distance <- vegdist(x = matrix_ab_each,method="bray") %>% 
+  as.numeric
+distance
+
+set.seed(10052022)
+DIST <- NULL
+n_bootstrap <- 10000
+for (i in c(1:n_bootstrap)){
+  # randomized abundances
+  s1 <- matrix_ab_each[1,] %>% 
+    sample() %>% 
+    as.vector()
+  s2 <- matrix_ab_each[2,] %>% 
+    sample() %>% 
+    as.vector()
+  
+  matrix_random <- rbind(s1,s2) %>% 
+    as.data.frame()
+  dist <- vegdist(x = matrix_random,method="bray") %>% 
+    as.numeric
+  DIST <- c(DIST,dist)
+}
+
+hist(DIST)
+abline(v=distance,col = "red")
+# random <- data.frame(d_random = DIST) %>% 
+#   mutate(diff = d_random - distance)
+
+# ça converge assez bien. A 10000 et à 100000, mêmes résultats.
+inf <- length(which(DIST < distance))
+sup <- length(which(DIST >= distance))
+inf/(sup+inf) # 94 % des rendom sont en-dessous
+p.val = sup/(sup+inf) # 6 % des random sont au-dessus
+
+data.frame(distance = distance,
+           mean_random_distance = mean(DIST),
+           sd_random_distance = sd(DIST),
+           pval = p.val)
+
+# comparer présence dans chaque traitement ####
+matrix_sp_each <- ab_fer %>%
   mutate(presence = if_else(relat_ab == 0,0,1)) %>%
   select(code_sp,transect,presence) %>% 
   rbind(ab_nat %>%   
@@ -171,22 +310,35 @@ list_sp_each <- ab_fer %>%
   replace(is.na(.),0) %>% 
   as.matrix()
 
-distance <- vegdist(x = list_sp_each,method="jaccard")
-distance # 50% of species replacement 
+distance <- vegdist(x = matrix_ab_each,method="bray")
+distance # 65% of species replacement 
+
+
+DIST <- NULL
+n_bootstrap <- 10000
+for (i in c(1:n_bootstrap)){
+  sp1 <- sum(matrix_sp_each[1,]) # Nb sp in Fer
+  sp2 <- sum(matrix_sp_each[2,]) # Nb sp in Nat_sab
+  sptot <- dim(matrix_sp_each)[2]
+  vec1 <- c(rep(1,sp1),rep(0,sptot-sp1))
+  vec2 <- c(rep(1,sp2),rep(0,sptot-sp2))
+  
+  s1 <- sample(vec1)
+  s2 <- sample(vec2)
+  matrix_random <- rbind(s1,s2) %>% 
+    as.data.frame()
+  dist <- vegdist(x = matrix_random,method="bray") %>% 
+    as.numeric
+  DIST <- c(DIST,dist)
+}
+
+hist(DIST)
+random <- data.frame(distance = DIST)
 
 # Distance for all transects
-distance <- vegdist(x = x_abundance,method="bray")
 
-transects <- x_abundance %>% rownames()
-df_transects <- data.frame(transect = transects, number = c(1:length(transects)))
-df_transects_row <- df_transects %>% 
-  mutate(row = number) %>% 
-  mutate(transect1 = transect) %>% 
-  select(row,transect1)
-df_transects_col <- df_transects %>% 
-  mutate(col = number) %>% 
-  mutate(transect2 = transect) %>% 
-  select(col,transect2)
+
+
 
 
 # Transform it into a data frame
@@ -201,32 +353,287 @@ dist.to.df <- function(d){
   )
 }
 
-df_dist <- dist.to.df(distance) 
 
-df_dist2 <- df_dist %>% 
-  merge(df_transects_row,by="row")%>% 
-  merge(df_transects_col,by="col")
-
-
-df_dist3 <- df_dist2 %>%
-  mutate(comparison = case_when(
-    str_detect(transect1 ,"F") & str_detect(transect2 ,"F") ~ "intra_fer",
-    str_detect(transect1 ,"F") & str_detect(transect2 ,"P") ~ "inter",
-    str_detect(transect1 ,"P") & str_detect(transect2 ,"F") ~ "inter",
-    str_detect(transect1 ,"P") & str_detect(transect2 ,"P") ~ "intra_nat"
+dist_to_df_global <- function(x_abundance){
+  # abundance dataset
+  # compute distance between pairs of transects
+  d <- vegdist(x = x_abundance,method="bray")
+  
+  transects <- x_abundance %>% rownames()
+  df_transects <- data.frame(transect = transects, number = c(1:length(transects)))
+  df_transects_row <- df_transects %>% 
+    mutate(row = number) %>% 
+    mutate(transect1 = transect) %>% 
+    select(row,transect1)
+  df_transects_col <- df_transects %>% 
+    mutate(col = number) %>% 
+    mutate(transect2 = transect) %>% 
+    select(col,transect2)
+  
+  df_dist <- dist.to.df(d) 
+  
+  df_dist2 <- df_dist %>% 
+    merge(df_transects_row,by="row")%>% 
+    merge(df_transects_col,by="col")
+  
+  # Si on bosse sur les transects
+  df_dist3 <- df_dist2 %>%
+    mutate(comparison = case_when(
+      str_detect(transect1 ,"F") & str_detect(transect2 ,"F") ~ "intra_fer",
+      str_detect(transect1 ,"F") & str_detect(transect2 ,"P") ~ "inter",
+      str_detect(transect1 ,"P") & str_detect(transect2 ,"F") ~ "inter",
+      str_detect(transect1 ,"P") & str_detect(transect2 ,"P") ~ "intra_nat"
     ))
+  
+  # # Si on bosse sur les paddocks
+  # df_dist3 <- df_dist2 %>%
+  #   mutate(comparison = case_when(
+  #     str_detect(transect1 ,"C") & str_detect(transect2 ,"C") ~ "intra_fer",
+  #     str_detect(transect1 ,"C") & str_detect(transect2 ,"P") ~ "inter",
+  #     str_detect(transect1 ,"P") & str_detect(transect2 ,"C") ~ "inter",
+  #     str_detect(transect1 ,"P") & str_detect(transect2 ,"P") ~ "intra_nat"
+  #   ))
+}
 
-# Si on bosse sur les paddocks
-# df_dist3 <- df_dist2 %>% 
-#   mutate(comparison = case_when( 
-#     str_detect(transect1 ,"C") & str_detect(transect2 ,"C") ~ "intra_fer",
-#     str_detect(transect1 ,"C") & str_detect(transect2 ,"P") ~ "inter",
-#     str_detect(transect1 ,"P") & str_detect(transect2 ,"C") ~ "inter",
-#     str_detect(transect1 ,"P") & str_detect(transect2 ,"P") ~ "intra_nat"
-#   ))
+# Distance niveau transect ####
+df_dist3 <- dist_to_df_global(x_abundance)
 
 df_dist3 %>% 
-  ggplot(aes(x=distance))+
+  ggplot(aes(x= distance  ))+
   geom_histogram(binwidth = 0.1) +
   facet_wrap(~comparison) +
   theme_classic()
+
+df_dist3 %>% 
+  ggplot(aes(x=comparison, y = distance))+
+  geom_boxplot()
+
+mod <- lm( distance^2 ~ comparison , data=df_dist3)
+summary(mod)
+
+par(mfrow=c(2,2)) ; plot(mod) # diagnostic_graphs
+par(mfrow= c(1,1)) ; plot(density(residuals(mod))) # normality_graph
+
+shapiro.test(residuals(mod))
+lmtest::bptest(mod) # homoscedasticity
+lmtest::dwtest(mod) # independence
+
+
+
+# distance inter
+x_abundance
+distance_ab <- vegdist(x = x_abundance,method="bray")
+df_dist3 <- dist_to_df_global(distance_ab) 
+
+df_mean <- df_dist3 %>% 
+  group_by(comparison) %>% 
+  summarize(mean=mean(distance)) %>% 
+  mutate(simul = "original")
+  # average interpoint dissimilarities (Anderson et al., 2011, Ecology Letters)
+
+df_mean %>% 
+  ggplot(aes(x=comparison,y=mean)) +
+  geom_point()
+
+
+# randomize abundances 
+nb_random <- 100
+DF_MEAN <- df_mean
+
+for (j in c(1:nb_random)){
+  x_abundance_random <- x_abundance
+  for (i in c(1: dim(x_abundance)[1])){
+    x_abundance_random[i,] <- x_abundance[i,] %>% sample()
+  }
+  
+  distance_ab_random <- vegdist(x = x_abundance_random,method="bray")
+  df_dist_random <- dist_to_df_global(distance_ab_random) 
+  
+  df_mean_random <- df_dist_random %>% 
+    group_by(comparison) %>% 
+    summarize(mean=mean(distance)) %>% 
+    mutate(simul = paste0("random_",j))
+  DF_MEAN <- rbind(DF_MEAN,df_mean_random)
+}
+
+DF_MEAN %>% 
+  filter(!(simul == "original")) %>% 
+  ggplot(aes(x=comparison,y=mean)) +
+  geom_boxplot()
+
+
+DF_MEAN %>% 
+  filter(!(simul == "original")) 
+  # spread(key = "comparison", value = "mean" )
+
+fcomp <- "inter"
+
+boot <- DF_MEAN %>% 
+  filter(!(simul == "original")) %>% 
+  filter(comparison == fcomp) %>% 
+  pull(mean)
+real <- df_mean %>% 
+  filter(comparison == fcomp) %>% 
+  pull(mean)
+  
+
+
+inf <- length(which( boot < real))
+sup <- length(which( boot >= real))
+
+p.val = inf/(sup+inf) # proportion des average interponit dissimilarities
+# qui sont inférieures en vrai qu'en bootstrapant
+# C'est donc la proba d'observer nos données de distance entre transects si les 
+# abondances sont réparties aléatoirement au sein d'un transect
+# C'est pas ce que je veux... Je veux voir si le regroupement est bon.
+p.val
+
+
+
+# BOOTSTRAP final, à garder ####
+# Données dans la section # Abundances
+
+# 16 transects dans le fertile et 18 dans le natif
+# randomize position of the transect (fer ou nat)
+
+df_dist3 <- dist_to_df_global(x_abundance)
+
+df_mean <- df_dist3 %>% 
+  group_by(comparison) %>% 
+  summarize(mean=mean(distance)) %>% 
+  mutate(simul = "original")
+# average interpoint dissimilarities (Anderson et al., 2011, Ecology Letters)
+
+
+
+nb_random <- 10000
+DF_MEAN <- df_mean
+
+for (j in c(1:nb_random)){
+  x_abundance_random <- x_abundance
+  rownames(x_abundance_random) <-  sample(rownames(x_abundance))
+  
+  # distance_ab_random <- vegdist(x = x_abundance_random,method="bray")
+  df_dist_random <- dist_to_df_global(x_abundance_random) 
+  
+  df_mean_random <- df_dist_random %>% 
+    group_by(comparison) %>% 
+    summarize(mean=mean(distance)) %>% 
+    mutate(simul = paste0("random_",j))
+  DF_MEAN <- rbind(DF_MEAN,df_mean_random)
+}
+
+DF_MEAN %>% 
+  filter(!(simul == "original")) %>% 
+  ggplot(aes(x=comparison,y=mean)) +
+  geom_boxplot()
+
+DF_MEAN %>% 
+  ggplot(aes(x= mean  ))+
+  geom_histogram(binwidth = 0.01) +
+  facet_wrap(~comparison) +
+  theme_classic()
+
+DF_MEAN %>% 
+  filter(!(simul=="original")) %>% 
+  filter(comparison=="inter") %>% 
+  ggplot(aes(x= mean  ))+
+  geom_histogram(binwidth = 0.001) +
+  theme_classic() +
+  geom_vline(xintercept = df_mean %>% filter(comparison == "inter") %>% pull(mean),
+             color="red") +
+  xlim(c(0.76,0.95)) +
+  xlab("Bray-Curtis distance")
+
+true_distance <- df_mean %>% filter(comparison == "inter") %>% pull(mean)
+
+distance_bray <- DF_MEAN %>% 
+  filter(!(simul=="original")) %>% 
+  filter(comparison=="inter") %>% 
+  mutate(diff = true_distance - mean) %>% 
+  ggplot(aes(x= diff  ))+
+  geom_histogram(binwidth = 0.001) +
+  theme_classic() +
+  xlim(c(0,0.12)) +
+  xlab("Difference in Bray-Curtis distance (observed - random)")
+
+ggsave("draft/bray_curtis_bootstrap.png",distance_bray)
+
+fcomp <- "inter"
+
+boot <- DF_MEAN %>% 
+  filter(!(simul == "original")) %>% 
+  filter(comparison == fcomp) %>% 
+  pull(mean)
+real <- df_mean %>% 
+  filter(comparison == fcomp) %>% 
+  pull(mean)
+
+
+# is observed distance inferior or superior to null expectation
+sup <- length(which( boot < real))
+inf <- length(which( boot >= real))
+
+p.val = inf/(sup+inf) # proportion des average interponit dissimilarities
+# qui sont inférieures en vrai qu'en bootstrapant
+# C'est donc la proba d'observer nos données de distance entre transects si les 
+# abondances sont réparties aléatoirement au sein d'un transect
+# C'est pas ce que je veux... Je veux voir si le regroupement est bon.
+p.val
+
+# Abundance and trait coverage ####
+TRAITS <- c("LDMC","SLA","L_Area",
+            "LCC","LNC","Ldelta13C",# "LPC",
+            "Hveg"  ,    "Hrepro"   , "Dmax"  , "Dmin" ,
+            "Disp",#,"Mat_Per", #"Mat","Flo",
+            "SeedMass"
+)
+COVER_FER <- c()
+COVER_NAT <- c()
+
+# ftrait <- "SLA"
+for (ftrait in TRAITS){
+  sp_measured <- MEAN_annuals %>% 
+    filter(!is.na(UQ(sym(ftrait)))) %>% # species for which the focal trait was measured
+    select(code_sp,treatment) %>%
+    unique() %>%
+    mutate(present = 1) %>% 
+    spread(key=treatment,value = present) %>% 
+    replace(is.na(.),0) %>% 
+    arrange(Fer)
+  
+  ab_traits <- NatFer %>% 
+    full_join(sp_measured,by="code_sp") %>% 
+    replace(is.na(.),0)
+  
+  
+  # Coverage in Nat = plants whose traits were measured (Nat ==1) represent 0.826% of the abundance of the com
+  # NB: le fait trait par trait !!
+  # natif
+  if (dim(ab_traits)[2]==5){ # = if a column "Nat" exists
+    cover_nat <- ab_traits %>%
+      mutate(relat_ab_nat = abundance_nat/sum(abundance_nat),
+             relat_ab_fer = abundance_fer/sum(abundance_fer)) %>% 
+      filter(Nat==1) %>% 
+      summarize(coverage = sum(relat_ab_nat)) %>% 
+      pull(coverage)
+  } else {
+    cover_nat <- 0
+  }
+  
+  
+  # fertile
+  cover_fer <- ab_traits %>%
+    mutate(relat_ab_nat = abundance_nat/sum(abundance_nat),
+           relat_ab_fer = abundance_fer/sum(abundance_fer)) %>% 
+    filter(Fer==1) %>% 
+    summarize(coverage = sum(relat_ab_fer)) %>% 
+    pull(coverage)
+  # In addition, we measured traits of some species absent from abunndance data.
+  # See the sensibility of the results to their removal!!
+  
+  COVER_FER <- c(COVER_FER,cover_fer)
+  COVER_NAT <- c(COVER_NAT,cover_nat)
+}
+
+cover <- data.frame(trait = TRAITS, cover_fer=COVER_FER,cover_nat=COVER_NAT)
