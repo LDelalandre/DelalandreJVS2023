@@ -1,3 +1,4 @@
+source("scripts/Packages.R")
 names_LH2 <- read.csv2("data/species_names_lifehistory.csv") %>% 
   mutate(species= Species, code_sp = Code_Sp)
 
@@ -71,6 +72,11 @@ ab_maud_mean <- ab_maud %>%
   group_by(code_sp,LifeHistory) %>% 
   summarize(mean_relat_ab_maud = mean(relat_ab))
 
+ab_maud_mean_noS <- ab_maud %>% 
+  group_by(code_sp,LifeHistory) %>%
+  filter(!depth=="S") %>% 
+  summarize(mean_relat_ab_maud = mean(relat_ab))
+
 ab_diachro_nat_mean <- ab_diachro_2004_nat %>% 
   group_by(paddock,id_transect_quadrat) %>% 
   mutate(relat_ab = abundance/sum(abundance)) %>% 
@@ -80,8 +86,9 @@ ab_diachro_nat_mean <- ab_diachro_2004_nat %>%
   summarize(mean_relat_ab_diachro = mean(relat_ab))
 
 compare_ab <- full_join(ab_maud_mean,ab_diachro_nat_mean,by=c("code_sp","LifeHistory"))  
+compare_ab_noS<- full_join(ab_maud_mean_noS,ab_diachro_nat_mean,by=c("code_sp","LifeHistory"))  
 
-ggplot(compare_ab,aes(x=log(mean_relat_ab_maud),y=log(mean_relat_ab_diachro),
+ggplot(compare_ab_noS,aes(x=log(mean_relat_ab_maud),y=log(mean_relat_ab_diachro),
                       label=code_sp))+ # ,color=LifeHistory
   geom_point()  +
   geom_smooth(method="lm")
@@ -96,8 +103,21 @@ anova(mod)
 
 mod$coefficients
 sum <- summary(mod)
-sum$adj.r.squared
 sum$r.squared
+sum$adj.r.squared
+sum$coefficients
+
+anov <- anova(mod)
+as.data.frame(anov)
+rownames(anov) <- c("Species mean abundance (2009)","Residuals")
+
+# export table
+table_anova <- anov %>%
+  kableExtra::kable( escape = F) %>%
+  kableExtra::kable_styling("hover", full_width = F)
+
+cat(table_anova, file = "draft/abundance_2009_2004.doc")
+
 
 
 # Comparison abundance annuals in both treatments ####

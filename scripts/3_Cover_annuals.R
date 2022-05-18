@@ -73,7 +73,8 @@ BarPlot <- barplot(to_barplot,
                    ylim=c(0, max(c(IN2$meanINN,IN2$meanINP)+3)  ),  
                    col = c("black","grey"),
                    ylab = "Nutrition index (%)",
-                   xaxt = "n"
+                   xaxt = "n",
+                   main = "a"
 )
 legend("topright",
        legend = c("INN (%)","INP (%)"),
@@ -194,6 +195,7 @@ mod_binom <- glm(cbind(annual,perennial) ~ depth, family = "binomial", data=rich
 # ou family =  binomial(logit)
 anova(mod_binom)
 summary(mod_binom)
+anovaII <- car::Anova(mod_binom)
 
 # donc je regarde la RS absolue des annuelles, "annual", et pas relat, "relative_richness_annual"
 # mod_glm <- glm(relative_richness_annual ~ depth, family = "quasipoisson", data = richness_per_guild_toplot)
@@ -368,3 +370,4 @@ cover_annuals %>%
 # On n'a pas la même forme de distribution dans les trois cas de figure --> pas approprié d'utiliser Kruskal pour fertile...
 
 
+         

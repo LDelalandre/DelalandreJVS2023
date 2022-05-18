@@ -38,3 +38,31 @@ LeafMorpho %>%
   ggplot(aes(x=Treatment,y=LDMC)) +
   geom_boxplot()+
   facet_wrap(~measurementDeterminedBy)
+
+# Biovolume ####
+Biovolume %>% 
+  filter(LifeForm1=="The") %>% 
+  filter(Treatment == "Fer_Clc") %>%  # traitement commun avec Adeline
+  ggplot(aes(x=Code_Sp,y= Hveg ,color = measurementDeterminedBy)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(angle = 90))
+# Je mesure Hveg plus petit chez GERADISS et CERAGLOM
+
+# Hrepro
+Biovolume %>% 
+  filter(LifeForm1=="The") %>%
+  filter(Treatment == "Fer_Clc") %>%  # traitement commun avec Adeline
+  ggplot(aes(x=Code_Sp,y= Hrepro ,color = measurementDeterminedBy)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(angle = 90))
+
+Biovolume %>% 
+  filter(LifeForm1=="The") %>%
+  filter(grepl("Nat",Treatment)) %>%  # Je compare dans le natif, pas nécessairement Nat_Sab (où les autres n'ont pas mesuré)
+  ggplot(aes(x=Code_Sp,y= Hrepro ,color = measurementDeterminedBy)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(angle = 90))
+
+Biovolume_leo %>% 
+  ggplot(aes(x = Dmax))+
+  geom_histogram(stst="identity")

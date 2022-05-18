@@ -1,7 +1,7 @@
 # This script imports trait values measured before my PhD 
 # and includes data that I measured in spring 2021.
 library(openxlsx)
-
+library(tidyverse)
 # Characteristics of the species  ####
 names_LH <- read.csv2("data/species_names_lifehistory.csv")
 names_family <- read.csv2("data/traits/names and family.csv")
@@ -14,6 +14,14 @@ LeafMorpho1 <-  read.xlsx(paste0("data/traits/",data_file), sheet = "LeafMorpho_
 LeafMorpho_leo <- read.csv2("data/traits/leafMorpho_3.csv") %>% 
   filter(!(Code_Sp %in% c("EROPVERN","STELMEDI"))) # senescent leaves
 LeafMorpho <- rbind(LeafMorpho1,LeafMorpho_leo)
+
+species_measured <- LeafMorpho %>% 
+  filter(Treatment=="Nat_Sab") %>% 
+  filter(LifeForm1=="The") %>% 
+  arrange(Code_Sp) %>% 
+  select(Code_Sp) %>% 
+  unique()
+
 
 # Leaf chemical traits ####
 # LeafDimensions <- read.xlsx(paste0("data/traits/",data_file), sheet = "LeafDimensions (àsupprimer)", startRow = 1, colNames = TRUE)
@@ -49,8 +57,24 @@ LeafCN <- rbind(LeafCN1,LeafCN_leo)
 Leaf13C <- rbind(Leaf13C1,Leaf13C_leo)
 
 # Biovolume ####
-Biovolume <- read.xlsx(paste0("data/traits/",data_file), sheet = "Biovolume", startRow = 1, colNames = TRUE) %>% 
+Biovolume1 <- read.xlsx(paste0("data/traits/",data_file), sheet = "Biovolume", startRow = 1, colNames = TRUE) %>% 
   mutate(Hrepro = as.numeric(Hrepro))
+
+Biovolume_leo <- read.csv2("data/traits/Biovolume_leo.csv")
+# Sort min and max diameter
+nrows <- dim(Biovolume_leo)[1]
+for (i in c(1:nrows)){
+  d1 <- Biovolume_leo[i,]$Dmax
+  d2 <- Biovolume_leo[i,]$Dmin
+  
+  Biovolume_leo[i,]$Dmax <- max(d1,d2)
+  Biovolume_leo[i,]$Dmin <- min(d1,d2)
+}
+
+Biovolume <- rbind(Biovolume1 , Biovolume_leo)
+
+# TRIER LES DIAMETRES MIN ET MAX!!
+
 
 # Phenology ####
 Pheno1 <- read.xlsx(paste0("data/traits/",data_file), sheet = "Pheno", startRow = 1, colNames = TRUE) %>% 

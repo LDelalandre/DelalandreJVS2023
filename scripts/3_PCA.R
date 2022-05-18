@@ -168,7 +168,7 @@ ggsave("draft/PCA_annuals_perennials.png",PCA,height = 20, width =20)
 
 
 # iv) ANOVA Position on axes ####
-dimension <- 2
+dimension <- 1
 anov_dim <- compute_anova_dim_x(coord_ind,dimension)
 
 par(mfrow=c(2,2)) ; plot(anov_dim) # diagnostic_graphs
@@ -179,9 +179,10 @@ info_anova <- info_anova_dim_x(anov_dim,dimension)
 info_anova[[1]] # normality
 info_anova[[2]] # homoscedasticity
 info_anova[[3]] # independence of residuals
-info_anova[[4]] # anova
-info_anova[[5]] # summary
-
+anov <- info_anova[[4]] # anova
+sum <- info_anova[[5]] # summary
+sum$coefficients
+anov$`Pr(>F)`[1]
 
 
 #_______________________________________________________________

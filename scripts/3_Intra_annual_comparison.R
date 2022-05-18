@@ -105,6 +105,16 @@ ann_nat <- LeafMorpho %>%
 
 ann_both <- intersect(ann_fer,ann_nat)
 
+# Hauteur à mesurer à La Fage 
+LeafMorpho
+Biovolume %>% 
+  filter(LifeForm1=="The") %>% 
+  filter(grepl("Nat",Treatment)) %>% 
+  filter(Treatment)
+  filter(!is.na(Hrepro)) %>% 
+  pull(Code_Sp) %>% 
+  unique()
+
 # Models, intra-annual comparison ####
 
 # Pour le LCC: la comparaison n'est jamais significative
