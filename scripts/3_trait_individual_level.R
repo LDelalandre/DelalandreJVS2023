@@ -8,7 +8,7 @@ TRAITS <- list(c("LDMC","SLA","L_Area"),
             c("Disp"),#,"Mat_Per", #"Mat","Flo",
             c("SeedMass")
 )
-
+trait_unit <- read.csv2("data/trait_unit.csv")
 
 BOXPLOT <- list() # boxplot of trait comparisons between annuals in fer and in nat sup
 P.VAL <- c()
@@ -68,7 +68,6 @@ BOXPLOT
 vec_traits <- unlist(TRAITS, recursive = TRUE, use.names = TRUE)
 
 df_mod <- data.frame(Trait = vec_traits,
-                     Unit = NA,
                      Intercept = INTERCEPT,
                     Estimate = ESTIMATE,
                     p.value = P.VAL) %>% 
@@ -80,6 +79,9 @@ df_mod <- data.frame(Trait = vec_traits,
 
 # export table
 table_mod <- df_mod %>%
+  merge(trait_unit,by="Trait") %>% 
+  select(Trait,Unit,Intercept,Estimate,p.value) %>% 
+  arrange(factor(Trait,levels = vec_traits)) %>% 
   kableExtra::kable( escape = F,
          col.names = c("Trait",
                        "Unit",

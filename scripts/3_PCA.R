@@ -14,7 +14,7 @@ MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab.csv"
 
 traits <- c("LDMC","SLA","L_Area",
             "LCC","LNC","Ldelta13C",# "LPC",
-            # "Hveg"  ,    "Hrepro"   , "Dmax"  , #    "Dmin" ,
+            "Hrepro"   , "Dmax"  , #    "Dmin" ,"Hveg"  ,
             "Disp"#,"Mat_Per", #"Mat","Flo",
             # "SeedMass"
 )
@@ -31,36 +31,47 @@ annuals <- MEAN %>%
 #________________________________________________________________________
 perform_pca <- function(data_traits_for_PCA){
   ACP1<-PCA(data_traits_for_PCA2,graph = FALSE)
-  factoextra::fviz_eig(ACP1, addlabels = TRUE, ylim = c(0, 30)) # percentage of variance explained
+  plot_var_explained <- factoextra::fviz_eig(ACP1, addlabels = TRUE, ylim = c(0, 30)) # percentage of variance explained
   
   coord_var <- data.frame(ACP1$var$coord) %>% 
     rownames_to_column()
   var.explain.dim1 <- round(ACP1$eig[1,2])
   var.explain.dim2 <- round(ACP1$eig[2,2])
+  var.explain.dim3 <- round(ACP1$eig[3,2])
+  var.explain.dim4 <- round(ACP1$eig[4,2])
   coord_ind <- data.frame(ACP1$ind$coord) %>% 
     rownames_to_column("Code_Sp") %>% 
     mutate(Lifelength = if_else(Code_Sp %in% annuals,"annual","perennial"))
   
-  list(coord_ind,coord_var,var.explain.dim1,var.explain.dim2)
+  list(coord_ind,coord_var,var.explain.dim1,var.explain.dim2,var.explain.dim3,var.explain.dim4,plot_var_explained)
 }
 
-plot_pca <- function(coord_ind,coord_var,var.explain.dim1,var.explain.dim2){
-  ggplot(coord_ind,aes(x=Dim.1,y=Dim.2,colour=Lifelength))+
+plot_pca <- function(coord_ind,coord_var,DimA,DimB,var.explain.dimA,var.explain.dimB){
+  # dimA and dimB can be the first and second dimension, or the first and third, etc.
+  ggplot(coord_ind,aes_string(x=DimA,y=DimB,colour="Lifelength"), width = 10, height = 10)+
     theme_classic() +
     geom_hline(aes(yintercept=0), size=.2,linetype="longdash") + 
     geom_vline(aes(xintercept = 0),linetype = "longdash", size=.2)+
     coord_equal() +
     geom_point(size=4) +
-    geom_segment(data=coord_var, aes(x=0, y=0, xend=Dim.1*5.5-0.2, yend=Dim.2*5.5-0.2), 
+    geom_segment(data=coord_var, aes(x=0, y=0, xend=get(DimA)*5.5-0.2, yend=get(DimB)*5.5-0.2), 
                  arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
-    geom_text_repel(data=coord_var, aes(x=Dim.1*5.5, Dim.2*5.5, label=rowname), size = 6, vjust=1, color="black") +
+    geom_text_repel(data=coord_var, aes(x=get(DimA)*5.5, get(DimB)*5.5, label=rowname), size = 6, vjust=1, color="black") +
     ggtitle(trtmt) +
     theme(legend.position = "none") +
-    xlab(paste0("Dim1 (",var.explain.dim1,"%)"))+
-    ylab(paste0("Dim2 (",var.explain.dim2,"%)")) + 
+    xlab(paste0(DimA," (",var.explain.dimA,"%)"))+
+    ylab(paste0(DimB," (",var.explain.dimB,"%)")) + 
     theme(text=element_text(size=20)) 
     
 }
+
+
+ggplot(coord_var,aes(x=get("Dim.1"),y=Dim.2))+
+  geom_point()
+ggplot(data=coord_var, aes_string(x=0, y=0, xend=Dim.1*5.5-0.2, yend=Dim.2*5.5-0.2), 
+             arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
+  geom_point()
+
 
 boxplot_dimension <- function(coord_ind,dim){
   ggplot(coord_ind,aes_string(x = "Lifelength",y=dim,color = "Lifelength"))+
@@ -120,13 +131,42 @@ data_traits_for_PCA2 <- data_traits_for_PCA %>%
   column_to_rownames("code_sp")
 
 pca_output <- perform_pca(data_traits_for_PCA2)
+pca_output[[7]]
 coord_ind <- pca_output[[1]]
 coord_var <- pca_output[[2]]
 var.explain.dim1 <- pca_output[[3]]
 var.explain.dim2 <- pca_output[[4]]
+var.explain.dim3 <- pca_output[[5]]
+var.explain.dim4 <- pca_output[[6]]
 
-PCA_fer <- plot_pca(coord_ind,coord_var,var.explain.dim1,var.explain.dim2 ) +
-  ggtitle((expression(paste("G"^'+',"F",sep=''))))
+Dim.A <- "Dim.1"
+Dim.B <- "Dim.2"
+Var.A <- var.explain.dim1
+Var.B <- var.explain.dim2
+
+# Faire des graphes de même taille
+etendue_dim <- coord_ind %>% 
+  gather(key=dim,value=coordinate,-c(Code_Sp,Lifelength)) %>% 
+  group_by(dim) %>% 
+  summarize(min = min(coordinate),max=max(coordinate)) %>% 
+  mutate(etendue= max-min)
+
+ratio <- etendue_dim %>% 
+  select(dim,etendue) %>% 
+  spread(key = dim, value= etendue) %>% 
+  mutate(ratio12=Dim.1/Dim.2,
+         ratio13 = Dim.1/Dim.3)
+
+PCA_fer12 <- plot_pca(coord_ind,coord_var,DimA=Dim.A,DimB=Dim.B ,Var.A,Var.B ) +
+  ggtitle((expression(paste("G"^'+',"F",sep='')))) +
+  coord_fixed(ratio = ratio$ratio12)
+
+PCA_fer13 <- plot_pca(coord_ind,coord_var,DimA=Dim.A,DimB= "Dim.3" ,Var.A,var.explain.dim3 ) +
+  ggtitle((expression(paste("G"^'+',"F",sep=''))))+
+  coord_fixed(ratio = ratio$ratio13)
+
+PCA_fer12
+PCA_fer13
 
 PCA_sp_names <- ggplot (coord_ind,aes(x=Dim.1,y=Dim.2,label = Code_Sp,colour=Lifelength))+
   ggrepel::geom_label_repel() # With species names
@@ -134,7 +174,7 @@ PCA_sp_names <- ggplot (coord_ind,aes(x=Dim.1,y=Dim.2,label = Code_Sp,colour=Lif
 plot_d1 <- boxplot_dimension(coord_ind,dim = "Dim.1")
 plot_d2 <- boxplot_dimension(coord_ind,dim = "Dim.2")
 PCA_fer_boxplot <- plot_pca_boxplot(PCA_fer,plot_d1,plot_d2)
-ggsave("figures/PCA_fertile.png",PCA_fer_boxplot,height = 20, width =20)
+ggsave("output/figures/PCA_fertile.png",PCA_fer_boxplot,height = 20, width =20)
 
 
 # ii) Natif ####
@@ -142,18 +182,50 @@ trtmt <- "Nat"
 data_traits_for_PCA2 <- data_traits_for_PCA %>% 
   filter(treatment == trtmt) %>% 
   select(-treatment) %>% 
-  column_to_rownames("code_sp")
+  # filter(!(code_sp %in%  c("BROMEREC","POTENEUM"))) %>%  # Ces deux espèces tirent fortement l'ACP ! Pourquoi ?
+  column_to_rownames("code_sp") 
+
 
 pca_output <- perform_pca(data_traits_for_PCA2)
+pca_output[[7]]
 coord_ind <- pca_output[[1]]
 coord_var <- pca_output[[2]]
 var.explain.dim1 <- pca_output[[3]]
 var.explain.dim2 <- pca_output[[4]]
+var.explain.dim3 <- pca_output[[5]]
+var.explain.dim4 <- pca_output[[6]]
 
-PCA_nat <- plot_pca(coord_ind,coord_var,var.explain.dim1,var.explain.dim2 ) +
-  ggtitle((expression(paste("GU"[S],sep=''))))
 
-PCA_sp_names <- ggplot (coord_ind,aes(x=Dim.1,y=Dim.2,label = Code_Sp,colour=Lifelength))+
+Dim.A <- "Dim.1"
+Dim.B <- "Dim.2"
+Var.A <- var.explain.dim1
+Var.B <- var.explain.dim2
+
+# Faire des graphes de même taille
+etendue_dim <- coord_ind %>% 
+  gather(key=dim,value=coordinate,-c(Code_Sp,Lifelength)) %>% 
+  group_by(dim) %>% 
+  summarize(min = min(coordinate),max=max(coordinate)) %>% 
+  mutate(etendue= max-min)
+
+ratio <- etendue_dim %>% 
+  select(dim,etendue) %>% 
+  spread(key = dim, value= etendue) %>% 
+  mutate(ratio12=Dim.1/Dim.2,
+         ratio13 = Dim.1/Dim.3)
+
+PCA_nat12 <-coord_ind %>% 
+  plot_pca(coord_var,DimA= Dim.A ,DimB= Dim.B , Var.A,Var.B ) +
+  ggtitle((expression(paste("GU"[S],sep='')))) +
+  coord_fixed(ratio = ratio$ratio12)
+
+PCA_nat13 <-coord_ind %>% 
+  plot_pca(coord_var,DimA= Dim.A ,DimB= "Dim.3" , Var.A,var.explain.dim3 ) +
+  ggtitle((expression(paste("GU"[S],sep='')))) +
+  coord_fixed(ratio = ratio$ratio13)
+
+PCA_sp_names <-coord_ind %>% 
+  ggplot (aes_string(x=Dim.A,y=Dim.B,label = "Code_Sp",colour="Lifelength"))+
   ggrepel::geom_label_repel() # With species names
 
 plot_d1 <- boxplot_dimension(coord_ind,dim = "Dim.1")
@@ -162,13 +234,17 @@ PCA_nat_boxplot <- plot_pca_boxplot(PCA_nat,plot_d1,plot_d2)
 
 ggsave("outputs/figures/PCA_natif.png",PCA_nat_boxplot,height = 20, width =20)
 
-# iii) Both PCA graphs ####
-PCA <- grid.arrange(PCA_fer,PCA_nat, ncol=2,heights = 100)
+# iii) Group PCA graphs ####
+# PCA <- grid.arrange(PCA_fer12,PCA_nat12,PCA_fer13,PCA_nat13,
+#                       layout_matrix=rbind(c(1,2),c(3,4)) )
+
+PCA <- ggarrange(PCA_fer12,PCA_nat12,PCA_fer13,PCA_nat13,
+          labels = c("A","B","C","D"))
+
 ggsave("draft/PCA_annuals_perennials.png",PCA,height = 20, width =20)
 
-
 # iv) ANOVA Position on axes ####
-dimension <- 1
+dimension <- 3
 anov_dim <- compute_anova_dim_x(coord_ind,dimension)
 
 par(mfrow=c(2,2)) ; plot(anov_dim) # diagnostic_graphs

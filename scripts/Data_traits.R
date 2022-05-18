@@ -73,8 +73,6 @@ for (i in c(1:nrows)){
 
 Biovolume <- rbind(Biovolume1 , Biovolume_leo)
 
-# TRIER LES DIAMETRES MIN ET MAX!!
-
 
 # Phenology ####
 Pheno1 <- read.xlsx(paste0("data/traits/",data_file), sheet = "Pheno", startRow = 1, colNames = TRUE) %>% 
