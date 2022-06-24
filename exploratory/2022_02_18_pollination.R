@@ -1,4 +1,4 @@
-source("scripts/1. Packages.R")
+source("scripts/Packages.R")
 
 # Importer aussi indices d'Ellenberg
 
@@ -20,6 +20,7 @@ remove_subsp_name <- function(text){
 }
 
 sp_list <- MEAN %>% 
+  filter(LifeHistory == "annual") %>% 
   select(species,code_sp,LifeForm1,LifeHistory)
 
 info_baseflor <- baseflor %>% 

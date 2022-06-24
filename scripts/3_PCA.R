@@ -31,6 +31,7 @@ annuals <- MEAN %>%
 #________________________________________________________________________
 perform_pca <- function(data_traits_for_PCA){
   ACP1<-PCA(data_traits_for_PCA2,graph = FALSE)
+  # NB: scale.unit = TRUE by default. Data are thus scaled.
   plot_var_explained <- factoextra::fviz_eig(ACP1, addlabels = TRUE, ylim = c(0, 30)) # percentage of variance explained
   
   coord_var <- data.frame(ACP1$var$coord) %>% 

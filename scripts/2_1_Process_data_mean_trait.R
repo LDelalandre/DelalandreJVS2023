@@ -49,7 +49,7 @@ MEAN_list <- list( mean_attribute_per_species(LeafMorpho, subset_gt_nat = take_n
                    mean_attribute_per_species(LeafCN, subset_gt_nat = take_nat_sab_only),
                    mean_attribute_per_species(LeafP, subset_gt_nat = take_nat_sab_only),
                    mean_attribute_per_species(Leaf13C, subset_gt_nat = take_nat_sab_only),
-                   mean_attribute_per_species(Biovolume, subset_gt_nat = take_nat_sab_only),
+                   mean_attribute_per_species(Biovolume , subset_gt_nat = take_nat_sab_only), 
                    mean_attribute_per_species(Pheno, subset_gt_nat = take_nat_sab_only),
                    mean_attribute_per_species(Seed, subset_gt_nat = take_nat_sab_only) )
 
@@ -69,8 +69,6 @@ MEAN2 <- MEAN %>%
   dplyr::rename(species = Species, code_sp = Code_Sp, treatment = Trtmt) %>% 
   filter(!(species %in% c("Carex humilis?","Carex sp.","Geranium dissectum - petiole","Geranium dissectum - limbe"))) %>% 
   filter(!(treatment %in% c("Tem","Che")))
-
-
 
 if(take_nat_sab_only == F){
   write.csv2(MEAN2,"outputs/data/mean_attribute_per_treatment.csv",row.names=F)

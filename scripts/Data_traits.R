@@ -116,4 +116,19 @@ Pheno <- rbind(Pheno1,pheno_leo_DP)
 # dans le fertile!!)
 
 # Seed mass ####
-Seed <- read.xlsx(paste0("data/traits/",data_file), sheet = "Seed", startRow = 1, colNames = TRUE) 
+Seed1 <- read.xlsx(paste0("data/traits/",data_file), sheet = "Seed", startRow = 1, colNames = TRUE) 
+
+Seed_leo <- read.csv2("data/traits/Seed_leo.csv") %>%
+  mutate(Rep = paste0("Rsd",Rep)) %>% 
+  mutate(Site = "La Fage",Block = "None",Year = 2022, 
+         LifeForm2 = "None",
+         SeedMass = TotSeedMass.mg./SeedNb, Mat = NA, 
+         nameOfProject = "Annuals",measurementDeterminedBy = "Leo Delalandre")  %>% 
+  merge(names_LH, by = "Code_Sp") %>% 
+  merge(names_family,by = "Species") %>% 
+  mutate(Treatment = if_else(Plot %in% c("P8","P1","P10"), "Nat_Sab","Fer_Clc")) %>% 
+  select(all_of(colnames(Seed1)))
+
+Seed <- rbind(Seed1,Seed_leo) %>% 
+  filter(!(Code_Sp == "GERADISS")) # truc chelou avec les masses de graines, à voir
+

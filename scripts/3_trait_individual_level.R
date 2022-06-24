@@ -1,3 +1,6 @@
+library("tidyverse")
+source("scripts/Data_traits.R")
+
 # Model traits of annuals as a function of their origin
 trait_sheet <- c("LeafMorpho","LeafCN","Leaf13C","Biovolume","Pheno","Seed")
 
@@ -21,23 +24,39 @@ for (i in 1:length(trait_sheet)){
     filter(Treatment %in% c("Fer_Clc","Fer_Dlm","Nat_Sab")) %>% 
     mutate(treatment = str_sub(Treatment,1,3)) %>% 
     filter(LifeForm1=="The")  
+  
+  in_nat <- fdata %>% 
+    filter(treatment =="Nat") %>% 
+    pull(Code_Sp) %>% 
+    unique() 
+  in_fer <- fdata %>% 
+    filter(treatment =="Fer") %>% 
+    pull(Code_Sp) %>% 
+    unique()
+  sp_both <- intersect(in_nat,in_fer)
+  
+  fdata2 <- fdata %>% filter(Code_Sp %in% sp_both)
+  
+      
   ftraits <- TRAITS[[i]] # traits in this sheet
   for ( j in 1:length(ftraits) ){
     trait <- ftraits[j] # choose one trait in the sheet
     
     # plot
     plot <- fdata %>% 
+      # filter(measurementDeterminedBy=="Leo Delalandre") %>%
       ggplot(aes_string(x="treatment",y= trait ))+
-      geom_boxplot()
+      geom_point()
     count <- count+1
     BOXPLOT[[count]] <- plot
-    
+
     # stats
     formula <- as.formula(paste0(trait, " ~ treatment", " + (1|Code_Sp)"))
     formula0 <- as.formula(paste0(trait, " ~ 1 + (1|Code_Sp)"))
     
     if ( length( fdata %>% pull(treatment) %>% unique() ) == 2 ){ # if we have data from nat and fer
-      mmod <- lme4::lmer( formula , data = fdata)
+      mmod <- lme4::lmer( formula , data = fdata) # /!\ choose fdata (includes sp just measured in on treatment)
+      # or fdata2 (sp measured in both treatments only)
       # mmod0 <- lme4::lmer( formula0 , data = fdata)
       # anova <- anova(mmod0,mmod)
       anova <- car::Anova(mmod)
@@ -73,8 +92,8 @@ df_mod <- data.frame(Trait = vec_traits,
                     p.value = P.VAL) %>% 
   mutate(Estimate = round(Estimate,digits = 2)) %>% 
   mutate(Estimate = Estimate + Intercept) %>% 
-  mutate_if(is.numeric, round, digits = 2) %>% 
-  filter(!is.na(ESTIMATE))
+  mutate(p.value = format(p.value, scientific=TRUE, digits=3)) %>% 
+  mutate_if(is.numeric, round, digits = 2) 
 
 
 # export table
@@ -89,6 +108,8 @@ table_mod <- df_mod %>%
                        "Value in GUs",
                        "p.value")) %>%
   kableExtra::kable_styling("hover", full_width = F)
+
+table_mod
 
 cat(table_mod, file = "draft/mixed_model_intra_annual.doc")
 

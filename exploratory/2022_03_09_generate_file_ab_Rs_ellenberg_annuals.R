@@ -16,8 +16,8 @@ annuals <- names_LH %>%
   select(species,code_sp) %>%  
   filter(!grepl("-",code_sp))
 
-write.csv2(annuals,"outputs/data/ellenberg_annuals_braund-blanquet.csv",row.names=F)
-aaa <- read.csv2("outputs/data/ellenberg_annuals_braund-blanquet.csv")
+# write.csv2(annuals,"outputs/data/ellenberg_annuals_braund-blanquet.csv",row.names=F)
+aaa <- read.csv2("outputs/data/ellenberg_annuals_braund-blanquet_completed.csv")
 
 sp_manip <- c("BUPLBALD",
               "ALYSALYS","CAPSBURS","EROPVERN","HORNPETR",

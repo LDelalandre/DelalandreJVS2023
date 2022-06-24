@@ -7,7 +7,9 @@ outputs
 notebook
 mass grave
 draft
+figures
 *.csv
 *.docx
 *.xlsx
 *.xls
+*.jpg
