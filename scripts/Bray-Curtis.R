@@ -54,28 +54,6 @@ for (j in c(1:nb_random)){
   DF_MEAN <- rbind(DF_MEAN,df_mean_random)
 }
 
-DF_MEAN %>% 
-  filter(!(simul == "original")) %>% 
-  ggplot(aes(x=comparison,y=mean)) +
-  geom_boxplot()
-
-DF_MEAN %>% 
-  ggplot(aes(x= mean  ))+
-  geom_histogram(binwidth = 0.01) +
-  facet_wrap(~comparison) +
-  theme_classic()
-
-DF_MEAN %>% 
-  filter(!(simul=="original")) %>% 
-  filter(comparison=="inter") %>% 
-  ggplot(aes(x= mean  ))+
-  geom_histogram(binwidth = 0.001) +
-  theme_classic() +
-  geom_vline(xintercept = df_mean %>% filter(comparison == "inter") %>% pull(mean),
-             color="red") +
-  xlim(c(0.76,0.95)) +
-  xlab("Bray-Curtis distance")
-
 true_distance <- df_mean %>% filter(comparison == "inter") %>% pull(mean)
 
 distance_bray <- DF_MEAN %>% 

@@ -69,7 +69,7 @@ boxplot_CSR_shallow
 
 ggsave("draft/boxplot_CSR.jpg",boxplot_CSR_shallow)
 
-data.anovaCSR <- MEAN_CSR2 %>% 
+data.anovaCSR <- MEAN_CSR_shallow %>% 
   select(code_sp,treatment,LifeHistory,C,S,R) %>%
   # gather(key = score, value = value, -c(code_sp, LifeHistory,treatment)) %>% 
   filter(treatment%in% c("Nat","Fer"))
