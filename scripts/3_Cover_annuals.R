@@ -246,7 +246,7 @@ tc_df <-data.frame(theoretic_count)
 dev.off() 
 
 # III) Independent figure : biomass consumption ####
-jpeg("outputs/figures/1_disturbance.jpeg")
+jpeg("draft/disturbance.jpeg")
 boxplot(disturbance$Tx_CalcPic ~ disturbance$Trtmt ,  
         width=c(1,4),
         # col=c("orange" , "seagreen"),
@@ -300,7 +300,7 @@ legend("topright",
        pch = c(1,4,3))
 
 # Annual cover ####
-jpeg("outputs/figures/1_cover.jpeg")
+jpeg("draft/cover_nat.jpeg")
 ann_fer <- ab_fer %>% 
   mutate(LifeHistory = if_else(LifeForm1=="The","annual","perennial")) %>% 
   group_by(LifeHistory,year,paddock,line) %>% 
@@ -322,15 +322,15 @@ cover_annuals$depth <- factor(cover_annuals$depth , levels = c("Fer","D","I","S"
 
 
 boxplot(tot_relat_ab * 100 ~ depth,
-        data = cover_annuals, # %>% filter(!(depth == "Fer")),
-        ylim=c(0,90),
+        data = ann_nat, # cover_annuals, # 
+        # ylim=c(0,90),
         xlab = NA,
         ylab = "Relative abundance \n of annuals (%)",
         xaxt = "n",
         medlwd = 1)
 
 
-mod <- lm(tot_relat_ab ~ depth, data = cover_annuals)
+mod <- lm(tot_relat_ab ~ depth, data = ann_nat) # cover_annuals)
 anova(mod)
 summary(mod)
 shapiro.test(residuals(mod)) # not normal --> kruskal-wallis ?
@@ -344,7 +344,8 @@ posthoc <- multcomp::cld(emmeans::emmeans(mod, specs = "depth",  type = "respons
 comp <- as.data.frame(posthoc$emmeans) %>% 
   arrange(factor(depth, levels = levels(cover_annuals$depth)))
 
-text(x=c(1:4),y=c(82,30,40,50), labels = comp$.group)
+# text(x=c(1:4),y=c(82,30,40,50), labels = comp$.group)
+text(x=c(1:3),y=c(20,20,20), labels = comp$.group)
 
 dev.off()
 

@@ -173,7 +173,6 @@ summary(m0_ldmc)
 anova(m0_ldmc)
 
 
-
 # Abundances ####
 ab_fer <- read.csv2("outputs/data/abundance_fertile.csv") %>% 
   filter(LifeForm1=="The") %>% 
@@ -209,6 +208,18 @@ ggsave("outputs/figures/Appendix/3_Correlation_abundance_both_treatments.jpg")
 ab_nat %>% 
   pull(paddock) %>% 
   unique()
+
+
+ab_fer <- read.csv2("outputs/data/abundance_fertile.csv") %>% 
+  filter(LifeForm1=="The") %>% 
+  rename(transect = id_transect_quadrat) %>% 
+  mutate(code_sp = case_when(species == "Crepis vesicaria ssp. haenseleri" ~ "CREPVESI",
+                             species == "Vicia sativa ssp. sativa" ~ "VICISATI",
+                             TRUE ~ code_sp))
+
+ab_nat <- read.csv2("outputs/data/abundance_natif.csv")%>% 
+  filter(LifeHistory == "annual") %>% 
+  mutate(transect=paste(paddock,depth,line,sep="_"))
 
 library("vegan")
 # Sp abundance per transect
@@ -439,7 +450,7 @@ df_mean <- df_dist3 %>%
   group_by(comparison) %>% 
   summarize(mean=mean(distance)) %>% 
   mutate(simul = "original")
-  # average interpoint dissimilarities (Anderson et al., 2011, Ecology Letters)
+# average interpoint dissimilarities (Anderson et al., 2011, Ecology Letters)
 
 df_mean %>% 
   ggplot(aes(x=comparison,y=mean)) +
@@ -474,7 +485,7 @@ DF_MEAN %>%
 
 DF_MEAN %>% 
   filter(!(simul == "original")) 
-  # spread(key = "comparison", value = "mean" )
+# spread(key = "comparison", value = "mean" )
 
 fcomp <- "inter"
 
@@ -485,7 +496,7 @@ boot <- DF_MEAN %>%
 real <- df_mean %>% 
   filter(comparison == fcomp) %>% 
   pull(mean)
-  
+
 
 
 inf <- length(which( boot < real))
@@ -500,96 +511,10 @@ p.val
 
 
 
-# BOOTSTRAP final, à garder ####
-# Données dans la section # Abundances
-
-# 16 transects dans le fertile et 18 dans le natif
-# randomize position of the transect (fer ou nat)
-
-df_dist3 <- dist_to_df_global(x_abundance)
-
-df_mean <- df_dist3 %>% 
-  group_by(comparison) %>% 
-  summarize(mean=mean(distance)) %>% 
-  mutate(simul = "original")
-# average interpoint dissimilarities (Anderson et al., 2011, Ecology Letters)
 
 
 
-nb_random <- 10000
-DF_MEAN <- df_mean
 
-for (j in c(1:nb_random)){
-  x_abundance_random <- x_abundance
-  rownames(x_abundance_random) <-  sample(rownames(x_abundance))
-  
-  # distance_ab_random <- vegdist(x = x_abundance_random,method="bray")
-  df_dist_random <- dist_to_df_global(x_abundance_random) 
-  
-  df_mean_random <- df_dist_random %>% 
-    group_by(comparison) %>% 
-    summarize(mean=mean(distance)) %>% 
-    mutate(simul = paste0("random_",j))
-  DF_MEAN <- rbind(DF_MEAN,df_mean_random)
-}
-
-DF_MEAN %>% 
-  filter(!(simul == "original")) %>% 
-  ggplot(aes(x=comparison,y=mean)) +
-  geom_boxplot()
-
-DF_MEAN %>% 
-  ggplot(aes(x= mean  ))+
-  geom_histogram(binwidth = 0.01) +
-  facet_wrap(~comparison) +
-  theme_classic()
-
-DF_MEAN %>% 
-  filter(!(simul=="original")) %>% 
-  filter(comparison=="inter") %>% 
-  ggplot(aes(x= mean  ))+
-  geom_histogram(binwidth = 0.001) +
-  theme_classic() +
-  geom_vline(xintercept = df_mean %>% filter(comparison == "inter") %>% pull(mean),
-             color="red") +
-  xlim(c(0.76,0.95)) +
-  xlab("Bray-Curtis distance")
-
-true_distance <- df_mean %>% filter(comparison == "inter") %>% pull(mean)
-
-distance_bray <- DF_MEAN %>% 
-  filter(!(simul=="original")) %>% 
-  filter(comparison=="inter") %>% 
-  mutate(diff = true_distance - mean) %>% 
-  ggplot(aes(x= diff  ))+
-  geom_histogram(binwidth = 0.001) +
-  theme_classic() +
-  xlim(c(0,0.12)) +
-  xlab("Difference in Bray-Curtis distance (observed - random)")
-
-ggsave("draft/bray_curtis_bootstrap.png",distance_bray)
-
-fcomp <- "inter"
-
-boot <- DF_MEAN %>% 
-  filter(!(simul == "original")) %>% 
-  filter(comparison == fcomp) %>% 
-  pull(mean)
-real <- df_mean %>% 
-  filter(comparison == fcomp) %>% 
-  pull(mean)
-
-
-# is observed distance inferior or superior to null expectation
-sup <- length(which( boot < real))
-inf <- length(which( boot >= real))
-
-p.val = inf/(sup+inf) # proportion des average interponit dissimilarities
-# qui sont inférieures en vrai qu'en bootstrapant
-# C'est donc la proba d'observer nos données de distance entre transects si les 
-# abondances sont réparties aléatoirement au sein d'un transect
-# C'est pas ce que je veux... Je veux voir si le regroupement est bon.
-p.val
 
 # Abundance and trait coverage ####
 TRAITS <- c("LDMC","SLA","L_Area",
@@ -647,3 +572,4 @@ for (ftrait in TRAITS){
 }
 
 cover <- data.frame(trait = TRAITS, cover_fer=COVER_FER,cover_nat=COVER_NAT)
+

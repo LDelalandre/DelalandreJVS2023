@@ -4,21 +4,60 @@ library(ggrepel)
 library(gridExtra)
 library(ggpubr)
 
-# MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment.csv")%>%
-#   filter(!is.na(SLA))
+MEAN_no_subset <- read.csv2("outputs/data/mean_attribute_per_treatment.csv")%>%
+  filter(!is.na(SLA)) %>% 
+  filter(!(LifeForm1 %in% c("DPh","EPh")))%>% 
+  filter(!(species== "Geranium dissectum - pétiole"))
 
 # keep only traits measured in the Nat_Sab
 # = compare trait values in Nat_Sab and in fertile
 MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab.csv")%>%
-  filter(!is.na(SLA)) 
+  filter(!is.na(SLA)) %>% 
+  filter(!(species== "Geranium dissectum - pétiole"))
+
+#___________________________________________________
+# De la bidouille: j'ajoute la masse des graines des mêmes espèces mesurées dans tout le natif
+# aux traits mesurés dans le GUs (avec l'approx. que la masse individuelle des graines est peu plastique... à tester!!)
+MEAN_no_subset_seed_mass <-  MEAN_no_subset %>% 
+  select(code_sp,treatment,SeedMass)
+
+MEAN <- MEAN %>% 
+  select(-SeedMass) %>% 
+  merge(MEAN_no_subset_seed_mass, by = c("code_sp","treatment"))
+
+# test de la validité de la bidouille
+ftrait <- "SeedMass"
+seed_fer_nat <- MEAN_no_subset %>% 
+  select(code_sp,treatment,all_of(ftrait)) %>% 
+  spread(key = treatment,value = ftrait) 
+
+seed_fer_nat %>% 
+  ggplot(aes(x=log(Fer),y=log(Nat)))+
+  # ggplot(aes(x=Fer,y=Nat))+
+  geom_point() +
+  geom_abline(slope = 1,intercept=0) +
+  geom_smooth(method="lm")
+
+mod <- lm(log(Nat) ~ log(Fer), data = seed_fer_nat)
+plot(mod)
+anova(mod)
+sum <- summary(mod)
+
+mod$coefficients
+sum$adj.r.squared
+#_____________________________________________
 
 traits <- c("LDMC","SLA","L_Area",
             "LCC","LNC","Ldelta13C",# "LPC",
             "Hrepro"   , "Dmax"  , #    "Dmin" ,"Hveg"  ,
-            "Disp"#,"Mat_Per", #"Mat","Flo",
-            # "SeedMass"
+            "Disp", #,"Mat_Per", #"Mat","Flo",
+            "SeedMass"
 )
 
+MEAN %>% 
+  # filter(treatment=="Nat") %>%
+  select(all_of(traits)) %>% 
+  psych::corPlot()
 
 
 annuals <- MEAN %>% 
@@ -67,11 +106,11 @@ plot_pca <- function(coord_ind,coord_var,DimA,DimB,var.explain.dimA,var.explain.
 }
 
 
-ggplot(coord_var,aes(x=get("Dim.1"),y=Dim.2))+
-  geom_point()
-ggplot(data=coord_var, aes_string(x=0, y=0, xend=Dim.1*5.5-0.2, yend=Dim.2*5.5-0.2), 
-             arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
-  geom_point()
+# ggplot(coord_var,aes(x=get("Dim.1"),y=Dim.2))+
+#   geom_point()
+# ggplot(data=coord_var, aes_string(x=0, y=0, xend=Dim.1*5.5-0.2, yend=Dim.2*5.5-0.2), 
+#              arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
+#   geom_point()
 
 
 boxplot_dimension <- function(coord_ind,dim){
@@ -174,7 +213,7 @@ PCA_sp_names <- ggplot (coord_ind,aes(x=Dim.1,y=Dim.2,label = Code_Sp,colour=Lif
 
 plot_d1 <- boxplot_dimension(coord_ind,dim = "Dim.1")
 plot_d2 <- boxplot_dimension(coord_ind,dim = "Dim.2")
-PCA_fer_boxplot <- plot_pca_boxplot(PCA_fer,plot_d1,plot_d2)
+PCA_fer_boxplot <- plot_pca_boxplot(PCA_fer12,plot_d1,plot_d2)
 ggsave("output/figures/PCA_fertile.png",PCA_fer_boxplot,height = 20, width =20)
 
 
@@ -225,13 +264,16 @@ PCA_nat13 <-coord_ind %>%
   ggtitle((expression(paste("GU"[S],sep='')))) +
   coord_fixed(ratio = ratio$ratio13)
 
+PCA_nat12
+PCA_nat13
+
 PCA_sp_names <-coord_ind %>% 
   ggplot (aes_string(x=Dim.A,y=Dim.B,label = "Code_Sp",colour="Lifelength"))+
   ggrepel::geom_label_repel() # With species names
 
 plot_d1 <- boxplot_dimension(coord_ind,dim = "Dim.1")
 plot_d2 <- boxplot_dimension(coord_ind,dim = "Dim.2")
-PCA_nat_boxplot <- plot_pca_boxplot(PCA_nat,plot_d1,plot_d2)
+PCA_nat_boxplot <- plot_pca_boxplot(PCA_nat12,plot_d1,plot_d2)
 
 ggsave("outputs/figures/PCA_natif.png",PCA_nat_boxplot,height = 20, width =20)
 
@@ -242,10 +284,13 @@ ggsave("outputs/figures/PCA_natif.png",PCA_nat_boxplot,height = 20, width =20)
 PCA <- ggarrange(PCA_fer12,PCA_nat12,PCA_fer13,PCA_nat13,
           labels = c("A","B","C","D"))
 
-ggsave("draft/PCA_annuals_perennials.png",PCA,height = 20, width =20)
+PCA12 <- ggarrange(PCA_fer12,PCA_nat12,
+                 labels = c("A","B"))
+
+ggsave("draft/PCA_annuals_perennials.png",PCA12,height = 20, width =20)
 
 # iv) ANOVA Position on axes ####
-dimension <- 3
+dimension <- 1
 anov_dim <- compute_anova_dim_x(coord_ind,dimension)
 
 par(mfrow=c(2,2)) ; plot(anov_dim) # diagnostic_graphs
@@ -260,6 +305,8 @@ anov <- info_anova[[4]] # anova
 sum <- info_anova[[5]] # summary
 sum$coefficients
 anov$`Pr(>F)`[1]
+
+sum$adj.r.squared 
 
 
 #_______________________________________________________________
