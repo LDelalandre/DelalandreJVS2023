@@ -1,11 +1,11 @@
-source("scripts/1. Packages.R")
+source("scripts/Packages.R")
 library(FactoMineR)
 library(ggrepel)
 library(gridExtra)
 library(ggpubr)
 
-MEAN_no_subset <- read.csv2("outputs/data/mean_attribute_per_treatment.csv")%>%
-  filter(!is.na(SLA)) %>% 
+MEAN_no_subset <- read.csv2("outputs/data/mean_attribute_per_treatment.csv") %>%
+  filter(!is.na(SLA)) %>%
   filter(!(LifeForm1 %in% c("DPh","EPh")))%>% 
   filter(!(species== "Geranium dissectum - pétiole"))
 
@@ -14,6 +14,14 @@ MEAN_no_subset <- read.csv2("outputs/data/mean_attribute_per_treatment.csv")%>%
 MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab.csv")%>%
   filter(!is.na(SLA)) %>% 
   filter(!(species== "Geranium dissectum - pétiole"))
+
+code_sp_lifeform <- MEAN_no_subset %>% 
+  select(code_sp,LifeForm1) %>% 
+  unique() %>% 
+  rename(Code_Sp = code_sp)
+
+# Many species in the data do not appear in the PCA.
+code_sp_lifeform %>% group_by(LifeForm1) %>% summarize(n=n())
 
 #___________________________________________________
 # De la bidouille: j'ajoute la masse des graines des mêmes espèces mesurées dans tout le natif
@@ -39,12 +47,14 @@ seed_fer_nat %>%
   geom_smooth(method="lm")
 
 mod <- lm(log(Nat) ~ log(Fer), data = seed_fer_nat)
-plot(mod)
+# plot(mod)
 anova(mod)
 sum <- summary(mod)
 
 mod$coefficients
 sum$adj.r.squared
+# " OU BIEN: regarder la masse des graines comme une fonction des espèces et du traitement
+# pour montrer que la donnée espèce explique une part de variance bien plus grande
 #_____________________________________________
 
 traits <- c("LDMC","SLA","L_Area",
@@ -88,7 +98,7 @@ perform_pca <- function(data_traits_for_PCA){
 
 plot_pca <- function(coord_ind,coord_var,DimA,DimB,var.explain.dimA,var.explain.dimB){
   # dimA and dimB can be the first and second dimension, or the first and third, etc.
-  ggplot(coord_ind,aes_string(x=DimA,y=DimB,colour="Lifelength"), width = 10, height = 10)+
+  ggplot(coord_ind,aes_string(x=DimA,y=DimB,colour="LifeForm1"), width = 10, height = 10)+
     theme_classic() +
     geom_hline(aes(yintercept=0), size=.2,linetype="longdash") + 
     geom_vline(aes(xintercept = 0),linetype = "longdash", size=.2)+
@@ -98,7 +108,7 @@ plot_pca <- function(coord_ind,coord_var,DimA,DimB,var.explain.dimA,var.explain.
                  arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
     geom_text_repel(data=coord_var, aes(x=get(DimA)*5.5, get(DimB)*5.5, label=rowname), size = 6, vjust=1, color="black") +
     ggtitle(trtmt) +
-    theme(legend.position = "none") +
+    # theme(legend.position = "none") +
     xlab(paste0(DimA," (",var.explain.dimA,"%)"))+
     ylab(paste0(DimB," (",var.explain.dimB,"%)")) + 
     theme(text=element_text(size=20)) 
@@ -171,8 +181,9 @@ data_traits_for_PCA2 <- data_traits_for_PCA %>%
   column_to_rownames("code_sp")
 
 pca_output <- perform_pca(data_traits_for_PCA2)
-pca_output[[7]]
-coord_ind <- pca_output[[1]]
+# pca_output[[7]]
+coord_ind <- pca_output[[1]] %>% 
+  merge(code_sp_lifeform,by="Code_Sp")
 coord_var <- pca_output[[2]]
 var.explain.dim1 <- pca_output[[3]]
 var.explain.dim2 <- pca_output[[4]]
@@ -196,7 +207,7 @@ ratio <- etendue_dim %>%
   spread(key = dim, value= etendue) %>% 
   mutate(ratio12=Dim.1/Dim.2,
          ratio13 = Dim.1/Dim.3)
-
+dev.off()
 PCA_fer12 <- plot_pca(coord_ind,coord_var,DimA=Dim.A,DimB=Dim.B ,Var.A,Var.B ) +
   ggtitle((expression(paste("G"^'+',"F",sep='')))) +
   coord_fixed(ratio = ratio$ratio12)
@@ -228,7 +239,8 @@ data_traits_for_PCA2 <- data_traits_for_PCA %>%
 
 pca_output <- perform_pca(data_traits_for_PCA2)
 pca_output[[7]]
-coord_ind <- pca_output[[1]]
+coord_ind <- pca_output[[1]]%>% 
+  merge(code_sp_lifeform,by="Code_Sp")
 coord_var <- pca_output[[2]]
 var.explain.dim1 <- pca_output[[3]]
 var.explain.dim2 <- pca_output[[4]]
@@ -490,7 +502,7 @@ data_traits_for_PCA <- MEAN %>%
   filter(code_sp %in% c(justfer,justnat,common))
   
 # Plot SLA LDMC
-ggplot(data_traits_for_PCA,aes(x=LDMC,y=SLA,color = treatment))+
+ggplot(data_traits_for_PCA,aes(x=LDMC,y=SLA,color = treatment)) +
   geom_point() +
   # facet_wrap(~treatment) +
   xlim(c(0,800)) +
@@ -639,7 +651,7 @@ info_anova[[5]] # summary
 # Différenciation légère sur axe 1 (Lié notamment à la dispersion), et sur l'axe 2.
 
 #______________________________________________________
-# 4) GWM of annuals in both treatments ####
+# 4) CWM of annuals in both treatments ####
 # Guild Weighted Mean
 CWM_annuals_fer <- read.csv2("outputs/data/CWM_annuals_fer.csv" ) %>% 
   mutate(id_transect_quadrat = paste0("annual",id_transect_quadrat)) %>% 
@@ -666,6 +678,9 @@ CWM_perennials <- rbind(CWM_perennials_fer,CWM_perennials_nat) %>%
   select(all_of(traits)) 
 
 CWM_all <- rbind(CWM_perennials,CWM_annuals)
+
+
+
 
 
 # Plot CSR ####
@@ -786,3 +801,108 @@ relat_sla_ldmc <- ggplot(MEAN,aes(x=LDMC,y=SLA,color = LifeHistory))+
   facet_grid(vars(treatment),vars(LifeHistory)) 
 
 ggsave("outputs/figures/Appendix/Relationship_SLA_LDMC.jpg",relat_sla_ldmc)
+
+
+#_______________________________________________________
+# Comparison of perennials ####
+# PCA
+
+traits_pca_perennials <- MEAN %>% 
+  filter(LifeHistory == "perennial") %>% 
+  select(!!c("code_sp","treatment",traits)) %>%  # subset of the traits that I want of analyse
+  group_by(code_sp,treatment) %>% 
+  summarise(across(all_of(traits), mean, na.rm= TRUE)) %>%  # /!\ JE POURRAIS NE PAS FAIRE DE MOYENNE, et prendre les données brutes !
+  mutate(ddd = paste(code_sp,treatment,sep = "_")) %>% 
+  column_to_rownames("ddd") %>% 
+  select(-c(code_sp,treatment))
+
+
+ACP1<-PCA(traits_pca_perennials,graph = FALSE)
+var_explained_pca_perennials<-factoextra::fviz_eig(ACP1, addlabels = TRUE) # percentage of variance explained
+var_explained_pca_perennials
+
+coord_var <- data.frame(ACP1$var$coord) %>% 
+  rownames_to_column()
+var.explain.dim1 <- round(ACP1$eig[1,2])
+var.explain.dim2 <- round(ACP1$eig[2,2])
+var.explain.dim3 <- round(ACP1$eig[3,2])
+coord_ind <- data.frame(ACP1$ind$coord) %>% 
+  rownames_to_column("sp_tr") %>% 
+  mutate(code_sp = str_sub(sp_tr,1L,-5L)) %>% 
+  mutate(treatment = str_sub(sp_tr,-3L,-1L))
+
+PCA2 <- ggplot(coord_ind,aes(x=Dim.1,y=Dim.2,colour=treatment)) + #,label = sp_tr
+  theme_classic() +
+  geom_hline(aes(yintercept=0), size=.2,linetype="longdash") + 
+  geom_vline(aes(xintercept = 0),linetype = "longdash", size=.2)+
+  coord_equal() +
+  geom_point() +
+  geom_segment(data=coord_var, aes(x=0, y=0, xend=Dim.1*7-0.2, yend=Dim.2*7-0.2), 
+               arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
+  geom_text_repel(data=coord_var, aes(x=Dim.1*7, Dim.2*7, label=rowname), size = 4, vjust=1, color="black") +
+  ggtitle("Annuals in fer and nat sup") +
+  # theme(legend.position = "none")+
+  xlab(paste0("Dim1 (",var.explain.dim1,"%)"))+
+  ylab(paste0("Dim2 (",var.explain.dim2,"%)")) +
+  scale_colour_manual(values=c("#009E73","#E69F00"),
+                      labels = c(expression(paste("G"^'+',"F",sep='')),
+                                 expression(paste("GU"[S],sep=''))) )+
+  scale_fill_manual('Program Type', values=c('pink','blue')) +
+  labs(color = "Origin") +
+  theme(plot.title = element_blank())
+
+
+PCA2_dim3 <- ggplot(coord_ind,aes(x=Dim.1,y=Dim.3,colour=treatment))+ #,label = sp_tr
+  theme_classic()+
+  geom_hline(aes(yintercept=0), size=.2,linetype="longdash") + 
+  geom_vline(aes(xintercept = 0),linetype = "longdash", size=.2)+
+  coord_equal() +
+  geom_point() +
+  geom_segment(data=coord_var, aes(x=0, y=0, xend=Dim.1*7-0.2, yend=Dim.3*7-0.2), 
+               arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
+  geom_text_repel(data=coord_var, aes(x=Dim.1*7, Dim.3*7, label=rowname), size = 4, vjust=1, color="black") +
+  ggtitle("Annuals in fer and nat sup") +
+  # theme(legend.position = "none")+
+  xlab(paste0("Dim1 (",var.explain.dim1,"%)"))+
+  ylab(paste0("Dim3 (",var.explain.dim3,"%)")) +
+  scale_colour_manual(values=c("#009E73","#E69F00"),
+                      labels = c(expression(paste("G"^'+',"F",sep='')),
+                                 expression(paste("GU"[S],sep=''))) )+
+  scale_fill_manual('Program Type', values=c('pink','blue')) +
+  labs(color = "Origin") +
+  theme(plot.title = element_blank())
+
+PCA_annuals <- gridExtra::grid.arrange(PCA2,PCA2_dim3, ncol=2,heights = 100)
+ggsave("draft/PCA_annuals.jpg",PCA_annuals,width = 15, height = 11)
+
+PCA_label <- ggplot(coord_ind,aes(x=Dim.1,y=Dim.2,colour=treatment,label = sp_tr))+
+  ggrepel::geom_label_repel() +
+  geom_hline(aes(yintercept=0), size=.2,linetype="longdash") + 
+  geom_vline(aes(xintercept = 0),linetype = "longdash", size=.2)+
+  coord_equal() +
+  geom_point() 
+# geom_segment(data=coord_var, aes(x=0, y=0, xend=Dim.1*7-0.2, yend=Dim.2*7-0.2), 
+#              arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
+# # geom_text_repel(data=coord_var, aes(x=Dim.1*7, Dim.2*7, label=rowname), size = 4, vjust=1, color="black") +
+# ggtitle("Annuals in fer and nat sup") +
+# # theme(legend.position = "none")+
+# xlab(paste("Dim1",var.explain.dim1,"% variance explained"))+
+# ylab(paste("Dim2",var.explain.dim2,"% variance explained")) +
+# scale_colour_manual(values=c("#009E73","#E69F00")) 
+
+# With species names
+# ggplot (coord_ind,aes(x=Dim.1,y=Dim.2,label = Code_Sp,colour=Lifelength))+
+#   geom_text()
+dimension <- 1
+anov_dim <- compute_anova_dim_x(coord_ind,dimension)
+
+par(mfrow=c(2,2)) ; plot(anov_dim) # diagnostic_graphs
+par(mfrow= c(1,1)) ; plot(density(residuals(anov_dim))) # normality_graph
+
+# Compare scores on axis "dimension" between annuals and perennials
+info_anova <- info_anova_dim_x(anov_dim,dimension)
+info_anova[[1]] # normality
+info_anova[[2]] # homoscedasticity
+info_anova[[3]] # independence of residuals
+info_anova[[4]] # anova
+info_anova[[5]] # summary

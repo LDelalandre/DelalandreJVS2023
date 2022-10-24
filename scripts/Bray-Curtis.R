@@ -27,6 +27,7 @@ x_abundance <- ab_fer %>%
 # 16 transects dans le fertile et 18 dans le natif
 # randomize position of the transect (fer ou nat)
 
+# ctrl+clic pour ouvrir la fonction. Dans intra_annual_comparison
 df_dist3 <- dist_to_df_global(x_abundance)
 
 df_mean <- df_dist3 %>% 

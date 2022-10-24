@@ -210,37 +210,6 @@ comp_binom <- as.data.frame(posthoc_binom$emmeans) %>%
 
 text(x=c(1:4),y=c(85,40,40,60), labels = comp_binom$.group)
 
-# hypothèses
-anova(mod_glm)
-summary(mod_glm)
-
-mean(richness_per_guild_toplot$relative_richness_annual) # en moyenne, annuelles représentent 20% de la richesse
-set.seed(1234) # permet de simuler toujours les mêmes comptages.
-theoretic_count <-rpois(76,3.236842)
-
-# on incorpore ces comptages théoriques dans un data frame
-tc_df <-data.frame(theoretic_count)
-
-# on plot simultanémaent les comptages observés et les comptages théoriques
-# ggplot(richness_per_guild_toplot,aes(relative_richness_annual))+
-#   geom_bar(fill="#1E90FF") +
-#   geom_bar(data=tc_df, aes(theoretic_count,fill="#1E90FF", alpha=0.5))+
-#   theme_classic() +
-#   theme(legend.position="none")
-# 
-# plot(residuals(mod_glm) ~
-#        predict(mod_glm,type="link"),xlab=expression(hat(eta)),
-#      ylab="Deviance residuals",pch=20,col="blue")
-
-# Tester si le rapport deviance sur residuals est différent de 1
-
-# On ne rejette pas l'hypothèse nulle que le modèle est bien spécifié. Je reste là-dessus ?
-# the deviance goodness of fit test for Poisson regression. The null hypothesis is that our model is correctly specified
-# https://thestatsgeek.com/2014/04/26/deviance-goodness-of-fit-test-for-poisson-regression/
-# pchisq(mod_glm$deviance, df=mod_glm$df.residual, lower.tail=FALSE)
-# 
-# ssr <- sum(residuals(mod_glm, type="pearson")^2)
-# pchisq(ssr, mod_glm$df.residual)
 
 #turn off PDF plotting
 dev.off() 
@@ -254,10 +223,20 @@ boxplot(disturbance$Tx_CalcPic ~ disturbance$Trtmt ,
         ylab = "Proportion of biomass eaten",
         # xaxt = "n",
         at = c(1,2),
-        medlwd = 1
+        medlwd = 1,
+        xaxt = "n"
 )
+
+axis(1,                         # Define x-axis manually
+     at = 1:2,
+     labels = c(expression(paste("G"^'+',"F",sep='')),
+                expression("GU") ) )
+
 dev.off()
 
+disturbance %>% 
+  group_by(Trtmt) %>% 
+  summarize(mean = mean(Tx_CalcPic))
 
 # IV) Optional graphs ####
 
@@ -329,6 +308,10 @@ boxplot(tot_relat_ab * 100 ~ depth,
         xaxt = "n",
         medlwd = 1)
 
+ann_nat %>%
+  ungroup() %>% 
+  filter(depth == "S") %>% 
+  summarize(mean_ab = mean(tot_relat_ab))
 
 mod <- lm(tot_relat_ab ~ depth, data = ann_nat) # cover_annuals)
 anova(mod)

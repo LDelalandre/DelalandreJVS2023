@@ -1,5 +1,6 @@
 # This script imports trait values measured before my PhD 
 # and includes data that I measured in spring 2021.
+
 library(openxlsx)
 library(tidyverse)
 # Characteristics of the species  ####

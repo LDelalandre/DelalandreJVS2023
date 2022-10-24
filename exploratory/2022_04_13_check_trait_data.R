@@ -1,8 +1,8 @@
 library(tidyverse)
-
+source("scripts/Data_traits.R")
 # /!\ Importer données de scripts/2. Functional_traits.R /!\
 
-who_measures <- LeafCN %>% 
+who_measures <- LeafMorpho %>% 
   filter(grepl("Nat",Treatment)) %>% 
   arrange(Code_Sp) %>% 
   filter(LifeForm1 == "The")
@@ -19,7 +19,7 @@ who_measures %>%
   # filter(Code_Sp %in% who_measures_sp[41:60]) %>%
   # filter(Code_Sp %in% who_measures_sp[61:80]) %>%
   # filter(Code_Sp %in% who_measures_sp[-(1:80)]) %>%
-  ggplot(aes(x=Code_Sp,y= LNC ,color = measurementDeterminedBy)) +
+  ggplot(aes(x=Code_Sp,y= SLA ,color = measurementDeterminedBy)) +
   geom_boxplot() +
   theme(axis.text.x = element_text(angle = 90))
 

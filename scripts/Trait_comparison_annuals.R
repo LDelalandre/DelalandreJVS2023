@@ -113,3 +113,41 @@ table_mod
 
 cat(table_mod, file = "draft/mixed_model_intra_annual.doc")
 
+
+
+#_______________________________________________________
+# Regarder certains traits
+fdata <- get("LeafMorpho") %>% # content of that sheet
+  filter(Treatment %in% c("Fer_Clc","Fer_Dlm","Nat_Sab")) %>% 
+  mutate(treatment = str_sub(Treatment,1,3)) %>% 
+  filter(LifeForm1=="The")  
+
+
+fdata %>% 
+  ggplot(aes(x = treatment, y =LDMC)) +
+  geom_boxplot() +
+  facet_wrap(~Code_Sp)
+
+
+# en pairwise plots
+
+library(GGally)
+
+fdata_sum <- fdata %>% 
+  group_by(Code_Sp,treatment) %>% 
+  summarize(trait = mean(SLA)) %>% 
+  filter(!is.na(trait)) %>%  
+  spread(key = treatment, value = trait) %>% 
+  filter(!is.na(Nat)) %>% 
+  filter(!is.na(Fer))
+
+fdata_sum %>% 
+  mutate(direction = if_else(Nat < Fer,"A","B")) %>% 
+  filter(Fer<Nat) %>%
+  ggparcoord(columns = 2:3,
+             scale = "globalminmax",
+            groupColumn = "Code_Sp",
+            showPoints = T)  +
+  facet_wrap(~direction)
+  scale_color_brewer(palette = "Set2")
+  

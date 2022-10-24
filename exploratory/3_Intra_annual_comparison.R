@@ -14,9 +14,9 @@ MEAN_annuals <- MEAN %>%
 traits <- c("LDMC","SLA","L_Area",
             "LCC","LNC","Ldelta13C",# "LPC",
             # "Hveg"  ,    "Hrepro"   , "Dmax"  , #    "Dmin" ,
-            "Disp"#,"Mat_Per", #"Mat","Flo",
+            "Disp",#,"Mat_Per", #"Mat","Flo",
             # "SeedMass"
-            # "C","S","R"
+            "C","S","R"
 )
 
 # boxplots traits annuelles ####
@@ -53,7 +53,8 @@ for (trait in traits){
     filter(code_sp %in% sp_measured_both) %>%
     ggplot(aes_string(x="treatment",y=trait,label="code_sp")) +
     geom_boxplot() +
-    # geom_point() +
+    geom_point() +
+    geom_line(aes(group = code_sp)) +
     # ggrepel::geom_text_repel() +
     theme_classic() 
 }
@@ -62,6 +63,9 @@ gridExtra::grid.arrange( PLOT[[1]],PLOT[[2]], PLOT[[3]],
                          PLOT[[4]], PLOT[[5]],PLOT[[6]],
                          PLOT[[7]],
                          ncol = 4, nrow = 2)
+
+gridExtra::grid.arrange( PLOT[[8]],PLOT[[9]], PLOT[[10]],
+                         ncol = 3, nrow = 2)
 
 # espèces mesurées dans les deux
 MEAN_annuals %>% 
@@ -374,6 +378,8 @@ dist.to.df <- function(d){
   )
 }
 
+# NB: jaccard: presence-absence data
+# https://rdrr.io/cran/abdiv/man/jaccard.html
 
 dist_to_df_global <- function(x_abundance){
   # abundance dataset
