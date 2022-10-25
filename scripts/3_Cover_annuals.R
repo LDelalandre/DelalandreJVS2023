@@ -313,7 +313,7 @@ ann_nat %>%
   filter(depth == "S") %>% 
   summarize(mean_ab = mean(tot_relat_ab))
 
-mod <- lm(tot_relat_ab ~ depth, data = ann_nat) # cover_annuals)
+mod <- lm(tot_relat_ab ~ depth, data =  cover_annuals%>% filter(!(depth=="Fer"))) # ou ann_nat
 anova(mod)
 summary(mod)
 shapiro.test(residuals(mod)) # not normal --> kruskal-wallis ?
@@ -354,4 +354,7 @@ cover_annuals %>%
 # On n'a pas la même forme de distribution dans les trois cas de figure --> pas approprié d'utiliser Kruskal pour fertile...
 
 
+cover_annuals %>% 
+  group_by(depth) %>% 
+  summarize(mean_relat_ab = mean(tot_relat_ab))
          

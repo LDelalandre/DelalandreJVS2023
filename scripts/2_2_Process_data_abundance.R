@@ -1,3 +1,7 @@
+# This script:
+# - extracts abundance data in the G+F (2005) and GUs (2009)
+# - compares abundance in the nat between maud's and diachro's relevés. Highly correlated.
+
 source("scripts/Packages.R")
 names_LH2 <- read.csv2("data/species_names_lifehistory.csv") %>% 
   mutate(species= Species, code_sp = Code_Sp)
@@ -21,7 +25,7 @@ write.csv2(ab_diachro_2005,"outputs/data/abundance_fertile.csv",row.names=F)
 
 ab_diachro_2004 <- ABUNDANCE %>% 
   filter(dataset == "Diachro") %>% 
-  filter(year == 2004) %>%  # /!\ No measure available after 2005! Should I keep 2006, or several years?
+  filter(year == 2004) %>%
   filter(treatment == "Fer") %>%
   # add relative abundance
   group_by(id_transect_quadrat) %>% 
@@ -88,11 +92,6 @@ ab_diachro_nat_mean <- ab_diachro_2004_nat %>%
 compare_ab <- full_join(ab_maud_mean,ab_diachro_nat_mean,by=c("code_sp","LifeHistory"))  
 compare_ab_noS<- full_join(ab_maud_mean_noS,ab_diachro_nat_mean,by=c("code_sp","LifeHistory"))  
 
-ggplot(compare_ab_noS,aes(x=log(mean_relat_ab_maud),y=log(mean_relat_ab_diachro),
-                      label=code_sp))+ # ,color=LifeHistory
-  geom_point()  +
-  geom_smooth(method="lm")
-  # ggrepel::geom_text_repel()
 
 mod <- lm(log(mean_relat_ab_maud)~log(mean_relat_ab_diachro),data = compare_ab) 
 shapiro.test(residuals(mod)) # normality of residuals
@@ -103,13 +102,15 @@ anova(mod)
 
 mod$coefficients
 sum <- summary(mod)
-sum$r.squared
+rsquared <- sum$r.squared %>% 
+  round(digits = 4)
 sum$adj.r.squared
 sum$coefficients
 
 anov <- anova(mod)
 as.data.frame(anov)
 rownames(anov) <- c("Species mean abundance (2009)","Residuals")
+pval <- round(anov$`Pr(>F)`[1],digits = 5)
 
 # export table
 table_anova <- anov %>%
@@ -118,7 +119,14 @@ table_anova <- anov %>%
 
 cat(table_anova, file = "draft/abundance_2009_2004.doc")
 
+corr_maud_diachro <- ggplot(compare_ab_noS,aes(x=log(mean_relat_ab_maud),y=log(mean_relat_ab_diachro),
+                                               label=code_sp))+ # ,color=LifeHistory
+  geom_point()  +
+  geom_smooth(method="lm") +
+  annotate("text", x=-1.7, y=-4, label= paste("p.value = ",pval))+
+  annotate("text", x=-1.7, y=-4.5, label= paste("R squared = ",rsquared))
 
+ggsave("draft/supplementary/comparison abundance maud diachro.png",corr_maud_diachro)
 
 # Comparison abundance annuals in both treatments ####
 ab_fer <- read.csv2("outputs/data/abundance_fertile.csv") %>% 
@@ -155,3 +163,5 @@ NatFer2 <- NatFer %>%
 cor.test(NatFer2$abundance_nat,NatFer2$abundance_fer)
 # correlation negative, but not significant.
 
+
+# Test for change of the results if we change the year in diachro ####

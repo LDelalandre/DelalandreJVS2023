@@ -1,6 +1,8 @@
+# This script computes CWM of CSR scores (using Pierce's spreadsheet outside of R).
+
 source("scripts/Packages.R")
 
-subset_gt_nat <- T
+subset_gt_nat <- T # traits measured in the GUs, not all GU
 
 # Load data ####
 ab_fer <- read.csv2("outputs/data/abundance_fertile.csv")
@@ -24,9 +26,9 @@ MEAN_goodunit <- MEAN %>%
   filter(!is.na(SLA))
 
 if (subset_gt_nat == F){
-  write.csv2(MEAN_goodunit,"outputs/data/Pierce CSR/Traits_mean_sp_per_trtmt.csv" ,row.names=F)
+  write.csv2(MEAN_goodunit,"outputs/data/Traits_mean_sp_per_trtmt.csv" ,row.names=F)
 }else{
-  write.csv2(MEAN_goodunit,"outputs/data/Pierce CSR/Traits_mean_sp_per_trtmt_subset_nat_sab.csv" ,row.names=F)
+  write.csv2(MEAN_goodunit,"outputs/data/Traits_mean_sp_per_trtmt_subset_nat_sab.csv" ,row.names=F)
 }
 
 # -- EXCEL SPREADSHEET -- (manually import and transform data)
@@ -35,9 +37,9 @@ if (subset_gt_nat == F){
 # I can compute CWM of CSR in the two ways (CWM of traits and CSR, and CSR and CWM of these index).
 
 if (subset_gt_nat == F){
-  MEAN_CSR <- read.csv2("outputs/data/Pierce CSR/Traits_mean_sp_per_trtmt_completed.csv",dec=",")
+  MEAN_CSR <- read.csv2("outputs/data/Traits_mean_sp_per_trtmt_completed.csv",dec=",")
 }else{
-  MEAN_CSR <- read.csv2("outputs/data/Pierce CSR/Traits_mean_sp_per_trtmt_subset_nat_sab_completed.csv",dec=",")
+  MEAN_CSR <- read.csv2("outputs/data/Traits_mean_sp_per_trtmt_subset_nat_sab_completed.csv",dec=",")
 } 
 
 MEAN_CSR <- MEAN_CSR %>% 
@@ -46,7 +48,7 @@ MEAN_CSR <- MEAN_CSR %>%
   mutate(R=str_replace(R,",",".") %>% as.numeric())
 
 # Add Ellenberg info ####
-ellenberg_fage <- read.csv2("outputs/data/ellenberg_la_fage.csv") %>% 
+ellenberg_fage <- read.csv2("data/traits/ellenberg_la_fage.csv") %>% 
   rename(species = AccSpeciesName)
 MEAN_CSR_ellenberg <- MEAN_CSR %>% 
   left_join(ellenberg_fage,by="species")

@@ -11,7 +11,7 @@ TRAITS <- list(c("LDMC","SLA","L_Area"),
             c("Disp"),#,"Mat_Per", #"Mat","Flo",
             c("SeedMass")
 )
-trait_unit <- read.csv2("data/trait_unit.csv")
+trait_unit <- read.csv2("data/trait_unit.csv",encoding = "latin1")
 
 BOXPLOT <- list() # boxplot of trait comparisons between annuals in fer and in nat sup
 P.VAL <- c()
@@ -67,6 +67,16 @@ for (i in 1:length(trait_sheet)){
       
       estimate <- summary$coefficients[2,1]
       ESTIMATE <- c(ESTIMATE,estimate)
+      
+      # # variance explained (A FAIRE)
+      # # put variance of fixed effects on the denominator
+      # # variance of the fixed effect = beta^2 * variance (cf. TPs hier)
+      # Vfixed = estimate ^2* var(fdata %>% pull(sym(trait)))
+      # # on peut l'ajouter au dénominateur -->
+      # Vsp <- as.data.frame(lme4::VarCorr(mmod))[1,"vcov"]
+      # Vresid <- sum(as.data.frame(lme4::VarCorr(mmod))[,"vcov"])
+      # R = Vfixed/ (Vsp + Vresid)
+      # R
       
       intercept <- summary$coefficients[1,1]
       INTERCEPT <- c(INTERCEPT,intercept)

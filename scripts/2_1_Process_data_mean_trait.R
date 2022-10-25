@@ -1,7 +1,11 @@
+# This script computes mean trait value at the species * treatment level, in two ways:
+# In the G+F versus GU conditions
+# In the G+F versus GUs conditions (which is the option I kept for the article)
+
 source("scripts/Packages.R")
 source("scripts/Data_traits.R") # Load traits per group of traits (e.g. LeafMorpho)
 
-# 2) Mean trait value per species * treatment ####
+# Mean trait value per species * treatment ####
 
 # Compute mean trait value per species*treatment.
 # treatment is either Fer against Nat, 

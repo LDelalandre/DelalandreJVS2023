@@ -4,11 +4,10 @@ library(ggrepel)
 library(gridExtra)
 library(ggpubr)
 
-MEAN_no_subset <- read.csv2("outputs/data/mean_attribute_per_treatment.csv") %>%
+MEAN_no_subset <- read.csv2("outputs/data/mean_attribute_per_treatment.csv",encoding = "latin1") %>%
   filter(!is.na(SLA)) %>%
   filter(!(LifeForm1 %in% c("DPh","EPh")))%>% 
-  filter(!(species== "Geranium dissectum - pétiole"))
-
+  filter(!(species== "Geranium dissectum - pétiole")) 
 # keep only traits measured in the Nat_Sab
 # = compare trait values in Nat_Sab and in fertile
 MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab.csv")%>%
@@ -40,7 +39,7 @@ seed_fer_nat <- MEAN_no_subset %>%
   spread(key = treatment,value = ftrait) 
 
 seed_fer_nat %>% 
-  ggplot(aes(x=log(Fer),y=log(Nat)))+
+  ggplot(aes(x=log(Fer),y=log(Nat))) +
   # ggplot(aes(x=Fer,y=Nat))+
   geom_point() +
   geom_abline(slope = 1,intercept=0) +
@@ -98,7 +97,7 @@ perform_pca <- function(data_traits_for_PCA){
 
 plot_pca <- function(coord_ind,coord_var,DimA,DimB,var.explain.dimA,var.explain.dimB){
   # dimA and dimB can be the first and second dimension, or the first and third, etc.
-  ggplot(coord_ind,aes_string(x=DimA,y=DimB,colour="LifeForm1"), width = 10, height = 10)+
+  ggplot(coord_ind,aes_string(x=DimA,y=DimB,colour="Lifelength"), width = 10, height = 10)+
     theme_classic() +
     geom_hline(aes(yintercept=0), size=.2,linetype="longdash") + 
     geom_vline(aes(xintercept = 0),linetype = "longdash", size=.2)+
@@ -143,7 +142,7 @@ plot_pca_boxplot <- function(PCA1,plot_d1,plot_d2){
 
 
 compute_anova_dim_x <- function(coord_ind,dimension){
-  mod_dim <- lm(coord_ind[,dimension + 1] ~ coord_ind[, length(colnames(coord_ind))])
+  mod_dim <- lm(coord_ind[,dimension + 1] ~ coord_ind[, length(colnames(coord_ind))-1])
   # predict score in dimension wanted as a function of LifeLength
 }
 
@@ -200,6 +199,8 @@ etendue_dim <- coord_ind %>%
   gather(key=dim,value=coordinate,-c(Code_Sp,Lifelength)) %>% 
   group_by(dim) %>% 
   summarize(min = min(coordinate),max=max(coordinate)) %>% 
+  filter(!(dim == "LifeForm1")) %>%
+  mutate(min = as.numeric(min),max = as.numeric(max)) %>% 
   mutate(etendue= max-min)
 
 ratio <- etendue_dim %>% 
@@ -258,6 +259,8 @@ etendue_dim <- coord_ind %>%
   gather(key=dim,value=coordinate,-c(Code_Sp,Lifelength)) %>% 
   group_by(dim) %>% 
   summarize(min = min(coordinate),max=max(coordinate)) %>% 
+  filter(!(dim == "LifeForm1")) %>%
+  mutate(min = as.numeric(min),max = as.numeric(max)) %>%
   mutate(etendue= max-min)
 
 ratio <- etendue_dim %>% 
@@ -296,13 +299,24 @@ ggsave("outputs/figures/PCA_natif.png",PCA_nat_boxplot,height = 20, width =20)
 PCA <- ggarrange(PCA_fer12,PCA_nat12,PCA_fer13,PCA_nat13,
           labels = c("A","B","C","D"))
 
-PCA12 <- ggarrange(PCA_fer12,PCA_nat12,
-                 labels = c("A","B"))
+rapport <- 1
+PCA12 <- ggarrange(PCA_fer12 +
+                     theme(legend.position = "none") +
+                     xlim(c(-4,7)) + 
+                     ylim(c(-4,6))  +
+                     coord_fixed(ratio = rapport),
+                   PCA_nat12 +
+                     xlim(c(-4,7))+ 
+                     ylim(c(-4,6)) +
+                     coord_fixed(ratio = rapport),
+                 labels = c("A","B"),
+                 height = 6)
+PCA12
 
 ggsave("draft/PCA_annuals_perennials.png",PCA12,height = 20, width =20)
 
 # iv) ANOVA Position on axes ####
-dimension <- 1
+dimension <- 2
 anov_dim <- compute_anova_dim_x(coord_ind,dimension)
 
 par(mfrow=c(2,2)) ; plot(anov_dim) # diagnostic_graphs
@@ -802,6 +816,8 @@ relat_sla_ldmc <- ggplot(MEAN,aes(x=LDMC,y=SLA,color = LifeHistory))+
 
 ggsave("outputs/figures/Appendix/Relationship_SLA_LDMC.jpg",relat_sla_ldmc)
 
+ggplot(MEAN,aes(x=log(SeedMass),y=LDMC,color = LifeHistory))+
+  geom_point()
 
 #_______________________________________________________
 # Comparison of perennials ####
