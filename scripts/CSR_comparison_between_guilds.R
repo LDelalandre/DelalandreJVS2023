@@ -3,15 +3,17 @@ source("scripts/Packages.R")
 ab_fer <- read.csv2("outputs/data/abundance_fertile.csv")
 ab_nat <- read.csv2("outputs/data/abundance_natif.csv")
 
-MEAN_CSR <- read.csv2("outputs/data/Pierce CSR/Traits_mean_sp_per_trtmt_completed.csv",dec=",") %>% 
+# MEAN_CSR <- read.csv2("outputs/data/Pierce CSR/Traits_mean_sp_per_trtmt_completed.csv",dec=",") %>% 
   
-  # merge(name_LH,by="Code_Sp") %>% 
-  # relocate(C,S,R) %>% 
-  mutate(C=str_replace(C,",",".") %>% as.numeric())%>% 
-  mutate(S=str_replace(S,",",".") %>% as.numeric())%>% 
-  mutate(R=str_replace(R,",",".") %>% as.numeric())
+  ## merge(name_LH,by="Code_Sp") %>%
+  ## relocate(C,S,R) %>%
+  # mutate(C=str_replace(C,",",".") %>% as.numeric())%>% 
+  # mutate(S=str_replace(S,",",".") %>% as.numeric())%>% 
+  # mutate(R=str_replace(R,",",".") %>% as.numeric())
 
-MEAN_CSR_shallow <- read.csv2("outputs/data/Pierce CSR/Traits_mean_sp_per_trtmt_subset_nat_sab_completed.csv",dec=",",fileEncoding="latin1") %>% 
+MEAN_CSR_shallow <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_completed_seed_mass.csv",
+                              dec=",",
+                              encoding="latin1") %>% 
   # merge(name_LH,by="Code_Sp") %>% 
   # relocate(C,S,R) %>% 
   # mutate(C=str_replace(C,",",".") %>% as.numeric())%>% 
@@ -48,8 +50,7 @@ variable_labeller <- function(variable,value){
 #   facet_wrap(~zone,labeller=variable_labeller) 
 #   # geom_line(aes(group = score,code_sp),position = position_dodge(width = .75))
   
-# boxplot_CSR_shallow <- 
-MEAN_CSR_shallow %>% 
+boxplot_CSR_shallow <- MEAN_CSR_shallow %>%
   select(code_sp,treatment,LifeHistory,C,S,R) %>%
   gather(key = score, value = value, -c(code_sp, LifeHistory,treatment)) %>% 
   # filter(score == "C") %>%
@@ -63,7 +64,7 @@ MEAN_CSR_shallow %>%
   ylab("Score (%)")+
   theme(axis.title.x=element_blank())+
   geom_boxplot() +
-  geom_point(position = position_dodge(width = .75), aes(color = LifeHistory)) +
+  # geom_point(position = position_dodge(width = .75), aes(color = LifeHistory)) +
   facet_wrap(~score)  +
   scale_fill_manual(values = c("grey", "white")) 
   geom_line(aes(group= grouping))
@@ -331,12 +332,7 @@ summary$coefficients[2,1]
 
 
 ## TESTS PLOTS ####
-MEAN_shallow <- read.csv2("outputs/data/2022_10_24_backup/mean_attribute_per_treatment_subset_nat_sab.csv",
-                          encoding = "latin1") %>% 
-  filter(!is.na(LifeHistory))
-
-
-MEAN_shallow %>% 
+MEAN_CSR_shallow %>% 
   # filter(LifeHistory == "annual") %>%
   filter(treatment%in% c("Nat","Fer")) %>% 
   mutate(zone = if_else(treatment == "Fer", "G+F","GU-S")) %>% 
@@ -347,75 +343,129 @@ MEAN_shallow %>%
   geom_boxplot() +
   geom_point(aes(color = LifeHistory),position = position_dodge(width = .75)) +
   scale_fill_manual(values = c("grey", "white"))
+# extraire la légende !
+
+# Si seulement dans abondance
+data_fer <- MEAN_CSR_shallow %>%
+  filter(code_sp %in% ab_fer$code_sp & treatment == "Fer")
+data_nat <- MEAN_CSR_shallow %>%
+  filter(code_sp %in% ab_nat$code_sp & treatment == "Nat")
+MEAN_CSR_shallow_in_abundance <- rbind(data_fer,data_nat)
 
 
-
-TRAITS <- list(c("LDMC","SLA","L_Area"),
-               c("LCC","LNC"),# "LPC",
-               c("Ldelta13C"),
-               c("Hveg"  ,    "Hrepro"   , "Dmax"  , "Dmin") ,
-               c("Disp"),#,"Mat_Per", #"Mat","Flo",
-               c("SeedMass")
+TRAITS <- c("LDMC","SLA","L_Area",
+"LCC","LNC","Ldelta13C",
+"Hveg"  ,    "Hrepro"   , "Dmax"  , "Dmin" ,
+"Disp",
+"SeedMass",
+"C","S","R"
 )
-trait <- "C"
-
-miny <- min(MEAN_CSR_shallow %>% pull(sym(trait)))
-maxy <- max(MEAN_CSR_shallow %>% pull(sym(trait)))
-
-A <- MEAN_CSR_shallow %>% 
-  filter(LifeHistory == "annual") %>%
-  filter(treatment%in% c("Nat","Fer")) %>% 
-  mutate(zone = if_else(treatment == "Fer", "G+F","GU-S")) %>% 
-
-  ggplot(aes_string(x="zone", y=trait, label = "code_sp",fill = "zone")) +
-  theme_classic()+
-  theme(axis.title.x=element_blank())+
-  # geom_boxplot(aes(color = LifeHistory)) +
-  geom_boxplot()+
-  geom_point(aes(color = LifeHistory),
-             shape = 19,size = 2,
-             position = position_dodge(width = .75)) +
-  scale_fill_manual(values = c("grey", "white")) +
-  # scale_fill_manual(values = c("grey30", "grey80")) +
-  geom_line(aes(group = code_sp),
-            alpha=0.4) + #,color=LifeHistory
-  ylim(c(miny,maxy)) +
-  theme(legend.position="none") +
-  # ggtitle ("annuals")
-  theme(axis.text.x=element_blank(),
-        axis.ticks.x=element_blank() ,
-        axis.title.x = element_blank()
-  )
+# TRAITS <- c("C","S","R")
 
 
-B <- MEAN_CSR_shallow %>% 
-  filter(LifeHistory == "perennial") %>%
+PLOTS <- NULL
+i <- 1
+for (trait in TRAITS){
+  
+  miny <- min(MEAN_CSR_shallow %>% pull(sym(trait)))
+  maxy <- max(MEAN_CSR_shallow %>% pull(sym(trait)))
+  
+  A <- MEAN_CSR_shallow_in_abundance %>% 
+    filter(LifeHistory == "annual") %>%
+    filter(treatment%in% c("Nat","Fer")) %>% 
+    mutate(zone = if_else(treatment == "Fer", "G+F","GU-S")) %>% 
+    
+    ggplot(aes_string(x="zone", y=trait, label = "code_sp",fill = "zone")) +
+    theme_classic()+
+    theme(axis.title.x=element_blank())+
+    # geom_boxplot(aes(color = LifeHistory)) +
+    geom_boxplot()+
+    geom_point(aes(color = LifeHistory),
+               shape = 19,size = 2,
+               position = position_dodge(width = .75)) +
+    scale_fill_manual(values = c("grey", "white")) +
+    # scale_fill_manual(values = c("grey30", "grey80")) +
+    geom_line(aes(group = code_sp),
+              alpha=0.4) + #,color=LifeHistory
+    ylim(c(miny,maxy)) +
+    theme(legend.position="none") +
+    # ggtitle ("annuals")
+    theme(axis.text.x=element_blank(),
+          axis.ticks.x=element_blank() ,
+          axis.title.x = element_blank(),
+          axis.title.y = element_blank()
+    ) +
+    ggtitle(trait)
+  
+  B <- MEAN_CSR_shallow_in_abundance %>% 
+    filter(LifeHistory == "perennial") %>%
+    filter(treatment%in% c("Nat","Fer")) %>% 
+    mutate(zone = if_else(treatment == "Fer", "G+F","GU-S")) %>% 
+    
+    ggplot(aes_string(x="zone", y=trait, label = "code_sp",fill = "zone")) +
+    theme_classic()+
+    theme(axis.title.x=element_blank())+
+    # geom_boxplot(aes(color = LifeHistory)) +
+    geom_boxplot() +
+    geom_point(aes(color = LifeHistory),
+               shape = 17, size = 2,
+               position = position_dodge(width = .75)) +
+    # scale_fill_manual(values = c("grey30", "grey80")) +
+    scale_fill_manual(values = c("grey", "white")) +
+    geom_line(aes(group = code_sp),
+              alpha = 0.4) + #,color=LifeHistory
+    scale_color_manual(values = "#00BFC4") +
+    ylim(c(miny,maxy))+
+    theme(legend.position="none") +
+    ggeasy::easy_remove_y_axis()+
+    # ggtitle("perennials") 
+    theme(axis.text.x=element_blank(),
+          axis.ticks.x=element_blank() ,
+          axis.title.x = element_blank(),
+          axis.title.y = element_blank()
+    ) 
+  
+  plot <- ggpubr::ggarrange(A,B)
+  PLOTS[[i]] <- plot
+  i <- i+1
+}
+
+
+# Extract the legend alone, from the data frame of species removal expe
+plot <- MEAN_CSR_shallow_in_abundance %>% 
   filter(treatment%in% c("Nat","Fer")) %>% 
   mutate(zone = if_else(treatment == "Fer", "G+F","GU-S")) %>% 
   
-  ggplot(aes_string(x="zone", y=trait, label = "code_sp",fill = "zone")) +
+  ggplot(aes_string(x="zone", y=trait, label = "code_sp",fill = "zone",shape = "LifeHistory")) +
   theme_classic()+
   theme(axis.title.x=element_blank())+
   # geom_boxplot(aes(color = LifeHistory)) +
   geom_boxplot() +
-  geom_point(aes(color = LifeHistory),
-             shape = 15, size = 2,
+  geom_point(aes(color = LifeHistory,shape = LifeHistory),
+             size = 2,
              position = position_dodge(width = .75)) +
   # scale_fill_manual(values = c("grey30", "grey80")) +
   scale_fill_manual(values = c("grey", "white")) +
-  geom_line(aes(group = code_sp),
-            alpha = 0.4) + #,color=LifeHistory
-  scale_color_manual(values = "#00BFC4") +
-  ylim(c(miny,maxy))+
-  theme(legend.position="none") +
-  ggeasy::easy_remove_y_axis()+
-  # ggtitle("perennials") 
   theme(axis.text.x=element_blank(),
         axis.ticks.x=element_blank() ,
         axis.title.x = element_blank()
   )
 
+leg <- ggpubr::get_legend(plot)
+legend <- ggpubr::as_ggplot(leg)
+# Simplifier la légende 
+# Juste points de couleur pour LifeHistory
+# juste boxplots pour zone
+# Faire des symboles pour les noms de zones
+# Changer le nom LifeHistory
 
-ggpubr::ggarrange(A,B)
 
-# faire une légende à part
+
+boxplot_all_traits <- ggpubr::ggarrange(PLOTS[[1]],PLOTS[[2]],PLOTS[[3]],PLOTS[[4]],PLOTS[[5]],PLOTS[[6]],
+                  PLOTS[[7]],PLOTS[[8]],PLOTS[[9]],PLOTS[[10]],PLOTS[[11]],PLOTS[[12]],
+                  PLOTS[[13]],PLOTS[[14]],PLOTS[[15]],legend)
+
+boxplot_CSR_traits <- ggpubr::ggarrange(PLOTS[[13]],PLOTS[[14]],PLOTS[[15]],legend)
+
+ggsave("draft/boxplot_all_traits.jpg",boxplot_all_traits)
+ggsave("draft/boxplot_CSR_traits.jpg",boxplot_CSR_traits)

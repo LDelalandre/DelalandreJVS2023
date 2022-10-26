@@ -71,8 +71,11 @@ for (i in 2:length(MEAN_list)){
 MEAN$Species <- recode(MEAN$Species,"Festuca christiani-bernardii" = "Festuca christianii-bernardii")
 MEAN2 <- MEAN %>% 
   dplyr::rename(species = Species, code_sp = Code_Sp, treatment = Trtmt) %>% 
-  filter(!(species %in% c("Carex humilis?","Carex sp.","Geranium dissectum - petiole","Geranium dissectum - limbe"))) %>% 
-  filter(!(treatment %in% c("Tem","Che")))
+  filter(!(species %in% c("Carex humilis?","Carex sp.","Geranium dissectum - petiole","	
+Geranium dissectum - pétiole","Geranium dissectum - limbe"))) %>% 
+  filter(!(treatment %in% c("Tem","Che"))) %>% 
+  mutate(LDMC = LDMC/10) %>% # good dunits for CSR ()
+  mutate(L_Area = L_Area*100) # good units for CSR
 
 if(take_nat_sab_only == F){
   write.csv2(MEAN2,"outputs/data/mean_attribute_per_treatment.csv",row.names=F)

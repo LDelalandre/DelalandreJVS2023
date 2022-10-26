@@ -4,13 +4,14 @@ library(ggrepel)
 library(gridExtra)
 library(ggpubr)
 
+
 MEAN_no_subset <- read.csv2("outputs/data/mean_attribute_per_treatment.csv",encoding = "latin1") %>%
   filter(!is.na(SLA)) %>%
   filter(!(LifeForm1 %in% c("DPh","EPh")))%>% 
   filter(!(species== "Geranium dissectum - pétiole")) 
 # keep only traits measured in the Nat_Sab
 # = compare trait values in Nat_Sab and in fertile
-MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab.csv")%>%
+MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_completed.csv")%>%
   filter(!is.na(SLA)) %>% 
   filter(!(species== "Geranium dissectum - pétiole"))
 
@@ -54,6 +55,8 @@ mod$coefficients
 sum$adj.r.squared
 # " OU BIEN: regarder la masse des graines comme une fonction des espèces et du traitement
 # pour montrer que la donnée espèce explique une part de variance bien plus grande
+
+write.csv2(MEAN,"outputs/data/mean_attribute_per_treatment_subset_nat_sab_completed_seed_mass.csv")
 #_____________________________________________
 
 traits <- c("LDMC","SLA","L_Area",
@@ -165,12 +168,27 @@ draw_curve <- function(x,a=113000,b=-1.58){ # to link SLA to LDMC (papier Eric)
 
 # 1) PCA comparing annuals and perennial ####
 
+ab_fer <- read.csv2("outputs/data/abundance_fertile.csv") %>% 
+  rename(line = id_transect_quadrat)
+ab_nat <- read.csv2("outputs/data/abundance_natif.csv") 
+
 data_traits_for_PCA <- MEAN %>% 
   select(!!c("code_sp","treatment",traits)) %>%  # subset of the traits that I want of analyse
   group_by(code_sp,treatment) %>% 
-  summarise(across(all_of(traits), mean, na.rm= TRUE))
+  summarise(across(all_of(traits), mean, na.rm= TRUE)) 
 # NB : des fois, certaines espèces ont le même code, mais pas le même nom d'espèce.
 # Il faut que je règle ça en faisant la moyenne dès  le départ (dans le script sur les traits)
+
+## SI ANALYSE DE SENSIBILITE AUX ESPECES ####
+# pour analyse avec sp dans relevés bota
+
+# data_fer <- data_traits_for_PCA %>%
+#   filter(code_sp %in% ab_fer$code_sp & treatment == "Fer")
+# data_nat <- data_traits_for_PCA %>%
+#   filter(code_sp %in% ab_nat$code_sp & treatment == "Nat")
+# data_traits_for_PCA <- rbind(data_fer,data_nat)
+
+## SI ANALYSE SENSIBILITE AUX TRAITS ####
 
 # i) Fertile ####
 trtmt <- "Fer"
@@ -316,7 +334,7 @@ PCA12
 ggsave("draft/PCA_annuals_perennials.png",PCA12,height = 20, width =20)
 
 # iv) ANOVA Position on axes ####
-dimension <- 2
+dimension <- 1
 anov_dim <- compute_anova_dim_x(coord_ind,dimension)
 
 par(mfrow=c(2,2)) ; plot(anov_dim) # diagnostic_graphs
