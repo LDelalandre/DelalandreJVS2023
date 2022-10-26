@@ -357,12 +357,12 @@ TRAITS <- list(c("LDMC","SLA","L_Area"),
                c("Disp"),#,"Mat_Per", #"Mat","Flo",
                c("SeedMass")
 )
-trait <- "SeedMass"
+trait <- "C"
 
-miny <- min(MEAN_shallow %>% pull(sym(trait)))
-maxy <- max(MEAN_shallow %>% pull(sym(trait)))
+miny <- min(MEAN_CSR_shallow %>% pull(sym(trait)))
+maxy <- max(MEAN_CSR_shallow %>% pull(sym(trait)))
 
-A <- MEAN_shallow %>% 
+A <- MEAN_CSR_shallow %>% 
   filter(LifeHistory == "annual") %>%
   filter(treatment%in% c("Nat","Fer")) %>% 
   mutate(zone = if_else(treatment == "Fer", "G+F","GU-S")) %>% 
@@ -386,9 +386,9 @@ A <- MEAN_shallow %>%
         axis.ticks.x=element_blank() ,
         axis.title.x = element_blank()
   )
-A
 
-B <- MEAN_shallow %>% 
+
+B <- MEAN_CSR_shallow %>% 
   filter(LifeHistory == "perennial") %>%
   filter(treatment%in% c("Nat","Fer")) %>% 
   mutate(zone = if_else(treatment == "Fer", "G+F","GU-S")) %>% 

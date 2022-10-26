@@ -1,6 +1,5 @@
 library(tidyverse)
 
-MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab.csv") #_subset_nat_sab
 MEAN_no_subset <- read.csv2("outputs/data/mean_attribute_per_treatment.csv")%>%
   filter(!is.na(SLA)) %>% 
   filter(!(LifeForm1 %in% c("DPh","EPh")))%>% 
@@ -9,11 +8,41 @@ MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab.csv"
   filter(!is.na(SLA)) %>% 
   filter(!(species== "Geranium dissectum - pétiole"))
 
-trait_unit <- read.csv2("data/trait_unit.csv")
+trait_unit <- read.csv2("data/trait_unit.csv",encoding = "latin1")
 
 # " bidouille seed_mass"
+# Je prends la masse des graines dans GUD et GUI pour avoir celle de GUS
 MEAN_no_subset_seed_mass <-  MEAN_no_subset %>% 
-  select(code_sp,treatment,SeedMass)
+  select(code_sp,LifeForm1,treatment,SeedMass)
+
+sp1 <- MEAN %>% 
+  select(code_sp,LifeForm1,treatment,SeedMass) %>% 
+  filter(!(LifeForm1=="The")) %>% 
+  filter(treatment =="Nat") %>% 
+  filter(!is.na(SeedMass)) %>% 
+  pull(code_sp)
+
+sp2 <- MEAN_no_subset_seed_mass %>% 
+  filter(!(LifeForm1=="The"&treatment =="Nat")) %>% 
+  filter(!is.na(SeedMass)) %>% 
+  pull(code_sp)
+
+dim(sp1)
+dim(sp2)
+setdiff(sp1,sp2) # we have seed mass in GUS but not in GUI and GUD
+setdiff(sp2,sp1) # we have seed mass in GUI and GUD, but not in GUS
+
+MEAN %>% 
+  filter(LifeHistory=="annual") %>% 
+  filter(treatment == "Nat") %>% 
+  filter(!is.na(SeedMass)) %>% 
+  select(code_sp,SeedMass) 
+
+MEAN_no_subset_seed_mass %>%
+  filter(LifeForm1=="The") %>% 
+  filter(treatment=="Nat") %>% 
+  filter(!is.na(SeedMass)) %>% 
+  select(code_sp,SeedMass) 
 
 MEAN <- MEAN %>% 
   select(-SeedMass) %>% 
@@ -24,7 +53,7 @@ annuals_measured <- MEAN %>%
   select(species) %>% 
   unique()
 
-write.csv2(annuals_measured,"outputs/data/annuals_measured.csv",row.names=F)
+# write.csv2(annuals_measured,"outputs/data/annuals_measured.csv",row.names=F)
 
 traits <- c("LDMC","SLA","L_Area",
             "LCC","LNC","Ldelta13C",#"LPC",
@@ -36,6 +65,11 @@ traits <- c("LDMC","SLA","L_Area",
 ab_fer <- read.csv2("outputs/data/abundance_fertile.csv") %>% 
   rename(line = id_transect_quadrat)
 ab_nat <- read.csv2("outputs/data/abundance_natif.csv") 
+
+ab_nat %>% group_by(paddock,depth,line) %>% 
+  summarize(n=n())
+
+ab_nat %>% filter(depth == "S") %>% pull(Ligne) %>% unique() %>% length
 
 ab_fer_ann <- ab_fer %>% 
   filter(LifeForm1 == "The")
@@ -74,6 +108,7 @@ relat_ab_fer_ann <- ab_fer_ann %>%
   mutate(sp_relat_abundance = sp_abundance/sum(sp_abundance))
 
 # Nat
+# Regional relative abundance in GUS
 tot_contact_nat <- ab_nat %>%
   filter(depth == "S") %>% 
   pull(abundance) %>% 
@@ -107,14 +142,16 @@ for (ftrait in traits){
   trait_available_nat <- MEAN %>% # or MEAN_annual
     filter(treatment=="Nat") %>% 
     mutate(trait = get(ftrait)) %>%  # choose the trait here
-    select(species,code_sp,trait) %>% 
+    select(species,code_sp,trait,LifeHistory) %>% 
     full_join(relat_ab_nat,by=c("species","code_sp")) %>%  # or relat_ab_nat_ann
+    
+    filter(!(LifeHistory=="annual")) %>% # /!\ only for relative abundance of annuals !!
     
     mutate(sp_relat_abundance = sp_abundance/sum(sp_abundance,na.rm=T)) %>% 
     
     mutate(trait_available = if_else(is.na(trait),"no","yes")) %>%
     # mutate(trait_available = if_else(trait==0,"no","yes")) %>% 
-    select(species,code_sp,trait_available,sp_relat_abundance) %>% 
+    select(species,code_sp,trait_available,sp_relat_abundance,LifeHistory) %>% 
     replace(is.na(.),0)
   # 
   # trait_available_nat %>%
@@ -134,6 +171,9 @@ for (ftrait in traits){
   if (is.null(Tnat$yes) ){ 
     Tnat$yes <- 0
   }
+  if (is.null(Tnat$no) ){ 
+    Tnat$no <- 0
+  }
   
   Tnat <- Tnat %>% select(all_of(c("trait","treatment","yes","no")))
   
@@ -142,8 +182,10 @@ for (ftrait in traits){
   trait_available_fer <- MEAN %>% # or MEAN_annual
     filter(treatment=="Fer") %>% 
     mutate(trait = get(ftrait)) %>%  # choose the trait here
-    select(species,code_sp,trait) %>% 
+    select(species,LifeHistory,code_sp,trait) %>% 
     full_join(relat_ab_fer,by=c("species","code_sp")) %>% # or relat_ab_fer_ann
+    
+    filter(!(LifeHistory=="annual")) %>% # /!\ only for relative abundance of annuals !!
     
     mutate(sp_relat_abundance = sp_abundance/sum(sp_abundance,na.rm=T)) %>%
     
@@ -164,6 +206,10 @@ for (ftrait in traits){
     mutate(trait = ftrait) %>% 
     mutate(treatment = "Fer")
   
+  if (is.null(Tfer$no) ){ 
+    Tfer$no <- 0
+  }
+  
   Tfer <- Tfer %>% select(all_of(c("trait","treatment","yes","no")))
   
   traits_abundance_coverage <- rbind(traits_abundance_coverage, Tnat )
@@ -171,10 +217,10 @@ for (ftrait in traits){
 }
 
 
-traits_abundance_coverage %>% 
-  ggplot(aes(x=trait,y=yes))+
-  geom_point() +
-  facet_wrap(~treatment)
+# traits_abundance_coverage %>% 
+#   ggplot(aes(x=trait,y=yes))+
+#   geom_point() +
+#   facet_wrap(~treatment)
 
 
 table_trait_coverage <- traits_abundance_coverage %>% 
@@ -192,7 +238,9 @@ table_trait_coverage <- traits_abundance_coverage %>%
 table_trait_coverage 
 
 
-cat(table_trait_coverage, file = "draft/cover_traits_all_lifeforms.doc")
+# cat(table_trait_coverage, file = "draft/cover_traits_all_lifeforms.doc")
+# cat(table_trait_coverage, file = "draft/cover_traits_annuals.doc")
+# cat(table_trait_coverage, file = "draft/cover_traits_perennials_approx_SM.doc")
 
 
 # Species in the abundance, but not in the trait, data? ####
