@@ -105,7 +105,7 @@ plot_pca <- function(coord_ind,coord_var,DimA,DimB,var.explain.dimA,var.explain.
     geom_hline(aes(yintercept=0), size=.2,linetype="longdash") + 
     geom_vline(aes(xintercept = 0),linetype = "longdash", size=.2)+
     coord_equal() +
-    geom_point(size=4) +
+    geom_point(size=4,aes(shape = Lifelength)) +
     geom_segment(data=coord_var, aes(x=0, y=0, xend=get(DimA)*5.5-0.2, yend=get(DimB)*5.5-0.2), 
                  arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
     geom_text_repel(data=coord_var, aes(x=get(DimA)*5.5, get(DimB)*5.5, label=rowname), size = 6, vjust=1, color="black") +
@@ -182,11 +182,11 @@ data_traits_for_PCA <- MEAN %>%
 ## SI ANALYSE DE SENSIBILITE AUX ESPECES ####
 # pour analyse avec sp dans relevés bota
 
-# data_fer <- data_traits_for_PCA %>%
-#   filter(code_sp %in% ab_fer$code_sp & treatment == "Fer")
-# data_nat <- data_traits_for_PCA %>%
-#   filter(code_sp %in% ab_nat$code_sp & treatment == "Nat")
-# data_traits_for_PCA <- rbind(data_fer,data_nat)
+data_fer <- data_traits_for_PCA %>%
+  filter(code_sp %in% ab_fer$code_sp & treatment == "Fer")
+data_nat <- data_traits_for_PCA %>%
+  filter(code_sp %in% ab_nat$code_sp & treatment == "Nat")
+data_traits_for_PCA <- rbind(data_fer,data_nat)
 
 ## SI ANALYSE SENSIBILITE AUX TRAITS ####
 
@@ -233,7 +233,8 @@ PCA_fer12 <- plot_pca(coord_ind,coord_var,DimA=Dim.A,DimB=Dim.B ,Var.A,Var.B ) +
 
 PCA_fer13 <- plot_pca(coord_ind,coord_var,DimA=Dim.A,DimB= "Dim.3" ,Var.A,var.explain.dim3 ) +
   ggtitle((expression(paste("G"^'+',"F",sep=''))))+
-  coord_fixed(ratio = ratio$ratio13)
+  coord_fixed(ratio = ratio$ratio13) 
+  
 
 PCA_fer12
 PCA_fer13
@@ -317,21 +318,31 @@ ggsave("outputs/figures/PCA_natif.png",PCA_nat_boxplot,height = 20, width =20)
 PCA <- ggarrange(PCA_fer12,PCA_nat12,PCA_fer13,PCA_nat13,
           labels = c("A","B","C","D"))
 
+
+
+# Extract the legend alone, from the data frame of species removal expe
+leg <- ggpubr::get_legend(PCA_fer12)
+legend <- ggpubr::as_ggplot(leg)
+
 rapport <- 1
-PCA12 <- ggarrange(PCA_fer12 +
-                     theme(legend.position = "none") +
+PCA12 <- ggarrange( PCA_fer12 +
+                     theme(legend.position = c(0.9,0.9)) +
                      xlim(c(-4,7)) + 
                      ylim(c(-4,6))  +
-                     coord_fixed(ratio = rapport),
+                     coord_fixed(ratio = rapport) ,
                    PCA_nat12 +
+                     theme(legend.position = "none") +
                      xlim(c(-4,7))+ 
                      ylim(c(-4,6)) +
                      coord_fixed(ratio = rapport),
+                   # legend,
                  labels = c("A","B"),
-                 height = 6)
+                 height = 6,
+                 row = 1)
 PCA12
 
 ggsave("draft/PCA_annuals_perennials.png",PCA12,height = 20, width =20)
+ggsave("draft/PCA_annuals_perennials_legend.png",legend)
 
 # iv) ANOVA Position on axes ####
 dimension <- 1

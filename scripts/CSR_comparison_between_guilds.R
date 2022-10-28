@@ -360,15 +360,76 @@ TRAITS <- c("LDMC","SLA","L_Area",
 "SeedMass",
 "C","S","R"
 )
-# TRAITS <- c("C","S","R")
+TRAITS_CSR <- c("C","S","R")
 
 
 PLOTS <- NULL
 i <- 1
-for (trait in TRAITS){
+for (trait in TRAITS_CSR){
   
-  miny <- min(MEAN_CSR_shallow %>% pull(sym(trait)))
-  maxy <- max(MEAN_CSR_shallow %>% pull(sym(trait)))
+  ## Linear model ####
+  data.anovaCSR <- MEAN_CSR_shallow %>% 
+    select(code_sp,treatment,LifeHistory,C,S,R) %>%
+    # gather(key = score, value = value, -c(code_sp, LifeHistory,treatment)) %>% 
+    filter(treatment%in% c("Nat","Fer"))
+  
+  
+  formula <- as.formula(paste0(trait, " ~ treatment * LifeHistory", " + (1|code_sp)"))
+  formula0 <- as.formula(paste0(trait, " ~ 1 + (1|code_sp)"))
+  
+  if ( length( data.anovaCSR %>% pull(treatment) %>% unique() ) == 2 ){ # if we have data from nat and fer
+    mmod <- lme4::lmer( formula , data = data.anovaCSR) # /!\ choose fdata (includes sp just measured in on treatment)
+    # or fdata2 (sp measured in both treatments only)
+    
+    formula0 <- as.formula(paste0(trait, " ~ 1 + (1|code_sp)"))
+    mmod0 <- lme4::lmer( formula0 , data = data.anovaCSR)
+    # 
+    # formula1 <- as.formula(paste0(trait, " ~ treatment + (1|code_sp)"))
+    # mmod0 <- lme4::lmer( formula0 , data = data.anovaCSR)
+    # anova <- anova(mmod0,mmod)
+    anova(mmod,mmod0)
+    
+    posthoc <- multcomp::cld(emmeans::emmeans(mmod, specs = c("treatment","LifeHistory"),  type = "response",
+                                              adjust = "tuckey"),
+                             Letters = "abcdefghi", details = T)
+    
+    comp <- as.data.frame(posthoc$emmeans) %>% 
+      mutate(treatment = factor(treatment,levels = c("Fer","Nat"))) %>% 
+      mutate(LifeHistory = factor(LifeHistory, levels = c("annual","perennial"))) %>% 
+      arrange(LifeHistory,treatment)
+  }
+  ##########################
+  # formula <- as.formula(paste0(trait,"~treatment * LifeHistory" ))
+  # lmCSR <- lm(formula, data = data.anovaCSR )
+  
+  # par(mfrow=c(2,2)) ; plot(lmCSR) # diagnostic_graphs
+  # par(mfrow= c(1,1)) ; plot(density(residuals(lmCSR))) # normality_graph
+  # shapiro.test(residuals(lmCSR)) # normality of residuals
+  # lmtest::bptest(lmCSR) # homoscedasticity
+  # lmtest::dwtest(lmCSR)  # non-independence of residuals!
+  # anova(lmCSR)
+  # summary(lmCSR)
+  
+  # # specifically test interaction
+  # lmCSR_all <- lm(R ~ treatment * LifeHistory, data = data.anovaCSR )
+  # lmCSR_no_interaction <- lm(R ~ treatment + LifeHistory, data = data.anovaCSR )
+  # anova(lmCSR_all,lmCSR_no_interaction)
+  # summary(lmCSR_all)
+  # 
+  # posthoc <- multcomp::cld(emmeans::emmeans(lmCSR, specs = c("treatment","LifeHistory"),  type = "response",
+  #                                           adjust = "tuckey"),
+  #                          Letters = "abcdefghi", details = T)
+  # 
+  # comp <- as.data.frame(posthoc$emmeans) %>% 
+  #   mutate(treatment = factor(treatment,levels = c("Fer","Nat"))) %>% 
+  #   mutate(LifeHistory = factor(LifeHistory, levels = c("annual","perennial"))) %>% 
+  #   arrange(LifeHistory,treatment)
+  
+  ## plot ####
+  miny <- min(MEAN_CSR_shallow_in_abundance %>% pull(sym(trait)))
+  maxydata <- max(MEAN_CSR_shallow_in_abundance %>% pull(sym(trait)))
+  
+  maxy <- maxydata + (maxydata - miny)/10
   
   A <- MEAN_CSR_shallow_in_abundance %>% 
     filter(LifeHistory == "annual") %>%
@@ -395,7 +456,9 @@ for (trait in TRAITS){
           axis.title.x = element_blank(),
           axis.title.y = element_blank()
     ) +
-    ggtitle(trait)
+    annotate("text", x = 1, y=maxy, label = comp[1,]$.group)+ 
+    annotate("text", x = 2, y=maxy, label = comp[2,]$.group) 
+    # annotate("text", x = 2, y=maxy + maxy/10, label = trait) 
   
   B <- MEAN_CSR_shallow_in_abundance %>% 
     filter(LifeHistory == "perennial") %>%
@@ -423,12 +486,22 @@ for (trait in TRAITS){
           axis.ticks.x=element_blank() ,
           axis.title.x = element_blank(),
           axis.title.y = element_blank()
-    ) 
+    ) + 
+    annotate("text", x = 1, y=maxy, label = comp[3,]$.group)+ 
+    annotate("text", x = 2, y=maxy, label = comp[4,]$.group)
   
-  plot <- ggpubr::ggarrange(A,B)
+  # Create a text grob (for the title = trait name)
+  tgrob <- text_grob(trait,size = 10)
+  # Draw the text
+  plot_0 <- as_ggplot(tgrob) + theme(plot.margin = margin(0,3,0,0, "cm"))
+  
+  plot <- ggpubr::ggarrange(plot_0,NULL,A, B,
+            ncol = 2,nrow = 2,heights = c(1,5))
   PLOTS[[i]] <- plot
   i <- i+1
 }
+
+
 
 
 # Extract the legend alone, from the data frame of species removal expe
@@ -465,7 +538,8 @@ boxplot_all_traits <- ggpubr::ggarrange(PLOTS[[1]],PLOTS[[2]],PLOTS[[3]],PLOTS[[
                   PLOTS[[7]],PLOTS[[8]],PLOTS[[9]],PLOTS[[10]],PLOTS[[11]],PLOTS[[12]],
                   PLOTS[[13]],PLOTS[[14]],PLOTS[[15]],legend)
 
-boxplot_CSR_traits <- ggpubr::ggarrange(PLOTS[[13]],PLOTS[[14]],PLOTS[[15]],legend)
+boxplot_CSR_traits <- ggpubr::ggarrange(PLOTS[[1]],PLOTS[[2]],PLOTS[[3]],legend)
+# boxplot_CSR_traits <- ggpubr::ggarrange(PLOTS[[13]],PLOTS[[14]],PLOTS[[15]],legend)
 
 ggsave("draft/boxplot_all_traits.jpg",boxplot_all_traits)
 ggsave("draft/boxplot_CSR_traits.jpg",boxplot_CSR_traits)
