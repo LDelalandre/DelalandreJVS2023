@@ -81,7 +81,7 @@ annuals <- MEAN %>%
 
 #________________________________________________________________________
 perform_pca <- function(data_traits_for_PCA){
-  ACP1<-PCA(data_traits_for_PCA2,graph = FALSE)
+  ACP1<-PCA(data_traits_for_PCA,graph = FALSE)
   # NB: scale.unit = TRUE by default. Data are thus scaled.
   plot_var_explained <- factoextra::fviz_eig(ACP1, addlabels = TRUE, ylim = c(0, 30)) # percentage of variance explained
   
@@ -100,12 +100,12 @@ perform_pca <- function(data_traits_for_PCA){
 
 plot_pca <- function(coord_ind,coord_var,DimA,DimB,var.explain.dimA,var.explain.dimB){
   # dimA and dimB can be the first and second dimension, or the first and third, etc.
-  ggplot(coord_ind,aes_string(x=DimA,y=DimB,colour="Lifelength"), width = 10, height = 10)+
+  ggplot(coord_ind,aes_string(x=DimA,y=DimB), width = 10, height = 10)+
     theme_classic() +
     geom_hline(aes(yintercept=0), size=.2,linetype="longdash") + 
     geom_vline(aes(xintercept = 0),linetype = "longdash", size=.2)+
     coord_equal() +
-    geom_point(size=4,aes(shape = Lifelength)) +
+    geom_point(size=4,aes(shape = Lifelength,colour=Lifelength)) +
     geom_segment(data=coord_var, aes(x=0, y=0, xend=get(DimA)*5.5-0.2, yend=get(DimB)*5.5-0.2), 
                  arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
     geom_text_repel(data=coord_var, aes(x=get(DimA)*5.5, get(DimB)*5.5, label=rowname), size = 6, vjust=1, color="black") +
@@ -188,19 +188,90 @@ data_nat <- data_traits_for_PCA %>%
   filter(code_sp %in% ab_nat$code_sp & treatment == "Nat")
 data_traits_for_PCA <- rbind(data_fer,data_nat)
 
+
+
+# Clustering ####
+# https://www.statology.org/k-means-clustering-in-r/
+library("cluster")
+library(factoextra)
+
+ftreatment <- "Nat"
+
+data_clustering <- data_traits_for_PCA %>% 
+  filter(treatment == ftreatment) %>% 
+  # mutate(sp_trtmt = paste(code_sp,treatment,sep="_")) %>% 
+  column_to_rownames("code_sp") %>% 
+  select(-c(treatment)) %>% 
+  select(SLA,LDMC,L_Area,LCC,LNC)
+  # select(-c(Ldelta13C,Hrepro,Dmax))
+
+# clustering sur dimensions d'ACP (et ensuite le faire sur traits bruts en annexe)
+data_clustering <- coord_ind %>% 
+  column_to_rownames("Code_Sp") %>% 
+  select(-c(Lifelength,LifeForm1,cluster))
+
+data_clustering2 <- data_clustering %>% 
+  na.omit() %>%
+  scale()
+
+# find the optiomal number of clusters (2 examples)
+fviz_nbclust(data_clustering2, kmeans, method = "wss")
+
+gap_stat <- clusGap(data_clustering2,
+                    FUN = kmeans,
+                    nstart = 25,
+                    K.max = 10,
+                    B = 50)
+fviz_gap_stat(gap_stat)
+
+
+#make this example reproducible
+set.seed(1)
+
+#perform k-means clustering with k = 2 clusters
+km <- kmeans(data_clustering2, centers = 3, nstart = 25)
+
+#view results
+data_clusters <- km$cluster%>% 
+  as.data.frame() %>% 
+  rownames_to_column("code_sp")
+colnames(data_clusters) <- c("code_sp", "cluster")
+data_clusters <- data_clusters%>% 
+  mutate(cluster = as.factor(cluster))
+
+fviz_cluster(km, data = data_clustering2) 
+
+
+
+
 ## SI ANALYSE SENSIBILITE AUX TRAITS ####
 
 # i) Fertile ####
 trtmt <- "Fer"
 data_traits_for_PCA2 <- data_traits_for_PCA %>% 
-  filter(treatment == trtmt) %>% 
+  filter(treatment == trtmt) %>%
   select(-treatment) %>% 
   column_to_rownames("code_sp")
+
+# PCA avec fer et nat
+# data_traits_for_PCA2 <- data_traits_for_PCA %>% 
+#   ungroup() %>% 
+#   mutate(pop = paste(code_sp,treatment,sep="_")) %>% 
+#   select(-c(code_sp,treatment)) %>% 
+#   column_to_rownames("pop")
+
+# coord_ind <- pca_output[[1]] %>% 
+#   separate(col = Code_Sp, into = c("Code_sp","treatment"), sep = "_") %>% 
+#   merge(code_sp_lifeform) %>% 
+#   mutate(LifeLenght = LifeForm1)
+
 
 pca_output <- perform_pca(data_traits_for_PCA2)
 # pca_output[[7]]
 coord_ind <- pca_output[[1]] %>% 
-  merge(code_sp_lifeform,by="Code_Sp")
+  merge(code_sp_lifeform,by="Code_Sp") %>% 
+  merge(data_clusters %>% rename(Code_Sp = code_sp))
+  
 coord_var <- pca_output[[2]]
 var.explain.dim1 <- pca_output[[3]]
 var.explain.dim2 <- pca_output[[4]]
@@ -229,11 +300,23 @@ ratio <- etendue_dim %>%
 dev.off()
 PCA_fer12 <- plot_pca(coord_ind,coord_var,DimA=Dim.A,DimB=Dim.B ,Var.A,Var.B ) +
   ggtitle((expression(paste("G"^'+',"F",sep='')))) +
-  coord_fixed(ratio = ratio$ratio12)
+  # coord_fixed(ratio = ratio$ratio12) +
+  # ggrepel::geom_label_repel(aes(label=Code_Sp)) + theme(legend.position = "none")
+  # ellipse
+  ggforce::geom_mark_ellipse(data = coord_ind,aes(fill = cluster), # ,label = cluster
+                             expand = unit(0.5,"mm"),
+                             label.buffer = unit(-5, 'mm')) +
+  scale_fill_brewer() 
+  # theme(legend.position = "none")
+  # scale_fill_manual( values = c("#9933FF","#33FFFF" ) )
 
 PCA_fer13 <- plot_pca(coord_ind,coord_var,DimA=Dim.A,DimB= "Dim.3" ,Var.A,var.explain.dim3 ) +
   ggtitle((expression(paste("G"^'+',"F",sep=''))))+
-  coord_fixed(ratio = ratio$ratio13) 
+  # coord_fixed(ratio = ratio$ratio13) +
+  ggforce::geom_mark_ellipse(data = coord_ind,aes(fill = cluster), # ,label = cluster
+                             expand = unit(0.5,"mm"),
+                             label.buffer = unit(-5, 'mm')) +
+  scale_fill_brewer() 
   
 
 PCA_fer12
@@ -247,6 +330,17 @@ plot_d2 <- boxplot_dimension(coord_ind,dim = "Dim.2")
 PCA_fer_boxplot <- plot_pca_boxplot(PCA_fer12,plot_d1,plot_d2)
 ggsave("output/figures/PCA_fertile.png",PCA_fer_boxplot,height = 20, width =20)
 
+coord_ind_fer <- coord_ind
+
+
+
+# nb of life hisotries in each cluster
+cont_table <- table(coord_ind$cluster,coord_ind$Lifelength)
+chisq.test(cont_table)
+
+# Fisher’s exact test is an alternative to chi-squared test used mainly when a chi-square 
+# approximation is not satisfactory (i.e., small sample size, and you get the warning message) 
+fisher.test(cont_table)
 
 # ii) Natif ####
 trtmt <- "Nat"
@@ -256,11 +350,13 @@ data_traits_for_PCA2 <- data_traits_for_PCA %>%
   # filter(!(code_sp %in%  c("BROMEREC","POTENEUM"))) %>%  # Ces deux espèces tirent fortement l'ACP ! Pourquoi ?
   column_to_rownames("code_sp") 
 
+# data_traits_for_PCA2 <- data_traits_for_PCA2%>% select(SLA,LNC, L_Area)  # /!\
 
-pca_output <- perform_pca(data_traits_for_PCA2)
+pca_output <- perform_pca(data_traits_for_PCA2 )
 pca_output[[7]]
-coord_ind <- pca_output[[1]]%>% 
-  merge(code_sp_lifeform,by="Code_Sp")
+coord_ind <- pca_output[[1]] %>% 
+  merge(code_sp_lifeform,by="Code_Sp") %>% 
+  full_join(data_clusters %>% rename(Code_Sp = code_sp))
 coord_var <- pca_output[[2]]
 var.explain.dim1 <- pca_output[[3]]
 var.explain.dim2 <- pca_output[[4]]
@@ -289,14 +385,25 @@ ratio <- etendue_dim %>%
          ratio13 = Dim.1/Dim.3)
 
 PCA_nat12 <-coord_ind %>% 
+  filter(!is.na(cluster)) %>% # ATTENTION juste pour simplifier, virer les NA
   plot_pca(coord_var,DimA= Dim.A ,DimB= Dim.B , Var.A,Var.B ) +
   ggtitle((expression(paste("GU"[S],sep='')))) +
-  coord_fixed(ratio = ratio$ratio12)
+  coord_fixed(ratio = ratio$ratio12) +
+  # ellipse
+  ggforce::geom_mark_ellipse(data = coord_ind,aes(fill = cluster), # ,label = cluster
+                             expand = unit(0.5,"mm"),
+                             label.buffer = unit(-5, 'mm')) +
+  scale_fill_brewer() 
 
 PCA_nat13 <-coord_ind %>% 
   plot_pca(coord_var,DimA= Dim.A ,DimB= "Dim.3" , Var.A,var.explain.dim3 ) +
   ggtitle((expression(paste("GU"[S],sep='')))) +
-  coord_fixed(ratio = ratio$ratio13)
+  coord_fixed(ratio = ratio$ratio13)+
+  # ellipse
+  ggforce::geom_mark_ellipse(data = coord_ind,aes(fill = cluster), # ,label = cluster
+                             expand = unit(0.5,"mm"),
+                             label.buffer = unit(-5, 'mm')) +
+  scale_fill_brewer() 
 
 PCA_nat12
 PCA_nat13
@@ -310,6 +417,12 @@ plot_d2 <- boxplot_dimension(coord_ind,dim = "Dim.2")
 PCA_nat_boxplot <- plot_pca_boxplot(PCA_nat12,plot_d1,plot_d2)
 
 ggsave("outputs/figures/PCA_natif.png",PCA_nat_boxplot,height = 20, width =20)
+
+coord_ind_nat <- coord_ind
+
+# nb of life hisotries in each cluster
+cont_table <- table(coord_ind$cluster,coord_ind$Lifelength)
+chisq.test(cont_table)
 
 # iii) Group PCA graphs ####
 # PCA <- grid.arrange(PCA_fer12,PCA_nat12,PCA_fer13,PCA_nat13,
@@ -343,6 +456,30 @@ PCA12
 
 ggsave("draft/PCA_annuals_perennials.png",PCA12,height = 20, width =20)
 ggsave("draft/PCA_annuals_perennials_legend.png",legend)
+
+
+rbind(coord_ind_fer %>% mutate(treatment ="Fer"),
+      coord_ind_nat %>% mutate(treatment = "Nat"))
+
+
+
+plot <- MEAN_CSR_shallow_in_abundance %>% 
+  filter(treatment%in% c("Nat","Fer")) %>% 
+  mutate(zone = if_else(treatment == "Fer", "G+F","GU-S")) %>% 
+  
+  ggplot(aes_string(x="zone", y=trait, label = "code_sp",fill = "zone",shape = "LifeHistory")) +
+  theme_classic()+
+  theme(axis.title.x=element_blank())+
+  # geom_boxplot(aes(color = LifeHistory)) +
+  geom_boxplot() +
+  geom_point(aes(color = LifeHistory,shape = LifeHistory),
+             size = 2,
+             position = position_dodge(width = .75)) +
+  # scale_fill_manual(values = c("grey30", "grey80")) +
+  scale_fill_manual(values = c("grey", "white")) +
+  theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank() ,
+        axis.title.x = element_blank() )
 
 # iv) ANOVA Position on axes ####
 dimension <- 1
@@ -951,3 +1088,4 @@ info_anova[[2]] # homoscedasticity
 info_anova[[3]] # independence of residuals
 info_anova[[4]] # anova
 info_anova[[5]] # summary
+

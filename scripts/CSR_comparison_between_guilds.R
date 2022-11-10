@@ -350,12 +350,13 @@ data_fer <- MEAN_CSR_shallow %>%
   filter(code_sp %in% ab_fer$code_sp & treatment == "Fer")
 data_nat <- MEAN_CSR_shallow %>%
   filter(code_sp %in% ab_nat$code_sp & treatment == "Nat")
-MEAN_CSR_shallow_in_abundance <- rbind(data_fer,data_nat)
+MEAN_CSR_shallow_in_abundance <- rbind(data_fer,data_nat) %>% 
+  mutate(log_L_Area = log(L_Area))
 
 
-TRAITS <- c("LDMC","SLA","L_Area",
+TRAITS <- c("LDMC","SLA","log_L_Area",
 "LCC","LNC","Ldelta13C",
-"Hveg"  ,    "Hrepro"   , "Dmax"  , "Dmin" ,
+"Hrepro"   , "Dmax",
 "Disp",
 "SeedMass",
 "C","S","R"
@@ -365,13 +366,14 @@ TRAITS_CSR <- c("C","S","R")
 
 PLOTS <- NULL
 i <- 1
-for (trait in TRAITS_CSR){
+for (trait in TRAITS){
   
   ## Linear model ####
   data.anovaCSR <- MEAN_CSR_shallow %>% 
-    select(code_sp,treatment,LifeHistory,C,S,R) %>%
+    # select(code_sp,treatment,LifeHistory,C,S,R) %>%
     # gather(key = score, value = value, -c(code_sp, LifeHistory,treatment)) %>% 
-    filter(treatment%in% c("Nat","Fer"))
+    filter(treatment%in% c("Nat","Fer")) %>% 
+    mutate(log_L_Area = log(L_Area))
   
   
   formula <- as.formula(paste0(trait, " ~ treatment * LifeHistory", " + (1|code_sp)"))
@@ -387,16 +389,18 @@ for (trait in TRAITS_CSR){
     # formula1 <- as.formula(paste0(trait, " ~ treatment + (1|code_sp)"))
     # mmod0 <- lme4::lmer( formula0 , data = data.anovaCSR)
     # anova <- anova(mmod0,mmod)
-    anova(mmod,mmod0)
-    
-    posthoc <- multcomp::cld(emmeans::emmeans(mmod, specs = c("treatment","LifeHistory"),  type = "response",
-                                              adjust = "tuckey"),
-                             Letters = "abcdefghi", details = T)
-    
-    comp <- as.data.frame(posthoc$emmeans) %>% 
-      mutate(treatment = factor(treatment,levels = c("Fer","Nat"))) %>% 
-      mutate(LifeHistory = factor(LifeHistory, levels = c("annual","perennial"))) %>% 
-      arrange(LifeHistory,treatment)
+    anov <- anova(mmod,mmod0)
+    if( anov$`Pr(>Chisq)`[2]<0.05 ){
+      posthoc <- multcomp::cld(emmeans::emmeans(mmod, specs = c("treatment","LifeHistory"),  type = "response",
+                                                adjust = "tuckey"),
+                               Letters = "abcdefghi", details = T)
+      
+      comp <- as.data.frame(posthoc$emmeans) %>% 
+        mutate(treatment = factor(treatment,levels = c("Fer","Nat"))) %>% 
+        mutate(LifeHistory = factor(LifeHistory, levels = c("annual","perennial"))) %>% 
+        arrange(LifeHistory,treatment)
+    }
+
   }
   ##########################
   # formula <- as.formula(paste0(trait,"~treatment * LifeHistory" ))
@@ -426,8 +430,8 @@ for (trait in TRAITS_CSR){
   #   arrange(LifeHistory,treatment)
   
   ## plot ####
-  miny <- min(MEAN_CSR_shallow_in_abundance %>% pull(sym(trait)))
-  maxydata <- max(MEAN_CSR_shallow_in_abundance %>% pull(sym(trait)))
+  miny <- min( MEAN_CSR_shallow_in_abundance %>% pull(sym(trait)) , na.rm = T)
+  maxydata <- max(MEAN_CSR_shallow_in_abundance %>% pull(sym(trait)), na.rm = T)
   
   maxy <- maxydata + (maxydata - miny)/10
   
@@ -480,20 +484,20 @@ for (trait in TRAITS_CSR){
     scale_color_manual(values = "#00BFC4") +
     ylim(c(miny,maxy))+
     theme(legend.position="none") +
-    ggeasy::easy_remove_y_axis()+
+    ggeasy::easy_remove_y_axis() +
     # ggtitle("perennials") 
     theme(axis.text.x=element_blank(),
           axis.ticks.x=element_blank() ,
           axis.title.x = element_blank(),
           axis.title.y = element_blank()
-    ) + 
+    )  + 
     annotate("text", x = 1, y=maxy, label = comp[3,]$.group)+ 
     annotate("text", x = 2, y=maxy, label = comp[4,]$.group)
   
   # Create a text grob (for the title = trait name)
-  tgrob <- text_grob(trait,size = 10)
+  tgrob <- ggpubr::text_grob(trait,size = 10)
   # Draw the text
-  plot_0 <- as_ggplot(tgrob) + theme(plot.margin = margin(0,3,0,0, "cm"))
+  plot_0 <- ggpubr::as_ggplot(tgrob) + theme(plot.margin = margin(0,3,0,0, "cm"))
   
   plot <- ggpubr::ggarrange(plot_0,NULL,A, B,
             ncol = 2,nrow = 2,heights = c(1,5))
@@ -536,10 +540,48 @@ legend <- ggpubr::as_ggplot(leg)
 
 boxplot_all_traits <- ggpubr::ggarrange(PLOTS[[1]],PLOTS[[2]],PLOTS[[3]],PLOTS[[4]],PLOTS[[5]],PLOTS[[6]],
                   PLOTS[[7]],PLOTS[[8]],PLOTS[[9]],PLOTS[[10]],PLOTS[[11]],PLOTS[[12]],
-                  PLOTS[[13]],PLOTS[[14]],PLOTS[[15]],legend)
+                  PLOTS[[13]],legend)
 
 boxplot_CSR_traits <- ggpubr::ggarrange(PLOTS[[1]],PLOTS[[2]],PLOTS[[3]],legend)
 # boxplot_CSR_traits <- ggpubr::ggarrange(PLOTS[[13]],PLOTS[[14]],PLOTS[[15]],legend)
 
-ggsave("draft/boxplot_all_traits.jpg",boxplot_all_traits)
+ggsave("draft/boxplot_all_traits.jpg",boxplot_all_traits,width = 14, height = 8)
 ggsave("draft/boxplot_CSR_traits.jpg",boxplot_CSR_traits)
+
+
+
+# Species replacement ####
+ab_ann_nat <- ab_nat %>% filter(LifeHistory == "annual") %>% pull(code_sp) %>% unique()
+ab_per_nat <- ab_nat %>% filter(LifeHistory == "perennial") %>% pull(code_sp) %>% unique()
+ab_ann_fer <- ab_fer %>% filter(LifeForm1== "The") %>% pull(code_sp) %>% unique()
+ab_per_fer <- ab_fer %>% filter(!(LifeForm1== "The")) %>% pull(code_sp) %>% unique()
+
+length(ab_ann_fer)
+length(ab_ann_nat)
+length(intersect(ab_ann_nat,ab_ann_fer))
+
+length(ab_per_fer)
+length(ab_per_nat)
+length(intersect(ab_per_nat,ab_per_fer))
+
+
+platelay <- data.frame(rown = rep(letters[1:8], 4),
+                       coln = rep(1:4,each = 8),
+                       colorvar = rnorm(32, 0.3, 0.2))
+ggplot(platelay,aes(x=rown,y=colorvar,fill=coln)) + 
+  geom_bar(position="dodge",stat="identity")
+
+data.frame(LifeHistory = c("Annual","Annual","Perennial","Perennial"), treatment = c("Fer","Nat","Fer","Nat"), nb_sp = , status # dire si elles sont en commun dans les trtmts ) 
+
+
+ggplot(SUMM3,aes(x=LifeHistory,y=nb_sp,fill=status))+
+  scale_color_manual(values = cols, aesthetics = "fill") +
+  geom_histogram(stat="identity",position = "dodge") +
+  theme(axis.text.x = element_text(angle = 66,hjust=1)) +
+  ylim(c(0,2))+
+  facet_wrap(~site) +
+  geom_text(aes(label=count), vjust=0,position = position_dodge(width = 1)) +
+  labs(fill = "Category of species") +
+  xlab("Property") +
+  ylab("Mean effect of key species") +
+  ggsave(paste0("figures_tables/mean_effect_key_sp.png"),height=7,width=7)

@@ -150,7 +150,8 @@ for (choice_life_history in c("annual","perennial")){
       select(species,code_sp,trait,LifeHistory) %>% 
       full_join(relat_ab_nat,by=c("species","code_sp")) %>%  # or relat_ab_nat_ann
       
-      filter(!(LifeHistory==choice_life_history)) %>% # /!\ only for relative abundance of annuals !!
+      # filter(!(LifeHistory==choice_life_history)) %>% # /!\ only for relative abundance of annuals !!
+      filter(LifeHistory==choice_life_history) %>%
       
       mutate(sp_relat_abundance = sp_abundance/sum(sp_abundance,na.rm=T)) %>% 
       
