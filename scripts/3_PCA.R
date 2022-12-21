@@ -39,6 +39,7 @@ seed_fer_nat <- MEAN_no_subset %>%
   select(code_sp,treatment,all_of(ftrait)) %>% 
   spread(key = treatment,value = ftrait) 
 
+
 seed_fer_nat %>% 
   ggplot(aes(x=log(Fer),y=log(Nat))) +
   # ggplot(aes(x=Fer,y=Nat))+
@@ -105,7 +106,8 @@ plot_pca <- function(coord_ind,coord_var,DimA,DimB,var.explain.dimA,var.explain.
     geom_hline(aes(yintercept=0), size=.2,linetype="longdash") + 
     geom_vline(aes(xintercept = 0),linetype = "longdash", size=.2)+
     coord_equal() +
-    geom_point(size=4,aes(shape = Lifelength,colour=Lifelength)) +
+    # geom_point(size=4,aes(shape = Lifelength,colour=Lifelength)) +
+    geom_point(size=4,aes(shape = LifeForm1,colour=LifeForm1)) +
     geom_segment(data=coord_var, aes(x=0, y=0, xend=get(DimA)*5.5-0.2, yend=get(DimB)*5.5-0.2), 
                  arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
     geom_text_repel(data=coord_var, aes(x=get(DimA)*5.5, get(DimB)*5.5, label=rowname), size = 6, vjust=1, color="black") +
@@ -195,7 +197,7 @@ data_traits_for_PCA <- rbind(data_fer,data_nat)
 library("cluster")
 library(factoextra)
 
-ftreatment <- "Nat"
+ftreatment <- "Fer"
 
 data_clustering <- data_traits_for_PCA %>% 
   filter(treatment == ftreatment) %>% 
@@ -206,15 +208,18 @@ data_clustering <- data_traits_for_PCA %>%
   # select(-c(Ldelta13C,Hrepro,Dmax))
 
 # clustering sur dimensions d'ACP (et ensuite le faire sur traits bruts en annexe)
-data_clustering <- coord_ind %>% 
-  column_to_rownames("Code_Sp") %>% 
-  select(-c(Lifelength,LifeForm1,cluster))
+# data_clustering <- coord_ind %>% 
+#   column_to_rownames("Code_Sp") %>% 
+#   select(-c(Lifelength,LifeForm1,cluster))
 
 data_clustering2 <- data_clustering %>% 
   na.omit() %>%
   scale()
 
+# data_clustering2 <- data_traits_for_PCA2 # celui où j'ai ajouté les moyennes par colonne
+
 # find the optiomal number of clusters (2 examples)
+dev.off()
 fviz_nbclust(data_clustering2, kmeans, method = "wss")
 
 gap_stat <- clusGap(data_clustering2,
@@ -225,11 +230,12 @@ gap_stat <- clusGap(data_clustering2,
 fviz_gap_stat(gap_stat)
 
 
+
 #make this example reproducible
 set.seed(1)
 
 #perform k-means clustering with k = 2 clusters
-km <- kmeans(data_clustering2, centers = 3, nstart = 25)
+km <- kmeans(data_clustering2, centers = 2, nstart = 25)
 
 #view results
 data_clusters <- km$cluster%>% 
@@ -241,17 +247,33 @@ data_clusters <- data_clusters%>%
 
 fviz_cluster(km, data = data_clustering2) 
 
+lifeform_per_cluster <- coord_ind %>% 
+  select(Code_Sp,Lifelength) %>% 
+  rename(code_sp = Code_Sp) %>% 
+  merge(data_clusters)
+# nb of life hisotries in each cluster
+cont_table <- table( lifeform_per_cluster$Lifelength,lifeform_per_cluster$cluster)
+chisq.test(cont_table)
 
+# Fisher’s exact test is an alternative to chi-squared test used mainly when a chi-square 
+# approximation is not satisfactory (i.e., small sample size, and you get the warning message) 
+fisher.test(cont_table)
 
 
 ## SI ANALYSE SENSIBILITE AUX TRAITS ####
 
 # i) Fertile ####
 trtmt <- "Fer"
-data_traits_for_PCA2 <- data_traits_for_PCA %>% 
+data_traits_for_PCA2 <-data_traits_for_PCA %>% 
   filter(treatment == trtmt) %>%
   select(-treatment) %>% 
   column_to_rownames("code_sp")
+
+for(i in 1:ncol(data_traits_for_PCA2)){
+  data_traits_for_PCA2[is.na(data_traits_for_PCA2[,i]), i] <- 
+    mean(data_traits_for_PCA2[,i], na.rm = TRUE)
+}
+
 
 # PCA avec fer et nat
 # data_traits_for_PCA2 <- data_traits_for_PCA %>% 
@@ -342,6 +364,8 @@ chisq.test(cont_table)
 # approximation is not satisfactory (i.e., small sample size, and you get the warning message) 
 fisher.test(cont_table)
 
+
+
 # ii) Natif ####
 trtmt <- "Nat"
 data_traits_for_PCA2 <- data_traits_for_PCA %>% 
@@ -352,11 +376,16 @@ data_traits_for_PCA2 <- data_traits_for_PCA %>%
 
 # data_traits_for_PCA2 <- data_traits_for_PCA2%>% select(SLA,LNC, L_Area)  # /!\
 
+for(i in 1:ncol(data_traits_for_PCA2)){
+  data_traits_for_PCA2[is.na(data_traits_for_PCA2[,i]), i] <- 
+    mean(data_traits_for_PCA2[,i], na.rm = TRUE)
+}
+
 pca_output <- perform_pca(data_traits_for_PCA2 )
 pca_output[[7]]
 coord_ind <- pca_output[[1]] %>% 
-  merge(code_sp_lifeform,by="Code_Sp") %>% 
-  full_join(data_clusters %>% rename(Code_Sp = code_sp))
+  merge(code_sp_lifeform,by="Code_Sp") 
+  # full_join(data_clusters %>% rename(Code_Sp = code_sp))
 coord_var <- pca_output[[2]]
 var.explain.dim1 <- pca_output[[3]]
 var.explain.dim2 <- pca_output[[4]]
@@ -385,14 +414,14 @@ ratio <- etendue_dim %>%
          ratio13 = Dim.1/Dim.3)
 
 PCA_nat12 <-coord_ind %>% 
-  filter(!is.na(cluster)) %>% # ATTENTION juste pour simplifier, virer les NA
+  # filter(!is.na(cluster)) %>% # ATTENTION juste pour simplifier, virer les NA
   plot_pca(coord_var,DimA= Dim.A ,DimB= Dim.B , Var.A,Var.B ) +
   ggtitle((expression(paste("GU"[S],sep='')))) +
   coord_fixed(ratio = ratio$ratio12) +
   # ellipse
-  ggforce::geom_mark_ellipse(data = coord_ind,aes(fill = cluster), # ,label = cluster
-                             expand = unit(0.5,"mm"),
-                             label.buffer = unit(-5, 'mm')) +
+  # ggforce::geom_mark_ellipse(data = coord_ind,aes(fill = cluster), # ,label = cluster
+  #                            expand = unit(0.5,"mm"),
+  #                            label.buffer = unit(-5, 'mm')) +
   scale_fill_brewer() 
 
 PCA_nat13 <-coord_ind %>% 
@@ -1088,4 +1117,124 @@ info_anova[[2]] # homoscedasticity
 info_anova[[3]] # independence of residuals
 info_anova[[4]] # anova
 info_anova[[5]] # summary
+
+
+
+
+
+# Clustering tests ####
+library(cluster)
+ftreatment <- "Nat"
+
+
+  
+data_clustering <- data_traits_for_PCA %>% 
+  filter(treatment == ftreatment) %>% 
+  # mutate(sp_trtmt = paste(code_sp,treatment,sep="_")) %>% 
+  column_to_rownames("code_sp") %>% 
+  select(-c(treatment)) 
+  # select(!!ftrait)
+  # select(SLA,LDMC,L_Area,LCC,LNC)
+# select(c(Ldelta13C,Hrepro,Dmax))
+
+# clustering sur dimensions d'ACP (et ensuite le faire sur traits bruts en annexe)
+# data_clustering <- coord_ind %>% 
+#   column_to_rownames("Code_Sp") %>% 
+#   select(-c(Lifelength,LifeForm1,cluster))
+
+# impute values with mice
+# https://datascienceplus.com/handling-missing-data-with-mice-package-a-simple-approach/
+library(mice)
+init = mice(data_clustering, maxit=0) 
+meth = init$method
+predM = init$predictorMatrix
+
+# predM[, c("BMI")]=0 # I select the BMI variable to not be included as predictor during imputation
+# meth[c("Age")]=""# kip a variable from imputation (e.g. Ager). This variable will be used for prediction.
+
+# meth[(c("SeedMass"))] = "norm"
+# I set different methods for each variable. You can add more than one variable in each method.
+# "norm" ; "logreg" ; "polyreg"
+# set.seed(103)
+imputed = mice(data_clustering, method=meth, predictorMatrix=predM, m=5)
+imputed <- complete(imputed)
+
+imputed_PCA <- data_clustering %>% 
+  mutate_at(vars(colnames(data_clustering)), ~replace_na(.,mean(., na.rm = TRUE)))
+
+
+# clustering
+data_clustering2 <- imputed %>% 
+  na.omit() %>%
+  scale()
+
+#WITH PCA 
+data_clustering2 <- imputed_PCA %>% 
+  scale()
+
+# find the optiomal number of clusters (2 examples)
+fviz_nbclust(data_clustering2, kmeans, method = "wss")
+
+gap_stat <- clusGap(data_clustering2,
+                    FUN = kmeans,
+                    nstart = 25,
+                    K.max = 10,
+                    B = 50)
+fviz_gap_stat(gap_stat)
+
+
+#make this example reproducible
+#perform k-means clustering with k = 2 clusters
+km <- kmeans(data_clustering2, centers = 2, nstart = 25)
+
+#view results
+data_clusters <- km$cluster%>% 
+  as.data.frame() %>% 
+  rownames_to_column("code_sp")
+colnames(data_clusters) <- c("code_sp", "cluster")
+data_clusters <- data_clusters%>% 
+  mutate(cluster = as.factor(cluster))
+
+fviz_cluster(km, data = data_clustering2)
+
+
+
+
+# nb of life hisotries in each cluster
+clust_res <- imputed %>% 
+  na.omit() %>% 
+  rownames_to_column("Code_Sp") %>% 
+  merge(data_clusters %>% rename(Code_Sp = code_sp) ) %>% 
+  merge(code_sp_lifeform) %>% 
+  mutate(Lifehistory = case_when(LifeForm1 == "The" ~ "annual",
+                                 TRUE ~"perennial")) 
+
+
+cont_table <- table(clust_res$cluster,clust_res$Lifehistory)
+# chisq.test(cont_table)
+cont_table
+
+# Fisher’s exact test is an alternative to chi-squared test used mainly when a chi-square 
+# approximation is not satisfactory (i.e., small sample size, and you get the warning message) 
+ftest <- fisher.test(cont_table)
+pval <- ftest$p.value
+ftest
+
+
+cluster_table_nat  <- cont_table %>% 
+  as.data.frame.matrix() %>% 
+  rownames_to_column("cluster") %>% 
+  mutate(p.val = c(round(pval,digits =3),""))
+
+cluster_table <- merge(cluster_table_fer,cluster_table_nat,by="cluster")
+
+TABLE <- cluster_table %>% 
+  kableExtra::kable( escape = F,
+                     col.names = c("Cluster", "Nb of annuals", "Nb of perennials","p.val",
+                                   "Nb of annuals", "Nb of perennials","p.val")) %>%
+  kableExtra::kable_styling("hover", full_width = F) %>% 
+  kableExtra::add_header_above(c(" "=1,"G+F" = 3,"GUS" = 3))
+
+cat(TABLE, file = "draft/clustering.doc")
+
 

@@ -2,45 +2,26 @@
 
 source("scripts/Packages.R")
 
-subset_gt_nat <- T # traits measured in the GUs, not all GU
+subset_gt_nat <- T # traits measured in the GUs and GUi, not all GU
 
 # Load data ####
 ab_fer <- read.csv2("outputs/data/abundance_fertile.csv")
 ab_nat <- read.csv2("outputs/data/abundance_natif.csv")
 
-if(subset_gt_nat == F){
-  MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment.csv")
-}else{
-  MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab.csv")%>%
-    filter(!is.na(SLA))
-}
-
 # Compute CSR scores ####
 # Species level
-MEAN_goodunit <- MEAN %>% 
-  # select(species,code_sp,LifeHistory,LifeForm1,treatment,L_Area,LDMC,SLA) %>% 
-  relocate(species,treatment,code_sp,Form,LifeForm1,LifeHistory,L_Area,LDMC,SLA) %>%
-  mutate(L_Area=L_Area*100) %>% # to change unit from cm² to mm²
-  mutate(LDMC=LDMC/1000*100) %>% # change from mg/g to %
-  filter(!is.na(L_Area)) %>% 
-  filter(!is.na(SLA))
-
-if (subset_gt_nat == F){
-  write.csv2(MEAN_goodunit,"outputs/data/Traits_mean_sp_per_trtmt.csv" ,row.names=F)
-}else{
-  write.csv2(MEAN_goodunit,"outputs/data/Traits_mean_sp_per_trtmt_subset_nat_sab.csv" ,row.names=F)
-}
 
 # -- EXCEL SPREADSHEET -- (manually import and transform data)
 
 # Compute CWM of traits and CSR scores ####
 # I can compute CWM of CSR in the two ways (CWM of traits and CSR, and CSR and CWM of these index).
-
-if (subset_gt_nat == F){
-  MEAN_CSR <- read.csv2("outputs/data/Traits_mean_sp_per_trtmt_completed.csv",dec=",")
+if(subset_gt_nat == F){
+  MEAN_CSR <- read.csv2("outputs/data/mean_attribute_per_treatment_completed.csv")
 }else{
-  MEAN_CSR <- read.csv2("outputs/data/Traits_mean_sp_per_trtmt_subset_nat_sab_completed.csv",dec=",")
-} 
+  MEAN_CSR <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_completed.csv")%>%
+    filter(!is.na(SLA))
+}
+
 
 MEAN_CSR <- MEAN_CSR %>% 
   mutate(C=str_replace(C,",",".") %>% as.numeric())%>% 
@@ -177,3 +158,4 @@ CWM_perennials_nat <- ab_traits_nat %>%
   rename_at( vars( contains( "CWM_") ), list( ~ gsub("CWM_", "", .) ) )
 
 write.csv2(CWM_perennials_nat,"outputs/data/CWM_perennials_nat.csv" ,row.names=F)
+

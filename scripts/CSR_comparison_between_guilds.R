@@ -21,6 +21,11 @@ MEAN_CSR_shallow <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_
   # mutate(R=str_replace(R,",",".") %>% as.numeric()) %>% 
   filter(!(species == "Geranium dissectum - pétiole"))
   
+# Life forms ####
+MEAN_CSR_shallow %>% 
+  filter( (treatment == "Fer" & code_sp %in% ab_fer$code_sp) | (treatment == "Nat" & code_sp %in% ab_nat$code_sp) ) %>% 
+  group_by(treatment,LifeForm1) %>% 
+  summarize(n=n())
 
 
 # CSR ####

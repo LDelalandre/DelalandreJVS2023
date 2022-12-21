@@ -28,7 +28,7 @@ mean_attribute_per_species <- function(dataset,subset_gt_nat = F){
     select(-c(nameOfProject,measurementDeterminedBy,Rep))
   if (subset_gt_nat == T){
     dataset2 <- dataset2 %>% 
-      filter(Treatment %in% c("Fer_Clc","Fer_Dlm","Nat_Sab"))
+      filter(Treatment %in% c("Fer_Clc","Fer_Dlm","Nat_Sab","Nat_Int"))
   }
   
   # Variables on which we want to summarize:
@@ -46,16 +46,16 @@ mean_attribute_per_species <- function(dataset,subset_gt_nat = F){
 # The code below uses the function 'mean_attribute_per_species' to compute mean attributes
 # across all the traits and merges it into one data frame
 
-take_nat_sab_only <-  T
+take_nat_sab_int_only <-  T
 
 # Generate a list of mean attributes per sp*treatment
-MEAN_list <- list( mean_attribute_per_species(LeafMorpho, subset_gt_nat = take_nat_sab_only),
-                   mean_attribute_per_species(LeafCN, subset_gt_nat = take_nat_sab_only),
-                   mean_attribute_per_species(LeafP, subset_gt_nat = take_nat_sab_only),
-                   mean_attribute_per_species(Leaf13C, subset_gt_nat = take_nat_sab_only),
-                   mean_attribute_per_species(Biovolume , subset_gt_nat = take_nat_sab_only), 
-                   mean_attribute_per_species(Pheno, subset_gt_nat = take_nat_sab_only),
-                   mean_attribute_per_species(Seed, subset_gt_nat = take_nat_sab_only) )
+MEAN_list <- list( mean_attribute_per_species(LeafMorpho, subset_gt_nat = take_nat_sab_int_only),
+                   mean_attribute_per_species(LeafCN, subset_gt_nat = take_nat_sab_int_only),
+                   mean_attribute_per_species(LeafP, subset_gt_nat = take_nat_sab_int_only),
+                   mean_attribute_per_species(Leaf13C, subset_gt_nat = take_nat_sab_int_only),
+                   mean_attribute_per_species(Biovolume , subset_gt_nat = take_nat_sab_int_only), 
+                   mean_attribute_per_species(Pheno, subset_gt_nat = take_nat_sab_int_only),
+                   mean_attribute_per_species(Seed, subset_gt_nat = take_nat_sab_int_only) )
 
 
 
@@ -74,12 +74,12 @@ MEAN2 <- MEAN %>%
   filter(!(species %in% c("Carex humilis?","Carex sp.","Geranium dissectum - petiole","	
 Geranium dissectum - pétiole","Geranium dissectum - limbe"))) %>% 
   filter(!(treatment %in% c("Tem","Che"))) %>% 
-  mutate(LDMC = LDMC/10) %>% # good dunits for CSR ()
+  mutate(LDMC = LDMC/10) %>% # good units for CSR ()
   mutate(L_Area = L_Area*100) # good units for CSR
 
-if(take_nat_sab_only == F){
+if(take_nat_sab_int_only == F){
   write.csv2(MEAN2,"outputs/data/mean_attribute_per_treatment.csv",row.names=F)
 } else{
-  write.csv2(MEAN2,"outputs/data/mean_attribute_per_treatment_subset_nat_sab.csv",row.names=F)
+  write.csv2(MEAN2,"outputs/data/mean_attribute_per_treatment_subset_nat_sab_int.csv",row.names=F)
 }
 
