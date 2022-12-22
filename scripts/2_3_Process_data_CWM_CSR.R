@@ -85,7 +85,7 @@ CWM_nat <- CWM_sp_nat %>%
 if(subset_gt_nat == F){
   write.csv2(CWM_nat,"outputs/data/Pierce CSR/Traits_CWM_nat.csv" ,row.names=F)
 }else{
-  write.csv2(CWM_nat,"outputs/data/Pierce CSR/Traits_CWM_subset_nat_sab.csv" ,row.names=F)
+  write.csv2(CWM_nat,"outputs/data/Pierce CSR/Traits_CWM_subset_nat_sab_int.csv" ,row.names=F)
 }
 
 
@@ -93,7 +93,7 @@ if(subset_gt_nat == F){
 # -- EXCEL SPREADSHEET -- (manually import and transform data)
 # NB : CWM_S = CWM of S scores
 # and S_CWM = S computed on CWM of L_Area, SLA, and LDMC scores.
-CWM2_nat <- read.csv2("outputs/data/Pierce CSR/Traits_CWM_nat_completed.csv")
+# CWM2_nat <- read.csv2("outputs/data/Pierce CSR/Traits_CWM_nat_completed.csv")
 
 
 # 2) CWM in the guild of annuals ####

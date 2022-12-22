@@ -4,60 +4,15 @@ library(ggrepel)
 library(gridExtra)
 library(ggpubr)
 
-
-MEAN_no_subset <- read.csv2("outputs/data/mean_attribute_per_treatment.csv",encoding = "latin1") %>%
-  filter(!is.na(SLA)) %>%
-  filter(!(LifeForm1 %in% c("DPh","EPh")))%>% 
-  filter(!(species== "Geranium dissectum - pétiole")) 
 # keep only traits measured in the Nat_Sab
 # = compare trait values in Nat_Sab and in fertile
 MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_completed.csv")%>%
   filter(!is.na(SLA)) %>% 
-  filter(!(species== "Geranium dissectum - pétiole"))
-
-code_sp_lifeform <- MEAN_no_subset %>% 
-  select(code_sp,LifeForm1) %>% 
-  unique() %>% 
-  rename(Code_Sp = code_sp)
-
-# Many species in the data do not appear in the PCA.
-code_sp_lifeform %>% group_by(LifeForm1) %>% summarize(n=n())
-
-#___________________________________________________
-# De la bidouille: j'ajoute la masse des graines des mêmes espèces mesurées dans tout le natif
-# aux traits mesurés dans le GUs (avec l'approx. que la masse individuelle des graines est peu plastique... à tester!!)
-MEAN_no_subset_seed_mass <-  MEAN_no_subset %>% 
-  select(code_sp,treatment,SeedMass)
-
-MEAN <- MEAN %>% 
-  select(-SeedMass) %>% 
-  merge(MEAN_no_subset_seed_mass, by = c("code_sp","treatment"))
-
-# test de la validité de la bidouille
-ftrait <- "SeedMass"
-seed_fer_nat <- MEAN_no_subset %>% 
-  select(code_sp,treatment,all_of(ftrait)) %>% 
-  spread(key = treatment,value = ftrait) 
+  filter(!(species== "Geranium dissectum - pétiole")) %>% 
+  filter(!species == "Geranium dissectum - pÃ©tiole")
 
 
-seed_fer_nat %>% 
-  ggplot(aes(x=log(Fer),y=log(Nat))) +
-  # ggplot(aes(x=Fer,y=Nat))+
-  geom_point() +
-  geom_abline(slope = 1,intercept=0) +
-  geom_smooth(method="lm")
 
-mod <- lm(log(Nat) ~ log(Fer), data = seed_fer_nat)
-# plot(mod)
-anova(mod)
-sum <- summary(mod)
-
-mod$coefficients
-sum$adj.r.squared
-# " OU BIEN: regarder la masse des graines comme une fonction des espèces et du traitement
-# pour montrer que la donnée espèce explique une part de variance bien plus grande
-
-write.csv2(MEAN,"outputs/data/mean_attribute_per_treatment_subset_nat_sab_completed_seed_mass.csv")
 #_____________________________________________
 
 traits <- c("LDMC","SLA","L_Area",

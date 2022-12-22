@@ -1,59 +1,12 @@
 library(tidyverse)
+library(dplyr)
+detach("package:MASS")    
 
-MEAN_no_subset <- read.csv2("outputs/data/mean_attribute_per_treatment.csv")%>%
-  filter(!is.na(SLA)) %>% 
-  filter(!(LifeForm1 %in% c("DPh","EPh")))%>% 
-  filter(!(species== "Geranium dissectum - pétiole"))
-MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab.csv")%>%
+MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_completed_seed_mass.csv") %>%
   filter(!is.na(SLA)) %>% 
   filter(!(species== "Geranium dissectum - pétiole"))
 
 trait_unit <- read.csv2("data/trait_unit.csv",encoding = "latin1")
-
-# " bidouille seed_mass"
-# Je prends la masse des graines dans GUD et GUI pour avoir celle de GUS
-MEAN_no_subset_seed_mass <-  MEAN_no_subset %>% 
-  select(code_sp,LifeForm1,treatment,SeedMass)
-
-sp1 <- MEAN %>% 
-  select(code_sp,LifeForm1,treatment,SeedMass) %>% 
-  filter(!(LifeForm1=="The")) %>% 
-  filter(treatment =="Nat") %>% 
-  filter(!is.na(SeedMass)) %>% 
-  pull(code_sp)
-
-sp2 <- MEAN_no_subset_seed_mass %>% 
-  filter(!(LifeForm1=="The"&treatment =="Nat")) %>% 
-  filter(!is.na(SeedMass)) %>% 
-  pull(code_sp)
-
-dim(sp1)
-dim(sp2)
-setdiff(sp1,sp2) # we have seed mass in GUS but not in GUI and GUD
-setdiff(sp2,sp1) # we have seed mass in GUI and GUD, but not in GUS
-
-MEAN %>% 
-  filter(LifeHistory=="annual") %>% 
-  filter(treatment == "Nat") %>% 
-  filter(!is.na(SeedMass)) %>% 
-  select(code_sp,SeedMass) 
-
-MEAN_no_subset_seed_mass %>%
-  filter(LifeForm1=="The") %>% 
-  filter(treatment=="Nat") %>% 
-  filter(!is.na(SeedMass)) %>% 
-  select(code_sp,SeedMass) 
-
-MEAN <- MEAN %>% 
-  select(-SeedMass) %>% 
-  merge(MEAN_no_subset_seed_mass, by = c("code_sp","treatment"))
-
-annuals_measured <- MEAN %>% 
-  filter(LifeHistory=="annual") %>% 
-  select(species) %>% 
-  unique()
-
-# write.csv2(annuals_measured,"outputs/data/annuals_measured.csv",row.names=F)
 
 traits <- c("LDMC","SLA","L_Area",
             "LCC","LNC","Ldelta13C",#"LPC",
