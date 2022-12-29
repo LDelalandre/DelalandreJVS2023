@@ -17,6 +17,7 @@ MEAN_no_subset <- read.csv2("outputs/data/mean_attribute_per_treatment.csv",enco
   filter(!species == "Geranium dissectum - pÃ©tiole") 
 
 
+
 #___________________________________________________
 # Seed Mass ####
 
@@ -41,20 +42,41 @@ MEAN_completed <- MEAN %>%
   rbind(MEAN_fill)
 
 # complete seed mass from fer
+# mean seed mass in fer
 MEAN_fer <- MEAN_completed %>%
   filter( treatment=="Fer") %>% 
   select(code_sp,SeedMass)
 
-MEANnat <- MEAN_completed %>%
-  filter( treatment=="Nat") %>% 
+# add seed mass in fer to missing seed mass in nat
+sp_missing_seed_mass_nat <- MEAN_completed %>% 
+  filter(treatment == "Nat") %>% 
   filter(is.na(SeedMass)) %>% 
+  pull(code_sp)
+
+MEAN_nat <- MEAN_completed %>%
+  filter( treatment=="Nat") %>% 
+  filter(code_sp %in% sp_missing_seed_mass_nat) %>% 
   select(-SeedMass) %>% 
-  merge(MEAN_ann_fer, by = c("code_sp"))
+  left_join(MEAN_fer, by = c("code_sp"))
+
+MEAN_completed2_nat <- MEAN_completed %>% 
+  filter(treatment=="Nat") %>% 
+  filter(!(code_sp %in% MEAN_nat$code_sp)) %>% 
+  rbind(MEAN_nat)
 
 MEAN_completed2 <- MEAN_completed %>% 
-  filter(!(code_sp %in% MEAN_ann_nat)) %>% 
-  rbind(MEAN_ann_nat)
+  filter(treatment %in% "Fer") %>% 
+  rbind(MEAN_completed2_nat)
 
+#___________________________________________________
+# Phenology and height ####
+traits_flore <- read.table("data/traits/flores/TRAIT_ESP_FLORE.txt",header=T) %>% 
+  select(CODE_ESP,FLO_FLORE,FRU_FLORE,H_FLORE) %>% 
+  rename(code_sp = CODE_ESP)
+
+MEAN_completed2_flore <- left_join(MEAN_completed2,traits_flore)
+
+#___________________________________________________
 # test seed mass low plasticity
 ftrait <- "SeedMass"
 seed_fer_nat <- MEAN_no_subset %>% 
@@ -78,4 +100,7 @@ sum$adj.r.squared
 # " OU BIEN: regarder la masse des graines comme une fonction des espèces et du traitement
 # pour montrer que la donnée espèce explique une part de variance bien plus grande
 
-write.csv2(MEAN_completed2,"outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_completed_seed_mass.csv")
+
+write.csv2(MEAN_completed2_flore,
+           "outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_completed_seed_mass_flore.csv",
+           row.names=F)
