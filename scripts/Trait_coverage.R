@@ -1,17 +1,20 @@
 library(tidyverse)
 library(dplyr)
-detach("package:MASS")    
+# detach("package:MASS")    
 
-MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_completed_seed_mass.csv") %>%
+MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_completed_seed_mass_flore.csv") %>%
   filter(!is.na(SLA)) %>% 
   filter(!(species== "Geranium dissectum - pétiole"))
+
+sp_lifeform <- read.csv2("data/species_names_lifehistory.csv") %>% 
+  rename(code_sp = Code_Sp, species= Species)
 
 trait_unit <- read.csv2("data/trait_unit.csv",encoding = "latin1")
 
 traits <- c("LDMC","SLA","L_Area",
             "LCC","LNC","Ldelta13C",#"LPC",
-            "Hrepro"   , "Dmax"  , #    "Dmin" ,"Hveg"  , 
-            "Disp",#"Mat_Per", #"Mat","Flo",
+            "H_FLORE",#"Hrepro"   , "Dmax"  , #    "Dmin" ,"Hveg"  , 
+            "FLO_FLORE", #Disp",#"Mat_Per", #"Mat","Flo",
             "SeedMass"
 )
 
@@ -30,6 +33,113 @@ ab_nat_ann <- ab_nat %>%
   filter(LifeHistory == "annual")
 
 
+#___________________________________________________________
+# Species in the abundance, but not in the trait, data? ####
+# lifehistory == "annual"
+
+FTRAIT <- c("LDMC","LCC","Ldelta13C","H_FLORE","SeedMass")
+FDF <- NULL
+
+for (ftrait in FTRAIT){
+  
+  MEAN_ftrait <- MEAN %>% 
+    filter(!is.na(get(ftrait)))
+  
+  per_ab_fer <- ab_fer %>% 
+    filter(!(LifeForm1=="The")) %>%
+    arrange(code_sp) %>% 
+    pull(code_sp) %>% 
+    unique() 
+  ann_ab_fer <- ab_fer %>% 
+    filter((LifeForm1=="The")) %>% 
+    pull(code_sp) %>% 
+    unique()
+  
+  per_trait_fer <- MEAN_ftrait %>% 
+    filter(!(LifeForm1=="The")) %>% 
+    filter(treatment == "Fer") %>%  
+    pull(code_sp) %>% unique()
+  ann_trait_fer <- MEAN_ftrait %>% 
+    filter((LifeForm1=="The")) %>% 
+    filter(treatment == "Fer") %>%  
+    pull(code_sp) %>% unique()
+  
+  A <- per_ab_fer
+  B <- per_trait_fer
+  
+  A2 <- ann_ab_fer
+  B2 <- ann_trait_fer
+  
+  fer_ab_onlyP <- setdiff(A,B) %>% length() # dans le premier mais pas dans le deuxième
+  fer_trait_onlyP <- setdiff(B,A) %>% length()
+  fer_instersectP <- intersect(A,B) %>% length()
+  
+  fer_ab_onlyA <- setdiff(A2,B2) %>% length() # dans le premier mais pas dans le deuxième
+  fer_trait_onlyA <- setdiff(B2,A2) %>% length()
+  fer_instersectA <- intersect(A2,B2) %>% length()
+  
+  per_ab_nat <- ab_nat %>%   
+    filter(!(LifeForm1=="The")) %>% 
+    filter(depth=="S") %>% 
+    arrange(code_sp) %>%
+    pull(code_sp) %>% unique()
+  ann_ab_nat <- ab_nat %>%   
+    filter((LifeForm1=="The")) %>% 
+    filter(depth=="S") %>% 
+    pull(code_sp) %>% unique()
+  
+  per_trait_nat <- MEAN_ftrait %>%   
+    filter(!(LifeForm1=="The")) %>% 
+    filter(treatment == "Nat") %>%  
+    pull(code_sp) %>% unique()
+  ann_trait_nat <- MEAN_ftrait %>%   
+    filter((LifeForm1=="The")) %>% 
+    filter(treatment == "Nat") %>%  
+    pull(code_sp) %>% unique()
+  
+  C <- ann_ab_nat
+  D <- ann_trait_nat
+  
+  C2 <- per_ab_nat
+  D2<- per_trait_nat
+  
+  nat_ab_onlyP <- setdiff(C,D) %>% length() # dans le premier mais pas dans le deuxième
+  nat_trait_onlyP <- setdiff(D,C) %>% length()
+  nat_instersectP <- intersect(C,D) %>% length()
+  
+  nat_ab_onlyA <- setdiff(C2,D2) %>% length() # dans le premier mais pas dans le deuxième
+  nat_trait_onlyA <- setdiff(D2,C2) %>% length()
+  nat_instersectA <- intersect(C2,D2) %>% length()
+  
+  
+  fdf <- data.frame(trait = ftrait,
+    treatment = c(rep("Fer",2),rep("Nat",2)),
+                    LifeForm1 = c(rep("Per",1),rep("Ann",1),rep("Per",1),rep("Ann",1)),
+                    in_ab_only = c(fer_ab_onlyP,fer_ab_onlyA,nat_ab_onlyP,nat_ab_onlyA) ,
+                    in_trait_only = c(fer_trait_onlyP,fer_trait_onlyA,nat_trait_onlyP,nat_trait_onlyA),
+                    intersect = c(fer_instersectP,fer_instersectA,nat_instersectP,nat_instersectA) ) %>% 
+    mutate(in_traits = in_trait_only + intersect)%>% 
+    mutate(trait_coverage = intersect/(intersect+in_ab_only))
+  
+  FDF <- rbind(FDF,fdf)
+
+}
+
+FDF 
+
+# table à faire
+table_trait_abundance_overlap <- FDF %>% 
+  kableExtra::kable( escape = F,
+                     col.names = c("Trait", "Abbr.", "Unit",
+                                   "Abundance in G+F",
+                                   "Abundance in GUs",
+                                   "Abundance in G+F",
+                                   "Abundance in GUs")) %>%
+  kableExtra::kable_styling("hover", full_width = F) %>% 
+  kableExtra::add_header_above(c(" " = 3,"Annuals" = 2,"Perennials" = 2))
+
+
+#________________________________________________
 # Abundance and trait coverage info together ####
 
 # The regional relative abundance of species (RA) 
@@ -51,14 +161,28 @@ relat_ab_fer <- ab_fer %>%
   group_by(species,code_sp) %>% 
   summarize(sp_abundance = sum(abundance)) %>% 
   ungroup() %>% 
-  mutate(sp_relat_abundance = sp_abundance/sum(sp_abundance))
+  mutate(sp_relat_abundance = sp_abundance/sum(sp_abundance))%>% 
+  left_join(sp_lifeform) %>% 
+  mutate(LifeHistory = if_else(LifeForm1 == "The","annual","perennial")) %>% 
+  #add missing life history (NB: not missing lifeform!!)
+  mutate(LifeHistory = case_when(
+    is.na(LifeHistory) & !(species %in% c("Vicia sativa ssp. sativa","Trifolium stellatum"))~"perennial",
+    is.na(LifeHistory) & species %in% c("Vicia sativa ssp. sativa","Trifolium stellatum") ~ "annual",
+    TRUE ~ LifeHistory))
 
 # Regional relative abundance of each annual species within the annual guild
 relat_ab_fer_ann <- ab_fer_ann %>% 
   group_by(species,code_sp) %>% 
   summarize(sp_abundance = sum(abundance)) %>% 
   ungroup() %>% 
-  mutate(sp_relat_abundance = sp_abundance/sum(sp_abundance))
+  mutate(sp_relat_abundance = sp_abundance/sum(sp_abundance))%>% 
+  left_join(sp_lifeform) %>% 
+  mutate(LifeHistory = if_else(LifeForm1 == "The","annual","perennial")) %>% 
+  #add missing life history (NB: not missing lifeform!!)
+  mutate(LifeHistory = case_when(
+    is.na(LifeHistory) & !(species %in% c("Vicia sativa ssp. sativa","Trifolium stellatum"))~"perennial",
+    is.na(LifeHistory) & species %in% c("Vicia sativa ssp. sativa","Trifolium stellatum") ~ "annual",
+    TRUE ~ LifeHistory))
 
 # Nat
 # Regional relative abundance in GUS
@@ -78,7 +202,9 @@ relat_ab_nat <- ab_nat %>%
   group_by(species,code_sp) %>% 
   summarize(sp_abundance = sum(abundance)) %>% 
   ungroup() %>% 
-  mutate(sp_relat_abundance = sp_abundance/sum(sp_abundance))
+  mutate(sp_relat_abundance = sp_abundance/sum(sp_abundance)) %>% 
+  left_join(sp_lifeform) %>% 
+  mutate(LifeHistory = if_else(LifeForm1 == "The","annual","perennial"))
 
 # Regional relative abundance of each annual species within the annual guild
 relat_ab_nat_ann <- ab_nat_ann %>%
@@ -86,7 +212,9 @@ relat_ab_nat_ann <- ab_nat_ann %>%
   group_by(species,code_sp) %>% 
   summarize(sp_abundance = sum(abundance)) %>% 
   ungroup() %>% 
-  mutate(sp_relat_abundance = sp_abundance/sum(sp_abundance))
+  mutate(sp_relat_abundance = sp_abundance/sum(sp_abundance))%>% 
+  left_join(sp_lifeform) %>% 
+  mutate(LifeHistory = if_else(LifeForm1 == "The","annual","perennial"))
 
 choice_life_history <- "annual"
 
@@ -100,9 +228,13 @@ for (choice_life_history in c("annual","perennial")){
     trait_available_nat <- MEAN %>% # or MEAN_annual
       filter(treatment=="Nat") %>% 
       mutate(trait = get(ftrait)) %>%  # choose the trait here
+      # LES SP AVEC NA POUR LA LIFEFORM ONT LIFEHISTORY = NA !!!!!
+      mutate(LifeHistory = if_else(LifeForm1 == "The","annual","perennial")) %>% 
       select(species,code_sp,trait,LifeHistory) %>% 
-      full_join(relat_ab_nat,by=c("species","code_sp")) %>%  # or relat_ab_nat_ann
-      
+      full_join(relat_ab_nat,by=c("species","code_sp","LifeHistory")) %>%  # or relat_ab_nat_ann
+      # IL FAUT RAJOUTER LIFEHISTORY ICI POUR LES ESPECES AJOUTEES DEPUIS relat_ab_nat
+      # NB: LE FAIRE DIRECTEMENT DANS LE FICHIER D'ABONDANCE ?
+      # Et NA --> 0 en abundance
       # filter(!(LifeHistory==choice_life_history)) %>% # /!\ only for relative abundance of annuals !!
       filter(LifeHistory==choice_life_history) %>%
       
@@ -141,8 +273,10 @@ for (choice_life_history in c("annual","perennial")){
     trait_available_fer <- MEAN %>% # or MEAN_annual
       filter(treatment=="Fer") %>% 
       mutate(trait = get(ftrait)) %>%  # choose the trait here
+      # LES SP AVEC NA POUR LA LIFEFORM ONT LIFEHISTORY = NA !!!!!
+      mutate(LifeHistory = if_else(LifeForm1 == "The","annual","perennial")) %>% 
       select(species,LifeHistory,code_sp,trait) %>% 
-      full_join(relat_ab_fer,by=c("species","code_sp")) %>% # or relat_ab_fer_ann
+      full_join(relat_ab_fer,by=c("species","code_sp","LifeHistory")) %>% # or relat_ab_fer_ann
       
       filter(!(LifeHistory==choice_life_history)) %>% # /!\ only for relative abundance of annuals !!
       
@@ -218,87 +352,4 @@ table_trait_coverage
 cat(table_trait_coverage, file = "draft/cover_traits.doc")
 # cat(table_trait_coverage, file = "draft/cover_traits_annuals.doc")
 # cat(table_trait_coverage, file = "draft/cover_traits_perennials_approx_SM.doc")
-
-
-# Species in the abundance, but not in the trait, data? ####
-
-sp_ab_fer <- ab_fer %>% pull(code_sp) %>% unique()
-sp_trait_fer <- MEAN %>% filter(treatment == "Fer") %>%  pull(code_sp) %>% unique()
-
-setdiff(sp_ab_fer,sp_trait_fer) # dans le premier mais pas dans le deuxième
-setdiff(sp_trait_fer,sp_ab_fer)
-
-
-#_______________________________________________________________________________
-# Mass grave ?
-
-# Coverage for each trait ####
-# For each trait: proportion of the annual species occurring in the trait data for which we have measurement
-trait_unit <- read.csv2("data/trait_unit.csv")
-
-MEAN_annual <- MEAN %>% 
-  filter(LifeHistory=="annual")
-
-MEAN_annuals_coverage_nat <- MEAN_annual %>% 
-  filter(treatment=="Nat") %>% 
-  summarise_each(funs(100*mean(is.na(.)))) %>% # counts the proportion of lines with NAs for each column (= each trait)
-  select(-c(species,treatment,code_sp,Form,LifeHistory,LifeForm1)) %>% 
-  t() %>% 
-  as.data.frame() %>% 
-  rownames_to_column("trait") %>% 
-  mutate(coverage_nat=100 - V1) %>% # 100 - proportion of NAs
-  select(-V1) 
-
-MEAN_annuals_coverage_fer <- MEAN_annual %>% 
-  filter(treatment=="Fer") %>% 
-  summarise_each(funs(100*mean(is.na(.)))) %>% # counts the proportion of lines with NAs for each column (= each trait)
-  select(-c(species,treatment,code_sp,Form,LifeHistory,LifeForm1)) %>% 
-  t() %>% 
-  as.data.frame() %>% 
-  rownames_to_column("trait") %>% 
-  mutate(coverage_fer=100 - V1) %>% 
-  select(-V1)
-
-coverage <- merge(MEAN_annuals_coverage_fer,MEAN_annuals_coverage_nat,by="trait") %>% 
-  arrange(desc(coverage_nat)) %>% 
-  filter(trait %in% traits) 
-write.csv2(coverage,"outputs/data/trait_coverage_annuals.csv",row.names=F)
-
-
-# Species*trtmt not measured ####
-ftrait <- "Hveg"
-
-MEAN_annual %>% 
-  filter(treatment=="Nat") %>% 
-  filter(is.na(get(ftrait))) %>% 
-  arrange(code_sp) %>% 
-  select(code_sp) %>% 
-  unique()
-# Je peux récupérer les données de masse des graines pour 11 espèces du natif. Top !
-
-# Pour les traits phéno et de hauteur, regarder dans quelle mesure on a les annuelles les plus abondantes
-MEAN_annual %>% 
-  filter(treatment=="Fer") %>% 
-  filter(!is.na(Disp)) %>% 
-  arrange(code_sp) %>% 
-  select(code_sp) %>% 
-  unique()
-
-# Relative abundance of annuals is computed for all the transects by dividing the sum of 
-# annuals' abundance by the sum of all abundances.
-# Then, we divide a species' cumulated relative abundance by the cumulated relative abundance of annuals
-relat_ab_fer <- ab_fer_ann %>%
-  mutate(tot_relat_ab = sum(relat_ab)) %>%  # total relative abundance of annuals
-  group_by(species,code_sp) %>% 
-  summarize(sp_relat_ab_fer = sum(relat_ab)/tot_relat_ab) %>% 
-  unique()
-
-relat_ab_nat <- ab_nat_ann %>%
-  mutate(tot_relat_ab = sum(relat_ab)) %>%  # total relative abundance of annuals
-  group_by(species,code_sp) %>% 
-  summarize(sp_relat_ab_nat = sum(relat_ab)/tot_relat_ab) %>% 
-  unique()
-
-# relat_abundances <- full_join(relat_ab_fer,relat_ab_nat,by=c("species","code_sp"))
-
 

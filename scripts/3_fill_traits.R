@@ -76,6 +76,16 @@ traits_flore <- read.table("data/traits/flores/TRAIT_ESP_FLORE.txt",header=T) %>
 
 MEAN_completed2_flore <- left_join(MEAN_completed2,traits_flore)
 
+# check accuracy of estimation by data from flora
+MEAN_completed2_flore %>% 
+  ggplot(aes(x=Hrepro,y=H_FLORE)) + 
+  geom_point()
+
+MEAN_completed2_flore %>% 
+  ggplot(aes(x=disp,y=FRU_FLORE)) + 
+  geom_point()
+
+
 #___________________________________________________
 # test seed mass low plasticity
 ftrait <- "SeedMass"
