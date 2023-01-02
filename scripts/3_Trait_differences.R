@@ -252,6 +252,130 @@ ggsave("draft/boxplot_all_traits.jpg",boxplot_all_traits,width = 14, height = 8)
 
 ## Between lifeforms within treatment ####
 
+
+
+compare_mean <- function(ftrait_big,ftrait_small){ # compare two vectors of trait values
+  # input variables are vectors of trait values for the two sets (the biggest, and the smallest)
+  # (either annual and perennial species within treatment,
+  # or nat and fer within lifeform)
+  nb_bootstrap = 1000
+  vect_difference <- c()
+  for (i in 1:nb_bootstrap){
+    ftrait_subsample <- sample(ftrait_big,size = size)
+    diff <- mean(ftrait_subsample) - mean(ftrait_small)
+    vect_difference <- c(vect_difference,diff)
+  }
+  vect_difference
+}
+
+get_vectors_of_traits <- function(within,MEAN,fvariable){
+  # within is either "lifehistory" or "treatment"
+  # MEAN is the data frame of trait values
+  # "fvariable" is the value of ftreatment or flifehistory, depending on the value of the "within" variable
+  # so it is either "annual" or perennial in one case, or "Nat" or "Fer" in the other
+  if(within=="treatment"){
+    ftreatment <- fvariable
+    
+    # trait values in the two categories (here, treatment)
+    MEAN_ftrait <- MEAN %>% 
+      filter(treatment == ftreatment) %>% 
+      select(code_sp,LifeForm1,treatment,LifeHistory,ftrait) %>% 
+      spread(key = LifeHistory, value = get(ftrait))
+    
+    # vectors of trait values for annuals and perennials
+    ftrait_ann <- MEAN_ftrait %>% 
+      filter(!is.na(annual )) %>% 
+      pull(annual)
+    
+    ftrait_per <- MEAN_ftrait %>% 
+      filter(!is.na(perennial )) %>% 
+      pull(perennial)
+    
+    # subsample the longest trait vector to have the same number of trait values for annuals and perennials
+    size = min(length(ftrait_ann),length(ftrait_per))
+    if (size == length(ftrait_ann)){
+      ftrait_big <- ftrait_per
+      ftrait_small <- ftrait_ann
+      order <- c("big = perennial","small = annual")
+    } else {
+      ftrait_big <- ftrait_ann
+      ftrait_small <- ftrait_per
+      order <- c("big = annual","small = perennial")
+    }
+  }else if(within == "lifehistory") {
+    flifehistory <- fvariable
+    
+    # trait values in the two categories (here, lifeforms)
+    MEAN_ftrait <- MEAN %>% 
+      filter(LifeHistory == flifehistory) %>% 
+      select(code_sp,treatment,ftrait) %>% 
+      spread(key = treatment, value = get(ftrait))
+    
+    # vectors of trait values for nat and fer
+    ftrait_fer <- MEAN_ftrait %>% 
+      filter(!is.na(Fer )) %>% 
+      pull(Fer)
+    
+    ftrait_nat <- MEAN_ftrait %>% 
+      filter(!is.na(Nat )) %>% 
+      pull(Nat)
+    
+    # subsample the longest trait vector to have the same number of trait values for annuals and perennials
+    size = min(length(ftrait_fer),length(ftrait_nat))
+    if (size == length(ftrait_fer)){
+      ftrait_big <- ftrait_nat
+      ftrait_small <- ftrait_fer
+      order <- c("big = Nat","small = Fer")
+    } else {
+      ftrait_big <- ftrait_fer
+      ftrait_small <- ftrait_nat
+      order <- c("big = Fer","small = Nat")
+    }
+  }else{
+    "error, within must be either lifehistory or treatment"
+  }
+  list(fvariable,order,ftrait_big,ftrait_small)
+}
+
+
+
+ftrait <- "LDMC" # choose the trait
+
+# have the distribution of difference for the two groups of traits with subsampling
+WITHIN <- c("lifehistory","treatment")
+LIFEHISTORY <-  c("annual","perennial")
+TREATMENT <-  c("Fer","Nat")
+
+
+within <- WITHIN[2]
+flifehistory <-  LIFEHISTORY[1] # if I compare treatments
+ftreatment <- TREATMENT[2] # if I compare lifehistory
+
+if(within=="treatment"){
+  fvariable <- ftreatment
+}else{
+  fvariable <- flifehistory
+}
+vectors_of_traits <- get_vectors_of_traits(within,MEAN,fvariable)
+vectors_of_traits[[1]]
+vectors_of_traits[[2]]
+ftrait_big <- vectors_of_traits[[3]]
+ftrait_small <- vectors_of_traits[[4]]
+
+set.seed(100)
+vect_difference <- compare_mean(ftrait_big,ftrait_small)
+data.frame(diff = vect_difference) %>% 
+  ggplot(aes(x=diff)) +
+  geom_density()
+    
+
+
+
+
+# diff is the effect size (correct it for small sample sizes, cf. garnier 2019 (Flora)?)
+
+  
+
 ## Between treatments within lifeform ####
 
 
