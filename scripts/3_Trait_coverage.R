@@ -97,11 +97,13 @@ for (ftrait in FTRAIT){
     filter(treatment == "Nat") %>%  
     pull(code_sp) %>% unique()
   
-  C <- ann_ab_nat
-  D <- ann_trait_nat
+  C <- per_ab_nat
+  D<- per_trait_nat
   
-  C2 <- per_ab_nat
-  D2<- per_trait_nat
+  C2 <- ann_ab_nat
+  D2 <- ann_trait_nat
+  
+
   
   nat_ab_onlyP <- setdiff(C,D) %>% length() # dans le premier mais pas dans le deuxième
   nat_trait_onlyP <- setdiff(D,C) %>% length()

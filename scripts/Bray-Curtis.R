@@ -9,6 +9,7 @@ ab_fer <- read.csv2("outputs/data/abundance_fertile.csv") %>%
 
 ab_nat <- read.csv2("outputs/data/abundance_natif.csv")%>% 
   filter(LifeHistory == "annual") %>% 
+  filter(depth == "S") %>% 
   mutate(transect=paste(paddock,depth,line,sep="_"))
 
 library("vegan")

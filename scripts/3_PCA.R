@@ -6,19 +6,20 @@ library(ggpubr)
 
 # keep only traits measured in the Nat_Sab
 # = compare trait values in Nat_Sab and in fertile
-MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_completed.csv")%>%
+MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_completed_seed_mass_flore.csv") %>%
   filter(!is.na(SLA)) %>% 
   filter(!(species== "Geranium dissectum - pétiole")) %>% 
   filter(!species == "Geranium dissectum - pÃ©tiole")
 
+code_sp_lifeform <- read.csv2("data/species_names_lifehistory.csv")
 
 
 #_____________________________________________
 
 traits <- c("LDMC","SLA","L_Area",
-            "LCC","LNC","Ldelta13C",# "LPC",
-            "Hrepro"   , "Dmax"  , #    "Dmin" ,"Hveg"  ,
-            "Disp", #,"Mat_Per", #"Mat","Flo",
+            "LCC","LNC","Ldelta13C",#"LPC",
+            "H_FLORE",#"Hrepro"   , "Dmax"  , #    "Dmin" ,"Hveg"  , 
+            "FLO_FLORE", #Disp",#"Mat_Per", #"Mat","Flo",
             "SeedMass"
 )
 
@@ -127,7 +128,8 @@ draw_curve <- function(x,a=113000,b=-1.58){ # to link SLA to LDMC (papier Eric)
 
 ab_fer <- read.csv2("outputs/data/abundance_fertile.csv") %>% 
   rename(line = id_transect_quadrat)
-ab_nat <- read.csv2("outputs/data/abundance_natif.csv") 
+ab_nat <- read.csv2("outputs/data/abundance_natif.csv") %>% 
+  filter(depth == "S")
 
 data_traits_for_PCA <- MEAN %>% 
   select(!!c("code_sp","treatment",traits)) %>%  # subset of the traits that I want of analyse
@@ -152,7 +154,7 @@ data_traits_for_PCA <- rbind(data_fer,data_nat)
 library("cluster")
 library(factoextra)
 
-ftreatment <- "Fer"
+ftreatment <- "Nat"
 
 data_clustering <- data_traits_for_PCA %>% 
   filter(treatment == ftreatment) %>% 
@@ -217,7 +219,7 @@ fisher.test(cont_table)
 
 ## SI ANALYSE SENSIBILITE AUX TRAITS ####
 
-# i) Fertile ####
+## i) Fertile ####
 trtmt <- "Fer"
 data_traits_for_PCA2 <-data_traits_for_PCA %>% 
   filter(treatment == trtmt) %>%
@@ -321,7 +323,7 @@ fisher.test(cont_table)
 
 
 
-# ii) Natif ####
+## ii) Natif ####
 trtmt <- "Nat"
 data_traits_for_PCA2 <- data_traits_for_PCA %>% 
   filter(treatment == trtmt) %>% 
@@ -408,7 +410,7 @@ coord_ind_nat <- coord_ind
 cont_table <- table(coord_ind$cluster,coord_ind$Lifelength)
 chisq.test(cont_table)
 
-# iii) Group PCA graphs ####
+## iii) Group PCA graphs ####
 # PCA <- grid.arrange(PCA_fer12,PCA_nat12,PCA_fer13,PCA_nat13,
 #                       layout_matrix=rbind(c(1,2),c(3,4)) )
 
@@ -465,7 +467,7 @@ plot <- MEAN_CSR_shallow_in_abundance %>%
         axis.ticks.x=element_blank() ,
         axis.title.x = element_blank() )
 
-# iv) ANOVA Position on axes ####
+## iv) ANOVA Position on axes ####
 dimension <- 1
 anov_dim <- compute_anova_dim_x(coord_ind,dimension)
 
