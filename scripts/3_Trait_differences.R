@@ -1,4 +1,5 @@
 library(tidyverse)
+library(ggpubr)
 
 MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_completed_seed_mass_flore.csv") %>%
   filter(!is.na(SLA)) %>% 
@@ -22,7 +23,7 @@ traits <- c("LDMC","SLA","L_Area",
 # Chose to take species in trait data, or in both trait and abundance data
 
 
-
+#_______________________________________________________________________________
 # Table: Jaccard and species number ####
 ftrait <- "LDMC"
 
@@ -79,7 +80,7 @@ TABLE %>%
 
 
 
-
+#_______________________________________________________________________________
 # Boxplot ####
 
 # example of oneplot
@@ -246,20 +247,19 @@ ggsave("draft/boxplot_all_traits.jpg",boxplot_all_traits,width = 14, height = 8)
 
 
 
-
+#_______________________________________________________________________________
 # Pairwise comparisons ####
 # Subsample to have the same number of species (bootstrap)
 
-## Between lifeforms within treatment ####
+# Between lifehistory within treatment or between treatment within lifehistory
 
 
-
-compare_mean <- function(ftrait_big,ftrait_small){ # compare two vectors of trait values
+compare_mean <- function(ftrait_big,ftrait_small,nb_bootstrap){ # compare two vectors of trait values
   # input variables are vectors of trait values for the two sets (the biggest, and the smallest)
   # (either annual and perennial species within treatment,
   # or nat and fer within lifeform)
-  nb_bootstrap = 1000
   vect_difference <- c()
+  size = length(ftrait_small)
   for (i in 1:nb_bootstrap){
     ftrait_subsample <- sample(ftrait_big,size = size)
     diff <- mean(ftrait_subsample) - mean(ftrait_small)
@@ -334,12 +334,37 @@ get_vectors_of_traits <- function(within,MEAN,fvariable){
   }else{
     "error, within must be either lifehistory or treatment"
   }
-  list(fvariable,order,ftrait_big,ftrait_small)
+  output <- list(fvariable,order,ftrait_big,ftrait_small)
+  output # output is the absolute value of difference
 }
 
 
 
+get_distribution_of_differences <- function(within,MEAN,fvariable){
+  # if(within=="treatment"){
+  #   fvariable <- ftreatment
+  # }else{
+  #   fvariable <- flifehistory
+  # }
+  vectors_of_traits <- get_vectors_of_traits(within,MEAN,fvariable)
+  # vectors_of_traits[[1]]
+  # vectors_of_traits[[2]]
+  ftrait_big <- vectors_of_traits[[3]]
+  ftrait_small <- vectors_of_traits[[4]]
+  
+  # set.seed(100)
+  vect_difference <- compare_mean(ftrait_big,ftrait_small,nb_bootstrap)
+  vect_difference
+}
+
+
 ftrait <- "LDMC" # choose the trait
+nb_bootstrap = 1000
+
+
+
+
+
 
 # have the distribution of difference for the two groups of traits with subsampling
 WITHIN <- c("lifehistory","treatment")
@@ -351,32 +376,138 @@ within <- WITHIN[2]
 flifehistory <-  LIFEHISTORY[1] # if I compare treatments
 ftreatment <- TREATMENT[2] # if I compare lifehistory
 
-if(within=="treatment"){
-  fvariable <- ftreatment
-}else{
-  fvariable <- flifehistory
+LIST_TRAIT_DIFFERENCES <- list() # list of the four comparisons, for each trait
+j <- 0
+for (ftrait in traits){
+  j <- j+1
+  LIST_DIFFERENCES <- list() 
+  # four comparisons (within lifeform across treatments, and within treatment across lifeforms)
+  i <- 0
+  for (within in WITHIN){
+    if(within == "lifehistory"){
+      # compare:
+      # annuals in fer and nat
+      # perennials in fer and nat
+      for (flifehistory in LIFEHISTORY){
+        i <- i+1
+        distrib <- get_distribution_of_differences(within,MEAN,flifehistory)
+        LIST_DIFFERENCES[[i]] <- distrib
+      }
+      
+    }else if(within == "treatment"){
+      for (ftreatment in TREATMENT){
+        # compare:
+        # annuals and perennials in fer
+        # annuals and perennials in nat
+        i <- i+1
+        distrib <- get_distribution_of_differences(within,MEAN,ftreatment)
+        LIST_DIFFERENCES[[i]] <- distrib
+      }
+    }
+    
+  }
+  LIST_TRAIT_DIFFERENCES[[j]] <- LIST_DIFFERENCES
 }
-vectors_of_traits <- get_vectors_of_traits(within,MEAN,fvariable)
-vectors_of_traits[[1]]
-vectors_of_traits[[2]]
-ftrait_big <- vectors_of_traits[[3]]
-ftrait_small <- vectors_of_traits[[4]]
 
-set.seed(100)
-vect_difference <- compare_mean(ftrait_big,ftrait_small)
-data.frame(diff = vect_difference) %>% 
-  ggplot(aes(x=diff)) +
-  geom_density()
+
+
+# NB: comparaison du LDMC des pérennes dans le fertile et le natif:
+# même nombre d'espèces ! Du coup, le bootstrap ne fonctionne pas...
+
+
+
+## plot differences within lifeform ####
+PLOT_LIFEFORM <- list()
+k <- 0
+for (ftrait in traits){
+  k <- k+1
+  
+  j <- which(traits == ftrait)
+  LIST_DIFFERENCES <- LIST_TRAIT_DIFFERENCES[[j]] # for the focal trait
+  
+  diff_within_lifeform <- data.frame(
+    diff = c( LIST_DIFFERENCES[[1]], LIST_DIFFERENCES[[2]] ),
+    LifeForm =  c(rep("annual",nb_bootstrap), rep("perennial",nb_bootstrap) ))
+  
+  
+  PLOT_LIFEFORM[[k]] <- diff_within_lifeform %>%
+    mutate(abs_diff = abs(diff)) %>% 
+    ggplot(aes(x=abs_diff,color = LifeForm)) +
+    geom_density(size=2) +
+    ggtitle(paste(ftrait)) + #,": differences within lifeform, across treatment"
+    scale_color_brewer(palette="Set1") +
+    theme(legend.position = "none")
+}
+
+LFplot <- diff_within_lifeform %>%
+  ggplot(aes(x=diff,color = LifeForm)) +
+  geom_density(size=2) +
+  scale_color_brewer(palette="Set1")
+LFleg <- ggpubr::get_legend(LFplot)
+LFlegend <- ggpubr::as_ggplot(LFleg)
+
+density_lifeform <- ggpubr::ggarrange(PLOT_LIFEFORM[[1]],PLOT_LIFEFORM[[2]],PLOT_LIFEFORM[[3]],
+                                      PLOT_LIFEFORM[[4]],PLOT_LIFEFORM[[5]],PLOT_LIFEFORM[[6]],
+                                      PLOT_LIFEFORM[[7]],PLOT_LIFEFORM[[8]],PLOT_LIFEFORM[[9]],
+                                      LFlegend)
+density_lifeform
+
+final_plot_lifeform <- 
+  ggpubr::annotate_figure(density_lifeform,
+                          top = text_grob("Trait differences within treatment, across lifeform ", 
+                          color = "black", face = "bold", size = 14))
+
+
+
+
+
     
 
 
 
+## plot differences within lifeform ####
+PLOT_TREATMENT <- list()
+k <- 0
+for (ftrait in traits){
+  k <- k+1
+  
+  j <- which(traits == ftrait)
+  LIST_DIFFERENCES <- LIST_TRAIT_DIFFERENCES[[j]] # for the focal trait
+  
+  diff_within_treatment <- data.frame( 
+    diff = c(LIST_DIFFERENCES[[3]],LIST_DIFFERENCES[[4]]),
+    treatment = c(rep("Fer",nb_bootstrap), rep("Nat",nb_bootstrap)))
+  
+  
+  PLOT_TREATMENT[[k]] <- diff_within_treatment %>% 
+    mutate(abs_diff = abs(diff)) %>%
+    ggplot(aes(x=abs_diff,color = treatment)) +
+    geom_density(size = 2) +
+    ggtitle(paste(ftrait)) +
+    scale_color_brewer(palette="Set2") +
+    theme(legend.position = "none")
+}
+
+TRplot <- diff_within_treatment %>% 
+  ggplot(aes(x=diff,color = treatment)) +
+  geom_density(size = 2) +
+  scale_color_brewer(palette="Set2")
+TRleg <- ggpubr::get_legend(TRplot)
+TRlegend <- ggpubr::as_ggplot(TRleg)
+
+density_treatment <- ggpubr::ggarrange(PLOT_TREATMENT[[1]],PLOT_TREATMENT[[2]],PLOT_TREATMENT[[3]],
+                                       PLOT_TREATMENT[[4]],PLOT_TREATMENT[[5]],PLOT_TREATMENT[[6]],
+                                       PLOT_TREATMENT[[7]],PLOT_TREATMENT[[8]],PLOT_TREATMENT[[9]],
+                                      TRlegend)
+density_treatment
+
+final_plot_treatment <- ggpubr::annotate_figure(density_treatment,
+                top = text_grob("Trait differences within lifeform, across treatment ", 
+                                color = "black", face = "bold", size = 14))
+
 
 # diff is the effect size (correct it for small sample sizes, cf. garnier 2019 (Flora)?)
 
-  
-
-## Between treatments within lifeform ####
 
 
 
