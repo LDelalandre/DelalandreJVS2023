@@ -16,7 +16,12 @@ MEAN_no_subset <- read.csv2("outputs/data/mean_attribute_per_treatment.csv",enco
   filter(!(species== "Geranium dissectum - pétiole"))%>% 
   filter(!species == "Geranium dissectum - pÃ©tiole") 
 
-
+traits <- c("LDMC","SLA","L_Area",
+            "LCC","LNC","Ldelta13C",#"LPC",
+            "H_FLORE","Hrepro" , # , "Dmax"  , #    "Dmin" ,"Hveg"  , 
+            "FLO_FLORE", "Disp",#"Mat_Per", #"Mat","Flo",
+            "SeedMass"
+)
 
 #___________________________________________________
 # Seed Mass ####
@@ -76,6 +81,13 @@ traits_flore <- read.table("data/traits/flores/TRAIT_ESP_FLORE.txt",header=T) %>
 
 MEAN_completed2_flore <- left_join(MEAN_completed2,traits_flore)
 
+
+MEAN_completed2_flore %>% 
+  select(species,code_sp,treatment,LifeHistory,all_of(traits)) %>% 
+  arrange(LifeHistory,treatment,code_sp) %>%
+  select(-c(H_FLORE,FLO_FLORE)) %>% 
+  write.csv2("outputs/tables/mean-trait_values_completed_seedmass_flora.csv",row.names=F)
+
 # check accuracy of estimation by data from flora
 MEAN_completed2_flore %>% 
   ggplot(aes(x=Hrepro,y=H_FLORE)) + 
@@ -84,6 +96,71 @@ MEAN_completed2_flore %>%
 MEAN_completed2_flore %>% 
   ggplot(aes(x=disp,y=FRU_FLORE)) + 
   geom_point()
+
+
+# Predict phenology from those in the Fertile treatment?
+dispPF <- MEAN_completed2 %>% 
+  filter(LifeHistory == "perennial" & treatment == "Fer") %>% 
+  select(species, code_sp, Disp) %>% 
+  rename(Disp_Fer = Disp)
+
+dispPN <- MEAN_completed2 %>% 
+  filter(LifeHistory == "perennial" & treatment == "Nat") %>% 
+  select(species, code_sp, Disp) %>% 
+  rename(Disp_Nat = Disp)
+
+merge(dispPF,dispPN) %>% 
+  ggplot(aes(x=Disp_Nat,y=Disp_Fer)) +
+  geom_point()
+
+# Predict height from those in the Fertile treatment?
+hPF <- MEAN_completed2 %>% 
+  filter(LifeHistory == "perennial" & treatment == "Fer") %>% 
+  select(species, code_sp, Hrepro) %>% 
+  rename(Hrepro_Fer = Hrepro)
+
+hPN <- MEAN_completed2 %>% 
+  filter(LifeHistory == "perennial" & treatment == "Nat") %>% 
+  select(species, code_sp, Hrepro) %>% 
+  rename(Hrepro_Nat = Hrepro)
+
+merge(hPF,hPN) %>% 
+  ggplot(aes(x=Hrepro_Fer,y=Hrepro_Nat)) +
+  geom_point()
+
+# pas assez de points !
+# utiliser les flores ?
+# je fais un essai avant d'aller chercher les infos dans les flores
+predict_Hrepro <- MEAN %>% 
+  filter(LifeHistory=="perennial") %>% 
+  filter(treatment == "Nat")
+  
+predict_Hrepro %>% 
+  ggplot(aes(x=H_FLORE,y=Hrepro)) +
+  geom_point() +
+  facet_wrap(~treatment) 
+  geom_smooth(method = "lm")
+
+mod <- lm(Hrepro ~ H_FLORE, data = predict_Hrepro)
+anova(mod) 
+summary(mod)
+plot(mod)
+
+predict_disp <- MEAN %>% 
+  filter(LifeHistory=="perennial") %>% 
+  filter(treatment == "Fer")
+
+mod <- lm(Disp ~ FRU_FLORE, data = predict_disp)
+anova(mod) 
+summary(mod)
+plot(mod)
+
+predict_disp %>% 
+  ggplot(aes(x=FRU_FLORE,y=Disp)) +
+  geom_point() +
+  facet_wrap(~treatment) +
+  geom_smooth(method = "lm")
+
 
 
 #___________________________________________________

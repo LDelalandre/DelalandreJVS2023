@@ -13,8 +13,8 @@ trait_unit <- read.csv2("data/trait_unit.csv",encoding = "latin1")
 
 traits <- c("LDMC","SLA","L_Area",
             "LCC","LNC","Ldelta13C",#"LPC",
-            "H_FLORE",#"Hrepro"   , "Dmax"  , #    "Dmin" ,"Hveg"  , 
-            "FLO_FLORE", #Disp",#"Mat_Per", #"Mat","Flo",
+            "H_FLORE","Hrepro" , # , "Dmax"  , #    "Dmin" ,"Hveg"  , 
+            "FLO_FLORE", "Disp",#"Mat_Per", #"Mat","Flo",
             "SeedMass"
 )
 
@@ -37,7 +37,7 @@ ab_nat_ann <- ab_nat %>%
 # Species in the abundance, but not in the trait, data? ####
 # lifehistory == "annual"
 
-FTRAIT <- c("LDMC","LCC","Ldelta13C","H_FLORE","SeedMass")
+FTRAIT <- c("LDMC","LCC","Ldelta13C","H_FLORE","Hrepro","Disp","SeedMass")
 FDF <- NULL
 
 for (ftrait in FTRAIT){

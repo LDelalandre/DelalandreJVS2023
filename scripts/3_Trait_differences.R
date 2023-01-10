@@ -15,8 +15,8 @@ MEAN_intersect <- rbind(data_fer,data_nat)
 
 traits <- c("LDMC","SLA","L_Area",
             "LCC","LNC","Ldelta13C",#"LPC",
-            "H_FLORE",#"Hrepro"   , "Dmax"  , #    "Dmin" ,"Hveg"  , 
-            "FLO_FLORE", #Disp",#"Mat_Per", #"Mat","Flo",
+            "H_FLORE","Hrepro"   , "Dmax"  , #    "Dmin" ,"Hveg"  , 
+            "FLO_FLORE", "Disp",#"Mat_Per", #"Mat","Flo",
             "SeedMass"
 )
 
@@ -78,7 +78,7 @@ for (ftrait in  traits){
 TABLE %>% 
   filter(Trait %in% c("LDMC","LCC","Ldelta13C","H_FLORE","FLO_FLORE","SeedMass"))
 
-
+# AJOUTER JACCARD GLOBAL (= SUR RELEVES BOTANIQUES)
 
 #_______________________________________________________________________________
 # Boxplot ####
@@ -93,7 +93,9 @@ MEAN %>%
   theme(axis.title.x=element_blank())+
   geom_boxplot() +
   geom_point(aes(color = LifeHistory),position = position_dodge(width = .75)) +
-  scale_fill_manual(values = c("grey", "white"))
+  scale_fill_manual(values = c("grey", "white")) +
+  stat_summary(fun.data = give.n, geom = "text", fun = median, 
+               position = position_dodge(width = 0.75))
 # extraire la légende !
 
 
@@ -142,6 +144,32 @@ for (ftrait in traits){
   
   maxy <- maxydata + (maxydata - miny)/10
   
+  # nb of species
+  nb1 <- MEAN %>% 
+    filter(LifeHistory == "annual") %>%
+    filter(treatment =="Fer") %>% 
+    pull(sym(ftrait)) %>% 
+    na.omit() %>% 
+    length()
+  nb2 <- MEAN %>% 
+    filter(LifeHistory == "annual") %>%
+    filter(treatment =="Nat") %>% 
+    pull(sym(ftrait)) %>% 
+    na.omit() %>% 
+    length()
+  nb3 <- MEAN %>% 
+    filter(LifeHistory == "perennial") %>%
+    filter(treatment =="Fer") %>% 
+    pull(sym(ftrait)) %>% 
+    na.omit() %>% 
+    length()
+  nb4 <- MEAN %>% 
+    filter(LifeHistory == "perennial") %>%
+    filter(treatment =="Nat") %>% 
+    pull(sym(ftrait)) %>% 
+    na.omit() %>% 
+    length()
+  
   A <- MEAN %>% 
     filter(LifeHistory == "annual") %>%
     filter(treatment%in% c("Nat","Fer")) %>% 
@@ -168,7 +196,10 @@ for (ftrait in traits){
           axis.title.y = element_blank()
     ) +
     annotate("text", x = 1, y=maxy, label = comp[1,]$.group)+ 
-    annotate("text", x = 2, y=maxy, label = comp[2,]$.group) 
+    annotate("text", x = 2, y=maxy, label = comp[2,]$.group) + 
+    
+    annotate("text", x = 1, y=miny, label = nb1)+ 
+    annotate("text", x = 2, y=miny, label = nb2)
   # annotate("text", x = 2, y=maxy + maxy/10, label = trait) 
   
   B <- MEAN %>% 
@@ -199,7 +230,12 @@ for (ftrait in traits){
           axis.title.y = element_blank()
     )  + 
     annotate("text", x = 1, y=maxy, label = comp[3,]$.group)+ 
-    annotate("text", x = 2, y=maxy, label = comp[4,]$.group)
+    annotate("text", x = 2, y=maxy, label = comp[4,]$.group)+ 
+    
+    annotate("text", x = 1, y=miny, label = nb3)+ 
+    annotate("text", x = 2, y=miny, label = nb4)
+  
+  
   
   # Create a text grob (for the title = trait name)
   tgrob <- ggpubr::text_grob(ftrait,size = 10)
@@ -220,7 +256,7 @@ plot <- MEAN %>%
   filter(treatment%in% c("Nat","Fer")) %>% 
   mutate(zone = if_else(treatment == "Fer", "G+F","GU-S")) %>% 
   
-  ggplot(aes_string(x="zone", y=trait, label = "code_sp",fill = "zone",shape = "LifeHistory")) +
+  ggplot(aes_string(x="zone", y=ftrait, label = "code_sp",fill = "zone",shape = "LifeHistory")) +
   theme_classic()+
   theme(axis.title.x=element_blank())+
   # geom_boxplot(aes(color = LifeHistory)) +
@@ -240,7 +276,8 @@ legend <- ggpubr::as_ggplot(leg)
 
 
 boxplot_all_traits <- ggpubr::ggarrange(PLOTS[[1]],PLOTS[[2]],PLOTS[[3]],PLOTS[[4]],PLOTS[[5]],PLOTS[[6]],
-                                        PLOTS[[7]],PLOTS[[8]],PLOTS[[9]],legend)
+                                        PLOTS[[7]],PLOTS[[8]],PLOTS[[9]],
+                                        PLOTS[[10]],PLOTS[[11]],PLOTS[[12]],legend)
 
 ggsave("draft/boxplot_all_traits.jpg",boxplot_all_traits,width = 14, height = 8)
 
@@ -372,7 +409,7 @@ LIFEHISTORY <-  c("annual","perennial")
 TREATMENT <-  c("Fer","Nat")
 
 
-within <- WITHIN[2]
+within <- WITHIN[1]
 flifehistory <-  LIFEHISTORY[1] # if I compare treatments
 ftreatment <- TREATMENT[2] # if I compare lifehistory
 
@@ -435,28 +472,27 @@ for (ftrait in traits){
     ggplot(aes(x=abs_diff,color = LifeForm)) +
     geom_density(size=2) +
     ggtitle(paste(ftrait)) + #,": differences within lifeform, across treatment"
-    scale_color_brewer(palette="Set1") +
+    # scale_color_brewer(palette="Set2") +
     theme(legend.position = "none")
 }
 
 LFplot <- diff_within_lifeform %>%
   ggplot(aes(x=diff,color = LifeForm)) +
-  geom_density(size=2) +
-  scale_color_brewer(palette="Set1")
+  geom_density(size=2)
 LFleg <- ggpubr::get_legend(LFplot)
 LFlegend <- ggpubr::as_ggplot(LFleg)
 
 density_lifeform <- ggpubr::ggarrange(PLOT_LIFEFORM[[1]],PLOT_LIFEFORM[[2]],PLOT_LIFEFORM[[3]],
                                       PLOT_LIFEFORM[[4]],PLOT_LIFEFORM[[5]],PLOT_LIFEFORM[[6]],
                                       PLOT_LIFEFORM[[7]],PLOT_LIFEFORM[[8]],PLOT_LIFEFORM[[9]],
+                                      PLOT_LIFEFORM[[10]],PLOT_LIFEFORM[[11]],PLOT_LIFEFORM[[12]],
                                       LFlegend)
-density_lifeform
-
 final_plot_lifeform <- 
   ggpubr::annotate_figure(density_lifeform,
-                          top = text_grob("Trait differences within treatment, across lifeform ", 
+                          top = text_grob("Trait differences within lifeform, across treatment ", 
                           color = "black", face = "bold", size = 14))
 
+final_plot_lifeform
 
 
 
@@ -483,14 +519,14 @@ for (ftrait in traits){
     mutate(abs_diff = abs(diff)) %>%
     ggplot(aes(x=abs_diff,color = treatment)) +
     geom_density(size = 2) +
-    ggtitle(paste(ftrait)) +
-    scale_color_brewer(palette="Set2") +
+    ggtitle(paste(ftrait))  +
+    scale_color_brewer(palette="Set2")+
     theme(legend.position = "none")
 }
 
 TRplot <- diff_within_treatment %>% 
   ggplot(aes(x=diff,color = treatment)) +
-  geom_density(size = 2) +
+  geom_density(size = 2)  +
   scale_color_brewer(palette="Set2")
 TRleg <- ggpubr::get_legend(TRplot)
 TRlegend <- ggpubr::as_ggplot(TRleg)
@@ -498,13 +534,14 @@ TRlegend <- ggpubr::as_ggplot(TRleg)
 density_treatment <- ggpubr::ggarrange(PLOT_TREATMENT[[1]],PLOT_TREATMENT[[2]],PLOT_TREATMENT[[3]],
                                        PLOT_TREATMENT[[4]],PLOT_TREATMENT[[5]],PLOT_TREATMENT[[6]],
                                        PLOT_TREATMENT[[7]],PLOT_TREATMENT[[8]],PLOT_TREATMENT[[9]],
+                                       PLOT_TREATMENT[[10]],PLOT_TREATMENT[[11]],PLOT_TREATMENT[[12]],
                                       TRlegend)
-density_treatment
 
 final_plot_treatment <- ggpubr::annotate_figure(density_treatment,
-                top = text_grob("Trait differences within lifeform, across treatment ", 
+                top = text_grob("Trait differences within treatment, across lifeform ", 
                                 color = "black", face = "bold", size = 14))
 
+final_plot_treatment
 
 # diff is the effect size (correct it for small sample sizes, cf. garnier 2019 (Flora)?)
 
