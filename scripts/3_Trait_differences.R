@@ -61,7 +61,7 @@ for (ftrait in  traits){
     
     Jac <- vegan::vegdist(x = MEAN_jaccard_LH,method="jaccard") %>% 
       round(digits = 2)
-    info <- paste0("(",
+    info <- paste0(" (",
                    paste(nb_sp_fer,nb_sp_nat,Jac, sep = ";"),
                    ")" )
     
@@ -81,17 +81,17 @@ TABLE %>%
 # AJOUTER JACCARD GLOBAL (= SUR RELEVES BOTANIQUES)
 
 #_______________________________________________________________________________
-# Boxplot ####
+# INterspecific comparisons ####
 
 
 # changer les noms des traits
 # passer LA en log
 # changer les noms des zones
 
+TABLE_PVAL <- NULL
 PLOTS <- NULL
 i <- 1
 for (ftrait in traits){
-  print(ftrait)
   ## Linear model ####
   data.anovaCSR <- MEAN %>% 
     # select(code_sp,treatment,LifeHistory,C,S,R) %>%
@@ -100,66 +100,63 @@ for (ftrait in traits){
     mutate(log_L_Area = log(L_Area))
   
   formula0 <- as.formula(paste0(ftrait, " ~ 1 + (1|code_sp)"))
-  formula_treatment <- as.formula(paste0(ftrait, " ~ treatment ", " + (1|code_sp)"))
-  formula_LH <- as.formula(paste0(ftrait, " ~ LifeHistory ", " + (1|code_sp)"))
-  formula_no_interaction <- as.formula(paste0(ftrait, " ~ treatment + LifeHistory", " + (1|code_sp)"))
   formula <- as.formula(paste0(ftrait, " ~ treatment * LifeHistory", " + (1|code_sp)"))
   
   mmod0 <- lme4::lmer( formula0 , data = data.anovaCSR)
   
   if ( length( data.anovaCSR %>% pull(treatment) %>% unique() ) == 2 ){ # if we have data from nat and fer
+    mmod <- lme4::lmer( formula , data = data.anovaCSR) # /!\ choose fdata (includes sp just measured in on treatment)
+    # or fdata2 (sp measured in both treatments only)
     
-    mmod_treatment <- lme4::lmer( formula_treatment , data = data.anovaCSR)
-    pval_treatment <- car::Anova(mmod_treatment) %>% pull('Pr(>Chisq)')
-    
-    mmod_LH <- lme4::lmer( formula_LH , data = data.anovaCSR)
-    pval_LH <- car::Anova(mmod_LH) %>% pull('Pr(>Chisq)')
-    
-    if(pval_treatment <= 0.25 & pval_LH <= 0.25){
-      mmod_no_interaction <- lme4::lmer( formula_no_interaction , data = data.anovaCSR)
-      mmod <- lme4::lmer( formula , data = data.anovaCSR) # /!\ choose fdata (includes sp just measured in on treatment)
-      # or fdata2 (sp measured in both treatments only)
-      
-      anov0 <- anova(mmod_no_interaction,mmod0)
-      print(anov0$`Pr(>Chisq)`[2])
-      
-      anov1 <- anova(mmod,mmod_no_interaction)
-      print(anov1$`Pr(>Chisq)`[2])
-      
-    }else if (pval_treatment <= 0.25 & pval_LH > 0.25){
-      anov <-  anova(mmod_treatment,mmod0)
-      print("treatment only")
-      print(anov0$`Pr(>Chisq)`[2])
-    }else if (pval_treatment > 0.25 & pval_LH <= 0.25){
-      anov <-  anova(mmod_LH,mmod0)
-      print("LH only")
-      print(anov0$`Pr(>Chisq)`[2])
-    }else{
-      print("no effect")
-    }
-    
-    # 
     # formula1 <- as.formula(paste0(trait, " ~ treatment + (1|code_sp)"))
     # mmod0 <- lme4::lmer( formula0 , data = data.anovaCSR)
     # anova <- anova(mmod0,mmod)
-    anov <- anova(mmod,mmod0)
-    car::Anova(mmod)
-    if( anov$`Pr(>Chisq)`[2]<0.05 ){
+    # anov <- anova(mmod,mmod0)
+    
+    anov <- car::Anova(mmod)
+    pval <- anov %>%
+      as.data.frame() %>% 
+      rename(pval = 'Pr(>Chisq)') %>%
+      pull(pval) %>% 
+      format(scientific = TRUE, digits = 2) %>% 
+      as.numeric()
+    table_pval <-  data.frame(Trait = ftrait,
+                              Treatment = pval[1],
+                              Life_History = pval[2],
+                              Interaction = pval[3]
+    )
+
+    # if( table_pval$Interaction < 0.05 ){
       posthoc <- multcomp::cld(emmeans::emmeans(mmod, specs = c("treatment","LifeHistory"),  type = "response",
                                                 adjust = "tuckey"),
                                Letters = "abcdefghi", details = T)
       
       # contrasts = différences entre les deux traitements pour annuelles et pérennes
-      posthoc$comparisons %>% 
-        filter(contrast %in% c("Nat annual - Fer annual","Nat perennial - Fer perennial")) %>%
+      contrasts <- posthoc$comparisons %>% 
+        filter(contrast %in% c("Nat annual - Fer annual","Nat perennial - Fer perennial",
+                               "Fer annual - Nat annual","Fer perennial - Nat perennial")) %>%
+        mutate(estimate = case_when(contrast %in% c("Fer annual - Nat annual","Fer perennial - Nat perennial") ~ -estimate,
+                                    TRUE ~ estimate)) %>% 
+        mutate(contrast = case_when(contrast == "Fer annual - Nat annual" ~ "Nat annual - Fer annual",
+                                    contrast == "Fer perennial - Nat perennial" ~ "Nat perennial - Fer perennial",
+                                    TRUE ~ contrast)) %>% 
         mutate(contrast = if_else(contrast == "Nat annual - Fer annual", "Annuals","Perennials")) %>% 
-        select(contrast,estimate,p.value)
+        select(contrast,estimate,p.value) %>% 
+        mutate(estimate = round(estimate,digits =1)) %>% 
+        mutate(p.value = format(p.value,scientific = TRUE, digits = 2)) %>% 
+        mutate(est_pval = paste0(estimate, "(",p.value,")")) %>%
+        select(contrast,est_pval) %>% 
+        spread(key = contrast,value = est_pval)
+      
+      table_pval2 <- cbind(table_pval,contrasts)
+      TABLE_PVAL <- rbind(TABLE_PVAL,table_pval2)
       
       comp <- as.data.frame(posthoc$emmeans) %>% 
         mutate(treatment = factor(treatment,levels = c("Fer","Nat"))) %>% 
         mutate(LifeHistory = factor(LifeHistory, levels = c("annual","perennial"))) %>% 
         arrange(LifeHistory,treatment)
-    }
+    # }else{
+    # }
     
   }
   
@@ -275,6 +272,7 @@ for (ftrait in traits){
   i <- i+1
 }
 
+## Boxplot ####
 
 # Extract the legend alone, from the data frame of species removal expe
 plot <- MEAN %>% 
@@ -306,6 +304,101 @@ boxplot_all_traits <- ggpubr::ggarrange(PLOTS[[1]],PLOTS[[2]],PLOTS[[3]],PLOTS[[
 
 ggsave("draft/boxplot_all_traits.jpg",boxplot_all_traits,width = 14, height = 8)
 
+## Table ####
+library(kableExtra)
+table_trait_diff <- TABLE_PVAL %>% 
+  transmute(
+    Trait = Trait, 
+    Treatment = ifelse(Treatment =="<0.05",
+                       cell_spec(Treatment, bold = T),
+                       cell_spec(Treatment, bold=F)),
+    Life_History = ifelse(Treatment =="<0.05",
+                         cell_spec(Life_History, bold = T),
+                         cell_spec(Life_History, bold=F)),
+    Interaction = ifelse(Treatment =="<0.05",
+                         cell_spec(Interaction, bold = T),
+                         cell_spec(Interaction, bold=F)),
+    Annuals     =Annuals     ,
+    Perennials = Perennials
+  ) %>% 
+  kableExtra::kable( escape = F,
+                     col.names = c("Trait", "Treatment", "LifeHistory","Interaction",
+                                   "Fer-Nat (annuals)", "Fer-Nat (perennials)")) %>%
+  kableExtra::kable_styling("hover", full_width = F)
+  
+
+
+cat(table_trait_diff, file = "draft/differences_traits.doc")
+
+
+
+# Intraspecific comparisons ####
+
+# Problème : sens de variation et différences 
+INTRA <- NULL
+for (ftrait in traits){
+  intrasp_var <- MEAN %>% 
+    # filter(LifeHistory=="annual") %>% 
+    select(species,code_sp,LifeHistory,treatment,ftrait) %>% 
+    spread(key=treatment,value=ftrait) %>% 
+    na.omit() %>%  # keep only sp measured in the 2 treatments
+    mutate(ratio = Nat / Fer)
+  
+  ggplot(intrasp_var,aes(x=LifeHistory,y=ratio)) +
+    geom_boxplot() +
+    geom_point() +
+    ggtitle(ftrait)
+  
+  kruskal.test(ratio ~ LifeHistory,data=intrasp_var)
+  # voir si ça change en prenant l'inverse du ratio (ne devrait pas...)
+  
+  var_ann <- intrasp_var %>% 
+    filter(LifeHistory == "annual") %>% 
+    pull(ratio)
+  var_per <- intrasp_var %>% 
+    filter(LifeHistory == "perennial") %>% 
+    pull(ratio)
+  
+  if( length(var_ann)< length(var_per) ){
+    var_small <- var_ann
+    var_big <- var_per
+  } else { 
+      var_small <- var_per
+      var_big <- var_ann
+  }
+  
+  # bootstrap
+  nb_boot <- 100
+  test_pval <- NULL
+  DISTRIB <- NULL
+  for (i in c(1:nb_boot)){
+    var_big_subsampled <- sample(var_big,size = length(var_small))
+    
+    test <- t.test(var_big_subsampled,var_small)
+    # test_pval <- c(test_pval, test$p.value)
+    
+    # if(length(var_small) == length(var_ann)){
+    #   ratio_mean <- mean(var_big_subsampled) / mean(var_ann)
+    # }else{
+    #   ratio_mean <- mean(var_per) / mean(var_big_subsampled)
+    # }
+    DISTRIB <- c(DISTRIB,test$p.value)
+  }
+  # plot(density(RATIO_MEAN))
+  
+  pval_ratio <- length(which(abs(DISTRIB)<0.05)) / length(DISTRIB)
+  # pval_ratio2 <- length(which(abs(RATIO_MEAN)>1)) / length(RATIO_MEAN)
+  
+  intra <- data.frame(trait = ftrait,
+                      nb_ann = length(var_ann),
+                      nb_per = length(var_per),
+                      ratio_ann = mean(var_ann),
+                      ratio_per = mean(var_per),
+                      pval_ratio = pval_ratio)
+  
+  INTRA <- rbind(INTRA,intra)
+}
+  
 
 
 
