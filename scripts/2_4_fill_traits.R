@@ -4,14 +4,12 @@
 library(tidyverse)
 
 # Trait values computed in the G+F and GU(S+I) conditions, i.e. removing GUd for the latter
-MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_completed.csv")%>%
-  filter(!is.na(SLA)) %>% 
+MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int.csv")%>%
   filter(!(species== "Geranium dissectum - pétiole")) %>% 
   filter(!species == "Geranium dissectum - pÃ©tiole")
 
 # Trait values computed in the G+F and GU conditions
 MEAN_no_subset <- read.csv2("outputs/data/mean_attribute_per_treatment.csv",encoding = "latin1") %>%
-  filter(!is.na(SLA)) %>%
   filter(!(LifeForm1 %in% c("DPh","EPh")))%>% 
   filter(!(species== "Geranium dissectum - pétiole"))%>% 
   filter(!species == "Geranium dissectum - pÃ©tiole") 
@@ -80,6 +78,10 @@ traits_flore <- read.table("data/traits/flores/TRAIT_ESP_FLORE.txt",header=T) %>
   rename(code_sp = CODE_ESP)
 
 MEAN_completed2_flore <- left_join(MEAN_completed2,traits_flore)
+
+write.csv2(MEAN_completed2_flore %>% unique(),
+           "outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_completed_seed_mass_flore.csv",
+           row.names=F)
 
 
 MEAN_completed2_flore %>% 
@@ -188,6 +190,5 @@ sum$adj.r.squared
 # pour montrer que la donnée espèce explique une part de variance bien plus grande
 
 
-write.csv2(MEAN_completed2_flore,
-           "outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_completed_seed_mass_flore.csv",
-           row.names=F)
+
+

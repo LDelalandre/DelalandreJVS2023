@@ -54,7 +54,10 @@ LeafCN_leo <- L5[,colnames(LeafCN1)] %>%
   mutate(LNC = 10*LNC) # to change the unit from % to mg/g.
 Leaf13C_leo <- L5[,colnames(Leaf13C1)]
 
-LeafCN <- rbind(LeafCN1,LeafCN_leo)
+LeafCN <- rbind(LeafCN1,LeafCN_leo) %>% 
+  mutate(LifeForm1 = if_else(Code_Sp == "SANGMINO","Hem",LifeForm1)) %>% 
+  mutate(LifeForm1 = if_else(Code_Sp == "ANTHVULN","Hem",LifeForm1)) %>%
+  mutate(LifeForm1 = if_else(Code_Sp == "LOTUCORN","Hem",LifeForm1))
 Leaf13C <- rbind(Leaf13C1,Leaf13C_leo)
 
 # Biovolume ####
@@ -73,7 +76,6 @@ for (i in c(1:nrows)){
 }
 
 Biovolume <- rbind(Biovolume1 , Biovolume_leo)
-
 
 # Phenology ####
 Pheno1 <- read.xlsx(paste0("data/traits/",data_file), sheet = "Pheno", startRow = 1, colNames = TRUE) %>% 

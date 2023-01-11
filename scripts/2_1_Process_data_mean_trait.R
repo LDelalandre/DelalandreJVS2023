@@ -18,6 +18,11 @@ mean_attribute_per_species <- function(dataset,subset_gt_nat = F){
   dataset2 <- dataset %>% 
     mutate(Trtmt = str_sub(Treatment,1,3) ) %>% 
     filter(Trtmt %in% c("Fer",'Nat','Tem','Che')) %>% 
+
+    mutate(LifeForm1 = if_else(Code_Sp == "SANGMINO","Hem",LifeForm1)) %>% 
+    mutate(LifeForm1 = if_else(Code_Sp == "ANTHVULN","Hem",LifeForm1)) %>%
+    mutate(LifeForm1 = if_else(Code_Sp == "LOTUCORN","Hem",LifeForm1)) %>% 
+    
     mutate(LifeHistory = if_else(LifeForm1=="The","annual","perennial")) %>% 
     mutate(Form = case_when(Family == "Poaceae" ~ "Grass",
                             Family =="Juncaceae" ~ "Rush",
@@ -75,8 +80,10 @@ MEAN2 <- MEAN %>%
 Geranium dissectum - pétiole","Geranium dissectum - limbe"))) %>% 
   filter(!(treatment %in% c("Tem","Che"))) %>% 
   mutate(LDMC = LDMC/10) %>% # good units for CSR ()
-  mutate(L_Area = L_Area*100) # good units for CSR
+  mutate(L_Area = L_Area*100) %>%  # good units for CSR
+  unique()
 
+  
 if(take_nat_sab_int_only == F){
   write.csv2(MEAN2,"outputs/data/mean_attribute_per_treatment.csv",row.names=F)
 } else{

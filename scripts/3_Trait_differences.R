@@ -2,8 +2,9 @@ library(tidyverse)
 library(ggpubr)
 
 MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_completed_seed_mass_flore.csv") %>%
-  filter(!is.na(SLA)) %>% 
-  filter(!(species== "Geranium dissectum - pétiole"))
+  filter(!(species== "Geranium dissectum - pétiole")) %>% 
+  mutate(log_LA = log(L_Area)) %>% 
+  unique()
 
 # I case I want to perform the analyses with species both in the trait and abundance data:
 data_fer <- MEAN %>%
@@ -13,12 +14,12 @@ data_nat <- MEAN %>%
 MEAN_intersect <- rbind(data_fer,data_nat)
 
 
-traits <- c("LDMC","SLA","L_Area",
+traits <- c("LDMC","SLA","log_LA",
             "LCC","LNC","Ldelta13C",#"LPC",
-            "H_FLORE","Hrepro"   , "Dmax"  , #    "Dmin" ,"Hveg"  , 
-            "FLO_FLORE", "Disp",#"Mat_Per", #"Mat","Flo",
+            "Hrepro"   , "Dmax"  , #    "Dmin" ,"Hveg"  , 
+            "Disp",#"Mat_Per", #"Mat","Flo",
             "SeedMass"
-)
+)#"H_FLORE","FLO_FLORE",
 
 # Chose to take species in trait data, or in both trait and abundance data
 
@@ -28,7 +29,6 @@ traits <- c("LDMC","SLA","L_Area",
 ftrait <- "LDMC"
 
 TABLE <- NULL
-
 for (ftrait in  traits){
   
   # species present for the focal trait
@@ -76,33 +76,22 @@ for (ftrait in  traits){
 }
 
 TABLE %>% 
-  filter(Trait %in% c("LDMC","LCC","Ldelta13C","H_FLORE","FLO_FLORE","SeedMass"))
+  filter(Trait %in% c("LDMC","LCC","Ldelta13C","Hrepro","Disp","SeedMass")) #"H_FLORE","FLO_FLORE",
 
 # AJOUTER JACCARD GLOBAL (= SUR RELEVES BOTANIQUES)
 
 #_______________________________________________________________________________
 # Boxplot ####
 
-# example of oneplot
-ftrait <- "LDMC"
-MEAN %>% 
-  filter(treatment%in% c("Nat","Fer")) %>% 
-  mutate(zone = if_else(treatment == "Fer", "G+F","GU-S")) %>% 
-  ggplot(aes_string(x="LifeHistory", y=ftrait, label = "code_sp",fill = "zone")) +
-  theme_classic()+
-  theme(axis.title.x=element_blank())+
-  geom_boxplot() +
-  geom_point(aes(color = LifeHistory),position = position_dodge(width = .75)) +
-  scale_fill_manual(values = c("grey", "white")) +
-  stat_summary(fun.data = give.n, geom = "text", fun = median, 
-               position = position_dodge(width = 0.75))
-# extraire la légende !
 
+# changer les noms des traits
+# passer LA en log
+# changer les noms des zones
 
 PLOTS <- NULL
 i <- 1
 for (ftrait in traits){
-  
+  print(ftrait)
   ## Linear model ####
   data.anovaCSR <- MEAN %>% 
     # select(code_sp,treatment,LifeHistory,C,S,R) %>%
@@ -110,25 +99,61 @@ for (ftrait in traits){
     filter(treatment%in% c("Nat","Fer")) %>% 
     mutate(log_L_Area = log(L_Area))
   
-  
-  formula <- as.formula(paste0(ftrait, " ~ treatment * LifeHistory", " + (1|code_sp)"))
   formula0 <- as.formula(paste0(ftrait, " ~ 1 + (1|code_sp)"))
+  formula_treatment <- as.formula(paste0(ftrait, " ~ treatment ", " + (1|code_sp)"))
+  formula_LH <- as.formula(paste0(ftrait, " ~ LifeHistory ", " + (1|code_sp)"))
+  formula_no_interaction <- as.formula(paste0(ftrait, " ~ treatment + LifeHistory", " + (1|code_sp)"))
+  formula <- as.formula(paste0(ftrait, " ~ treatment * LifeHistory", " + (1|code_sp)"))
+  
+  mmod0 <- lme4::lmer( formula0 , data = data.anovaCSR)
   
   if ( length( data.anovaCSR %>% pull(treatment) %>% unique() ) == 2 ){ # if we have data from nat and fer
-    mmod <- lme4::lmer( formula , data = data.anovaCSR) # /!\ choose fdata (includes sp just measured in on treatment)
-    # or fdata2 (sp measured in both treatments only)
     
-    formula0 <- as.formula(paste0(ftrait, " ~ 1 + (1|code_sp)"))
-    mmod0 <- lme4::lmer( formula0 , data = data.anovaCSR)
+    mmod_treatment <- lme4::lmer( formula_treatment , data = data.anovaCSR)
+    pval_treatment <- car::Anova(mmod_treatment) %>% pull('Pr(>Chisq)')
+    
+    mmod_LH <- lme4::lmer( formula_LH , data = data.anovaCSR)
+    pval_LH <- car::Anova(mmod_LH) %>% pull('Pr(>Chisq)')
+    
+    if(pval_treatment <= 0.25 & pval_LH <= 0.25){
+      mmod_no_interaction <- lme4::lmer( formula_no_interaction , data = data.anovaCSR)
+      mmod <- lme4::lmer( formula , data = data.anovaCSR) # /!\ choose fdata (includes sp just measured in on treatment)
+      # or fdata2 (sp measured in both treatments only)
+      
+      anov0 <- anova(mmod_no_interaction,mmod0)
+      print(anov0$`Pr(>Chisq)`[2])
+      
+      anov1 <- anova(mmod,mmod_no_interaction)
+      print(anov1$`Pr(>Chisq)`[2])
+      
+    }else if (pval_treatment <= 0.25 & pval_LH > 0.25){
+      anov <-  anova(mmod_treatment,mmod0)
+      print("treatment only")
+      print(anov0$`Pr(>Chisq)`[2])
+    }else if (pval_treatment > 0.25 & pval_LH <= 0.25){
+      anov <-  anova(mmod_LH,mmod0)
+      print("LH only")
+      print(anov0$`Pr(>Chisq)`[2])
+    }else{
+      print("no effect")
+    }
+    
     # 
     # formula1 <- as.formula(paste0(trait, " ~ treatment + (1|code_sp)"))
     # mmod0 <- lme4::lmer( formula0 , data = data.anovaCSR)
     # anova <- anova(mmod0,mmod)
     anov <- anova(mmod,mmod0)
+    car::Anova(mmod)
     if( anov$`Pr(>Chisq)`[2]<0.05 ){
       posthoc <- multcomp::cld(emmeans::emmeans(mmod, specs = c("treatment","LifeHistory"),  type = "response",
                                                 adjust = "tuckey"),
                                Letters = "abcdefghi", details = T)
+      
+      # contrasts = différences entre les deux traitements pour annuelles et pérennes
+      posthoc$comparisons %>% 
+        filter(contrast %in% c("Nat annual - Fer annual","Nat perennial - Fer perennial")) %>%
+        mutate(contrast = if_else(contrast == "Nat annual - Fer annual", "Annuals","Perennials")) %>% 
+        select(contrast,estimate,p.value)
       
       comp <- as.data.frame(posthoc$emmeans) %>% 
         mutate(treatment = factor(treatment,levels = c("Fer","Nat"))) %>% 
@@ -177,10 +202,10 @@ for (ftrait in traits){
     
     ggplot(aes_string(x="zone", y=ftrait, label = "code_sp",fill = "zone")) +
     theme_classic()+
-    theme(axis.title.x=element_blank())+
+    # theme(axis.title.x=element_blank())+
     # geom_boxplot(aes(color = LifeHistory)) +
     geom_boxplot()+
-    geom_point(aes(color = LifeHistory),
+    geom_point(#aes(color = LifeHistory),
                shape = 19,size = 2,
                position = position_dodge(width = .75)) +
     scale_fill_manual(values = c("grey", "white")) +
@@ -192,14 +217,15 @@ for (ftrait in traits){
     # ggtitle ("annuals")
     theme(axis.text.x=element_blank(),
           axis.ticks.x=element_blank() ,
-          axis.title.x = element_blank(),
+          # axis.title.x = element_blank(),
           axis.title.y = element_blank()
     ) +
     annotate("text", x = 1, y=maxy, label = comp[1,]$.group)+ 
     annotate("text", x = 2, y=maxy, label = comp[2,]$.group) + 
     
     annotate("text", x = 1, y=miny, label = nb1)+ 
-    annotate("text", x = 2, y=miny, label = nb2)
+    annotate("text", x = 2, y=miny, label = nb2) +
+    labs(x = "Annuals")
   # annotate("text", x = 2, y=maxy + maxy/10, label = trait) 
   
   B <- MEAN %>% 
@@ -209,10 +235,11 @@ for (ftrait in traits){
     
     ggplot(aes_string(x="zone", y=ftrait, label = "code_sp",fill = "zone")) +
     theme_classic()+
-    theme(axis.title.x=element_blank())+
+    xlab("Perennials") +
+    # theme(axis.title.x=element_blank())+
     # geom_boxplot(aes(color = LifeHistory)) +
     geom_boxplot() +
-    geom_point(aes(color = LifeHistory),
+    geom_point(#aes(color = LifeHistory),
                shape = 17, size = 2,
                position = position_dodge(width = .75)) +
     # scale_fill_manual(values = c("grey30", "grey80")) +
@@ -226,7 +253,7 @@ for (ftrait in traits){
     # ggtitle("perennials") 
     theme(axis.text.x=element_blank(),
           axis.ticks.x=element_blank() ,
-          axis.title.x = element_blank(),
+          #axis.title.x = element_blank(),
           axis.title.y = element_blank()
     )  + 
     annotate("text", x = 1, y=maxy, label = comp[3,]$.group)+ 
@@ -249,19 +276,17 @@ for (ftrait in traits){
 }
 
 
-
-
 # Extract the legend alone, from the data frame of species removal expe
 plot <- MEAN %>% 
   filter(treatment%in% c("Nat","Fer")) %>% 
   mutate(zone = if_else(treatment == "Fer", "G+F","GU-S")) %>% 
   
-  ggplot(aes_string(x="zone", y=ftrait, label = "code_sp",fill = "zone",shape = "LifeHistory")) +
+  ggplot(aes_string(x="zone", y=ftrait, label = "code_sp",fill = "zone")) + #,shape = "LifeHistory"
   theme_classic()+
   theme(axis.title.x=element_blank())+
   # geom_boxplot(aes(color = LifeHistory)) +
   geom_boxplot() +
-  geom_point(aes(color = LifeHistory,shape = LifeHistory),
+  geom_point(#aes(color = LifeHistory,shape = LifeHistory),
              size = 2,
              position = position_dodge(width = .75)) +
   # scale_fill_manual(values = c("grey30", "grey80")) +
@@ -291,18 +316,38 @@ ggsave("draft/boxplot_all_traits.jpg",boxplot_all_traits,width = 14, height = 8)
 # Between lifehistory within treatment or between treatment within lifehistory
 
 
-compare_mean <- function(ftrait_big,ftrait_small,nb_bootstrap){ # compare two vectors of trait values
+compare_mean <- function(ftrait_1,ftrait_2,nb_bootstrap){ # compare two vectors of trait values
   # input variables are vectors of trait values for the two sets (the biggest, and the smallest)
   # (either annual and perennial species within treatment,
   # or nat and fer within lifeform)
+  
+  # always: 1 = ann and 2 = per (to compute per - ann)
+  # or 1 = fer and 2 = nat (to compute nat - fer)
   vect_difference <- c()
-  size = length(ftrait_small)
+  length_1 <- length(ftrait_1)
+  length_2 <- length(ftrait_2)
+  size = min(length_1, length_2)
+  if(size == length_1){
+    ftrait_small <- ftrait_1
+    ftrait_big <- ftrait_2
+  }else{
+    ftrait_big <- ftrait_1
+    ftrait_small <- ftrait_2
+  }
+  
   for (i in 1:nb_bootstrap){
     ftrait_subsample <- sample(ftrait_big,size = size)
     diff <- mean(ftrait_subsample) - mean(ftrait_small)
     vect_difference <- c(vect_difference,diff)
   }
-  vect_difference
+  
+  # I want to return 2 - 1
+  if(size == length_1){ # i.e. if 1 is smaller, vect_difference is 2 - 1
+    vect_difference_good_sign <- vect_difference
+  }else{
+    vect_difference_good_sign <- -vect_difference
+  }
+  
 }
 
 get_vectors_of_traits <- function(within,MEAN,fvariable){
@@ -328,17 +373,9 @@ get_vectors_of_traits <- function(within,MEAN,fvariable){
       filter(!is.na(perennial )) %>% 
       pull(perennial)
     
-    # subsample the longest trait vector to have the same number of trait values for annuals and perennials
-    size = min(length(ftrait_ann),length(ftrait_per))
-    if (size == length(ftrait_ann)){
-      ftrait_big <- ftrait_per
-      ftrait_small <- ftrait_ann
-      order <- c("big = perennial","small = annual")
-    } else {
-      ftrait_big <- ftrait_ann
-      ftrait_small <- ftrait_per
-      order <- c("big = annual","small = perennial")
-    }
+    ftrait_1 <- ftrait_ann
+    ftrait_2 <- ftrait_per
+    
   }else if(within == "lifehistory") {
     flifehistory <- fvariable
     
@@ -357,21 +394,13 @@ get_vectors_of_traits <- function(within,MEAN,fvariable){
       filter(!is.na(Nat )) %>% 
       pull(Nat)
     
-    # subsample the longest trait vector to have the same number of trait values for annuals and perennials
-    size = min(length(ftrait_fer),length(ftrait_nat))
-    if (size == length(ftrait_fer)){
-      ftrait_big <- ftrait_nat
-      ftrait_small <- ftrait_fer
-      order <- c("big = Nat","small = Fer")
-    } else {
-      ftrait_big <- ftrait_fer
-      ftrait_small <- ftrait_nat
-      order <- c("big = Fer","small = Nat")
-    }
+    ftrait_1 <- ftrait_fer
+    ftrait_2 <- ftrait_nat
+    
   }else{
     "error, within must be either lifehistory or treatment"
   }
-  output <- list(fvariable,order,ftrait_big,ftrait_small)
+  output <- list(fvariable,ftrait_1,ftrait_2)
   output # output is the absolute value of difference
 }
 
@@ -386,11 +415,11 @@ get_distribution_of_differences <- function(within,MEAN,fvariable){
   vectors_of_traits <- get_vectors_of_traits(within,MEAN,fvariable)
   # vectors_of_traits[[1]]
   # vectors_of_traits[[2]]
-  ftrait_big <- vectors_of_traits[[3]]
-  ftrait_small <- vectors_of_traits[[4]]
+  ftrait_1 <- vectors_of_traits[[2]]
+  ftrait_2 <- vectors_of_traits[[3]]
   
   # set.seed(100)
-  vect_difference <- compare_mean(ftrait_big,ftrait_small,nb_bootstrap)
+  vect_difference <- compare_mean(ftrait_1,ftrait_2,nb_bootstrap)
   vect_difference
 }
 
@@ -455,6 +484,7 @@ for (ftrait in traits){
 
 ## plot differences within lifeform ####
 PLOT_LIFEFORM <- list()
+TABLE_LIFEFORM <- NULL
 k <- 0
 for (ftrait in traits){
   k <- k+1
@@ -465,16 +495,58 @@ for (ftrait in traits){
   diff_within_lifeform <- data.frame(
     diff = c( LIST_DIFFERENCES[[1]], LIST_DIFFERENCES[[2]] ),
     LifeForm =  c(rep("annual",nb_bootstrap), rep("perennial",nb_bootstrap) ))
+
+  # effect size
+  mean_ES = diff_within_lifeform %>% 
+    group_by(LifeForm) %>% 
+    summarize(mean = mean(diff)) %>% 
+    mutate(mean = round(mean,digits = 3))
   
+  # probability of the real difference being zero
+  diff_ann <- diff_within_lifeform %>% filter(LifeForm=="annual") %>% pull(diff) 
+  inf_zero_ann <- length(which(diff_ann < 0)) / length(diff_ann)
+  sup_zero_ann <- length(which(diff_ann > 0)) / length(diff_ann)
+  pb_include_zero_ann = min(inf_zero_ann,sup_zero_ann)
+  
+  ES_ann <- mean_ES %>% filter(LifeForm=="annual") %>% pull(mean)
+  ES_ann_table = paste0(ES_ann," (",
+                  pb_include_zero_ann,")")
+  
+  diff_per <- diff_within_lifeform %>% filter(LifeForm=="perennial") %>% pull(diff)
+  inf_zero_per <- length(which(diff_per < 0)) / length(diff_per)
+  sup_zero_per <- length(which(diff_per > 0)) / length(diff_per)
+  pb_include_zero_per = min(inf_zero_per,sup_zero_per)
+  
+  ES_per <- mean_ES %>% filter(LifeForm=="perennial") %>% pull(mean)
+  ES_per_table = paste0(ES_per ," (",
+                  pb_include_zero_per,")")
+
+  # U mann Whitney = Wilcox.test
+  mean_comparison <- wilcox.test(diff ~ LifeForm, data = diff_within_lifeform)
+  signif <- paste0(
+  mean_comparison$statistic, " (",
+  mean_comparison$p.value , ")"
+  )
+
+  table_lifeform <- data.frame(trait = ftrait,
+                               ES_ann = ES_ann_table,
+                               ES_per = ES_per_table,
+                               # diff_ES = ES_per - ES_ann,
+                               signif_comparison_ES = signif 
+  )
+  TABLE_LIFEFORM <- rbind(TABLE_LIFEFORM,table_lifeform)
   
   PLOT_LIFEFORM[[k]] <- diff_within_lifeform %>%
-    mutate(abs_diff = abs(diff)) %>% 
-    ggplot(aes(x=abs_diff,color = LifeForm)) +
+    ggplot(aes(x=diff,color = LifeForm)) +
     geom_density(size=2) +
     ggtitle(paste(ftrait)) + #,": differences within lifeform, across treatment"
     # scale_color_brewer(palette="Set2") +
-    theme(legend.position = "none")
+    theme(legend.position = "none") +
+    geom_vline(xintercept=0,size=2)
 }
+
+
+TABLE_LIFEFORM
 
 LFplot <- diff_within_lifeform %>%
   ggplot(aes(x=diff,color = LifeForm)) +
@@ -516,8 +588,7 @@ for (ftrait in traits){
   
   
   PLOT_TREATMENT[[k]] <- diff_within_treatment %>% 
-    mutate(abs_diff = abs(diff)) %>%
-    ggplot(aes(x=abs_diff,color = treatment)) +
+    ggplot(aes(x=diff,color = treatment)) +
     geom_density(size = 2) +
     ggtitle(paste(ftrait))  +
     scale_color_brewer(palette="Set2")+
