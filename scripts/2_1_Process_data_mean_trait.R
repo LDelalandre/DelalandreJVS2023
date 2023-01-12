@@ -32,8 +32,12 @@ mean_attribute_per_species <- function(dataset,subset_gt_nat = F){
     # (sinon, ça découple une espèce en deux artificiellement dans le calcul de la moyenne).
     select(-c(nameOfProject,measurementDeterminedBy,Rep))
   if (subset_gt_nat == T){
-    dataset2 <- dataset2 %>% 
-      filter(Treatment %in% c("Fer_Clc","Fer_Dlm","Nat_Sab","Nat_Int"))
+    dataset2 <- dataset2 %>%
+      filter(Treatment %in% c("Fer_Clc","Fer_Dlm","Nat_Sab","Nat_Int")) 
+      # data just in Nat_Dol to see if height is very plastic between this and nat sab
+      # filter(Treatment %in% c("Nat_Dol","Nat_Clc_Dol","Nat_Clc_Sab","Nat_Dlm")) 
+
+    
   }
   
   # Variables on which we want to summarize:
@@ -90,3 +94,4 @@ if(take_nat_sab_int_only == F){
   write.csv2(MEAN2,"outputs/data/mean_attribute_per_treatment_subset_nat_sab_int.csv",row.names=F)
 }
 
+# write.csv2(MEAN2,"outputs/data/mean_attribute_Nat_Dol.csv",row.names=F)

@@ -14,6 +14,11 @@ MEAN_no_subset <- read.csv2("outputs/data/mean_attribute_per_treatment.csv",enco
   filter(!(species== "Geranium dissectum - pétiole"))%>% 
   filter(!species == "Geranium dissectum - pÃ©tiole") 
 
+MEAN_Nat_Dol <- read.csv2("outputs/data/mean_attribute_Nat_Dol.csv",encoding = "latin1") %>%
+  filter(!(LifeForm1 %in% c("DPh","EPh")))%>% 
+  filter(!(species== "Geranium dissectum - pétiole"))%>% 
+  filter(!species == "Geranium dissectum - pÃ©tiole")
+
 traits <- c("LDMC","SLA","L_Area",
             "LCC","LNC","Ldelta13C",#"LPC",
             "H_FLORE","Hrepro" , # , "Dmax"  , #    "Dmin" ,"Hveg"  , 
@@ -67,12 +72,81 @@ MEAN_completed2_nat <- MEAN_completed %>%
   filter(!(code_sp %in% MEAN_nat$code_sp)) %>% 
   rbind(MEAN_nat)
 
-MEAN_completed2 <- MEAN_completed %>% 
+MEAN_SM <- MEAN_completed %>% 
   filter(treatment %in% "Fer") %>% 
   rbind(MEAN_completed2_nat)
 
 #___________________________________________________
 # Phenology and height ####
+D1 <- MEAN_SM %>% 
+  filter(LifeHistory == "perennial" & treatment == "Nat") %>% 
+  select(code_sp,Hrepro,Dmax,Ldelta13C)
+
+D2 <- MEAN_Nat_Dol %>% 
+  filter(LifeHistory == "perennial" & treatment == "Nat") %>% 
+  select(code_sp,Hrepro,Dmax,Ldelta13C) %>% 
+  rename(Hrepro_Dol = Hrepro,Dmax_Dol = Dmax,Ldelta13C_Dol=Ldelta13C)
+
+plast_across_nat <- merge(D1,D2)
+# marche bien avec hauteur et avec carbone 13, mais pas avec diamètre.
+
+plast_across_nat %>% 
+  ggplot(aes(x=Hrepro_Dol,y=Hrepro)) + 
+  geom_point() +
+  geom_smooth(method = "lm")
+
+modH <- lm(Hrepro ~ Hrepro_Dol,plast_across_nat)
+summary(modH)
+# 6 points : pas assez pour faire un modèle. Je prends juste les valeurs dans l'autre traitement.
+
+# Add height ####
+# part of the dataset for which I have to add height
+to_fill_H <- MEAN_SM %>% 
+  filter(LifeHistory == "perennial" & treatment == "Nat" & is.na(Hrepro)) %>% 
+  rename(HreproNA = Hrepro)
+# part of the dataset for which height is ok
+ok_H <- MEAN_SM %>% 
+  filter(!(LifeHistory == "perennial" & treatment == "Nat" & is.na(Hrepro)))
+
+to_add_H <- MEAN_no_subset %>% 
+  filter(LifeHistory == "perennial" & treatment == "Nat") %>% 
+  select(code_sp,Hrepro)
+
+filled_H <- left_join(to_fill_H,to_add_H) %>% 
+  select(-HreproNA) %>% 
+  select(all_of(colnames(MEAN_completed2))) %>% 
+  unique()
+MEAN_SM_H <- rbind(filled_H,ok_H) 
+
+
+# Add Ldelta13C ####
+# part of the dataset for which I have to add height
+to_fill_13C <- MEAN_SM_H %>% 
+  filter(LifeHistory == "perennial" & treatment == "Nat" & is.na(Ldelta13C)) %>% 
+  rename(Ldelta13CNA = Ldelta13C)
+# part of the dataset for which height is ok
+ok_13C <- MEAN_SM_H %>% 
+  filter(!(LifeHistory == "perennial" & treatment == "Nat" & is.na(Ldelta13C)))
+
+to_add_13C <- MEAN_no_subset %>% 
+  filter(LifeHistory == "perennial" & treatment == "Nat") %>% 
+  select(code_sp,Ldelta13C)
+
+filled_13C <- left_join(to_fill_13C,to_add_13C) %>% 
+  select(-Ldelta13CNA) %>% 
+  select(all_of(colnames(MEAN_completed2))) %>% 
+  unique()
+MEAN_SM_H_13C <- rbind(filled_13C,ok_13C) 
+
+
+
+write.csv2(MEAN_SM_H_13C,"outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_SM_H_13C.csv",row.names=F)
+
+
+## From other treatment in La Fage ####
+
+
+## flora ####
 traits_flore <- read.table("data/traits/flores/TRAIT_ESP_FLORE.txt",header=T) %>% 
   select(CODE_ESP,FLO_FLORE,FRU_FLORE,H_FLORE) %>% 
   rename(code_sp = CODE_ESP)

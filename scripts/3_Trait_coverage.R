@@ -2,8 +2,7 @@ library(tidyverse)
 library(dplyr)
 # detach("package:MASS")    
 
-MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_completed_seed_mass_flore.csv") %>%
-  filter(!is.na(SLA)) %>% 
+MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_SM_H_13C.csv") %>%
   filter(!(species== "Geranium dissectum - pétiole"))
 
 sp_lifeform <- read.csv2("data/species_names_lifehistory.csv") %>% 
@@ -13,8 +12,8 @@ trait_unit <- read.csv2("data/trait_unit.csv",encoding = "latin1")
 
 traits <- c("LDMC","SLA","L_Area",
             "LCC","LNC","Ldelta13C",#"LPC",
-            "H_FLORE","Hrepro" , # , "Dmax"  , #    "Dmin" ,"Hveg"  , 
-            "FLO_FLORE", "Disp",#"Mat_Per", #"Mat","Flo",
+            "Hrepro" , # , "Dmax"  , #    "Dmin" ,"Hveg"  , "H_FLORE",
+            "Disp",#"Mat_Per", #"Mat","Flo","FLO_FLORE",
             "SeedMass"
 )
 
@@ -37,7 +36,7 @@ ab_nat_ann <- ab_nat %>%
 # Species in the abundance, but not in the trait, data? ####
 # lifehistory == "annual"
 
-FTRAIT <- c("LDMC","LCC","Ldelta13C","H_FLORE","Hrepro","Disp","SeedMass")
+FTRAIT <- c("LDMC","LCC","Ldelta13C","Hrepro","Disp","SeedMass")
 FDF <- NULL
 
 for (ftrait in FTRAIT){
