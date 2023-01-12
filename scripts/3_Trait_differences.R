@@ -6,6 +6,9 @@ MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_
   mutate(log_LA = log(L_Area)) %>% 
   unique()
 
+ab_fer <- read.csv2("outputs/data/abundance_fertile.csv")
+ab_nat <- read.csv2("outputs/data/abundance_natif.csv")
+
 # I case I want to perform the analyses with species both in the trait and abundance data:
 data_fer <- MEAN %>%
   filter(code_sp %in% ab_fer$code_sp & treatment == "Fer")

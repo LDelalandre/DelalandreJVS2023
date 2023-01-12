@@ -27,77 +27,48 @@ traits <- c("LDMC","SLA","L_Area",
 )
 
 #___________________________________________________
-# Seed Mass ####
+# Seed Mass, height and Ldelta13C ####
+# D1 <- MEAN %>% 
+#   filter(LifeHistory == "perennial" & treatment == "Nat") %>% 
+#   select(code_sp,Hrepro,SeedMass,Ldelta13C)
+# 
+# D2 <- MEAN_Nat_Dol %>% 
+#   filter(LifeHistory == "perennial") %>% 
+#   select(code_sp,Hrepro,SeedMass_Dol = SeedMass,Ldelta13C_Dol=Ldelta13C)
+# 
+# plast_across_nat <- merge(D1,D2)
+# # marche bien avec hauteur et avec carbone 13, mais pas avec diamètre.
+# 
+# plast_across_nat %>% 
+#   filter(!(SeedMass == SeedMass_Dol)) %>% 
+#   ggplot(aes(x=SeedMass_Dol,y=SeedMass)) + 
+#   geom_point() +
+#   geom_smooth(method = "lm")
+# 
+# modH <- lm(Hrepro ~ Hrepro_Dol,plast_across_nat)
+# summary(modH)
+# # 6 points : pas assez pour faire un modèle. Je prends juste les valeurs dans l'autre traitement.
 
-# NB: GERADISS et MYOSRAMO: on a la seed mass
-# mais myosramo-ramo: pb de code ?
-# GERADISS: refaire refaire tourner le script pour moyenner traits (et refaire CSR Pierce)
 
-# j'ajoute la masse des graines des mêmes espèces mesurées dans tout le natif
-# aux traits mesurés dans le GUs (avec l'approx. que la masse individuelle des graines est peu plastique... à tester!!)
-MEAN_no_subset_seed_mass <-  MEAN_no_subset %>% 
-  select(code_sp,treatment,LifeHistory,SeedMass) %>% 
-  group_by(code_sp)
+# Add Seed Mass ####
+# part of the dataset for which I have to add height
+to_fill_SM <- MEAN %>% 
+  filter(LifeHistory == "perennial" & treatment == "Nat" & is.na(SeedMass)) %>% 
+  rename(SeedMassNA = SeedMass)
+# part of the dataset for which height is ok
+ok_SM <- MEAN %>% 
+  filter(!(LifeHistory == "perennial" & treatment == "Nat" & is.na(SeedMass)))
 
-# add seed mass measured in the rest of GU to missing seed mass in GU
-MEAN_fill <- MEAN %>%
-  filter(is.na(SeedMass)) %>% 
-  select(-SeedMass) %>% 
-  merge(MEAN_no_subset_seed_mass, by = c("code_sp","treatment","LifeHistory"))
-
-MEAN_completed <- MEAN %>%
-  filter(!is.na(SeedMass)) %>%
-  rbind(MEAN_fill)
-
-# complete seed mass from fer
-# mean seed mass in fer
-MEAN_fer <- MEAN_completed %>%
-  filter( treatment=="Fer") %>% 
+to_add_SM <- MEAN_no_subset %>% 
+  filter(LifeHistory == "perennial" & treatment == "Nat") %>% 
   select(code_sp,SeedMass)
 
-# add seed mass in fer to missing seed mass in nat
-sp_missing_seed_mass_nat <- MEAN_completed %>% 
-  filter(treatment == "Nat") %>% 
-  filter(is.na(SeedMass)) %>% 
-  pull(code_sp)
+filled_SM <- left_join(to_fill_SM,to_add_SM) %>% 
+  select(-SeedMassNA) %>% 
+  select(all_of(colnames(MEAN))) %>% 
+  unique()
+MEAN_SM <- rbind(filled_SM,ok_SM) 
 
-MEAN_nat <- MEAN_completed %>%
-  filter( treatment=="Nat") %>% 
-  filter(code_sp %in% sp_missing_seed_mass_nat) %>% 
-  select(-SeedMass) %>% 
-  left_join(MEAN_fer, by = c("code_sp"))
-
-MEAN_completed2_nat <- MEAN_completed %>% 
-  filter(treatment=="Nat") %>% 
-  filter(!(code_sp %in% MEAN_nat$code_sp)) %>% 
-  rbind(MEAN_nat)
-
-MEAN_SM <- MEAN_completed %>% 
-  filter(treatment %in% "Fer") %>% 
-  rbind(MEAN_completed2_nat)
-
-#___________________________________________________
-# Phenology and height ####
-D1 <- MEAN_SM %>% 
-  filter(LifeHistory == "perennial" & treatment == "Nat") %>% 
-  select(code_sp,Hrepro,Dmax,Ldelta13C)
-
-D2 <- MEAN_Nat_Dol %>% 
-  filter(LifeHistory == "perennial" & treatment == "Nat") %>% 
-  select(code_sp,Hrepro,Dmax,Ldelta13C) %>% 
-  rename(Hrepro_Dol = Hrepro,Dmax_Dol = Dmax,Ldelta13C_Dol=Ldelta13C)
-
-plast_across_nat <- merge(D1,D2)
-# marche bien avec hauteur et avec carbone 13, mais pas avec diamètre.
-
-plast_across_nat %>% 
-  ggplot(aes(x=Hrepro_Dol,y=Hrepro)) + 
-  geom_point() +
-  geom_smooth(method = "lm")
-
-modH <- lm(Hrepro ~ Hrepro_Dol,plast_across_nat)
-summary(modH)
-# 6 points : pas assez pour faire un modèle. Je prends juste les valeurs dans l'autre traitement.
 
 # Add height ####
 # part of the dataset for which I have to add height
@@ -114,7 +85,7 @@ to_add_H <- MEAN_no_subset %>%
 
 filled_H <- left_join(to_fill_H,to_add_H) %>% 
   select(-HreproNA) %>% 
-  select(all_of(colnames(MEAN_completed2))) %>% 
+  select(all_of(colnames(MEAN))) %>% 
   unique()
 MEAN_SM_H <- rbind(filled_H,ok_H) 
 
@@ -134,7 +105,7 @@ to_add_13C <- MEAN_no_subset %>%
 
 filled_13C <- left_join(to_fill_13C,to_add_13C) %>% 
   select(-Ldelta13CNA) %>% 
-  select(all_of(colnames(MEAN_completed2))) %>% 
+  select(all_of(colnames(MEAN))) %>% 
   unique()
 MEAN_SM_H_13C <- rbind(filled_13C,ok_13C) 
 

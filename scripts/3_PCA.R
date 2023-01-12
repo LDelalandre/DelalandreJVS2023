@@ -6,8 +6,7 @@ library(ggpubr)
 
 # keep only traits measured in the Nat_Sab
 # = compare trait values in Nat_Sab and in fertile
-MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_completed_seed_mass_flore.csv") %>%
-  filter(!is.na(SLA)) %>% 
+MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_SM_H_13C.csv") %>%
   filter(!(species== "Geranium dissectum - pétiole")) %>% 
   filter(!species == "Geranium dissectum - pÃ©tiole")
 
