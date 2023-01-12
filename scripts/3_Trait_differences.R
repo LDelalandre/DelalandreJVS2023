@@ -1,5 +1,6 @@
 library(tidyverse)
 library(ggpubr)
+library(kableExtra)
 
 MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_SM_H_13C.csv") %>%
   filter(!(species== "Geranium dissectum - pétiole")) %>% 
@@ -19,7 +20,7 @@ MEAN_intersect <- rbind(data_fer,data_nat)
 
 traits <- c("LDMC","SLA","log_LA",
             "LCC","LNC","Ldelta13C",#"LPC",
-            "Hrepro"   , "Dmax"  , #    "Dmin" ,"Hveg"  , 
+            "Hrepro" ,  #, "Dmax"  , #    "Dmin" ,"Hveg"  , 
             "Disp",#"Mat_Per", #"Mat","Flo",
             "SeedMass"
 )#"H_FLORE","FLO_FLORE",
@@ -29,9 +30,71 @@ traits <- c("LDMC","SLA","log_LA",
 
 #_______________________________________________________________________________
 # Table: Jaccard and species number ####
-ftrait <- "LDMC"
 
-TABLE <- NULL
+AF <- ab_fer %>% 
+  filter(LifeForm1=="The") %>% 
+  select(species) %>% 
+  unique() %>% 
+  mutate(presence_fer=1)
+nb_ann_fer <- dim(AF)[1]
+AN <- ab_nat %>% 
+  filter(LifeForm1=="The") %>% 
+  select(species) %>% 
+  unique() %>% 
+  mutate(presence_nat=1)
+nb_ann_nat <- dim(AN)[1]
+
+table_ann <- full_join(AF,AN) %>% 
+  replace(is.na(.),0) %>%
+  column_to_rownames("species") %>% 
+  as.matrix() %>% 
+  t()
+
+Jac_ann <- vegan::vegdist(x = table_ann,method="jaccard") %>% 
+  round(digits = 2)
+info_ann <- paste0(Jac_ann," (",
+                   paste(nb_ann_fer,nb_ann_nat, sep = ";"),
+                   ")" )
+
+# Perennials in Fertile
+PF <- ab_fer %>% 
+  filter(!(LifeForm1=="The")) %>% 
+  select(species) %>% 
+  unique() %>% 
+  mutate(presence_fer=1)
+nb_per_fer <- dim(PF)[1]
+PN <- ab_nat %>% 
+  filter(!(LifeForm1=="The")) %>% 
+  select(species) %>% 
+  unique() %>% 
+  mutate(presence_nat=1)
+nb_per_nat <- dim(PN)[1]
+
+full_join(PF,PN) %>% 
+  replace(is.na(.),0) %>%
+  column_to_rownames("species") %>% 
+  as.matrix() %>% 
+  t()
+
+table_per <- full_join(PF,PN) %>% 
+  replace(is.na(.),0) %>%
+  column_to_rownames("species") %>% 
+  as.matrix() %>% 
+  t()
+
+
+
+Jac_per <- vegan::vegdist(x = table_per,method="jaccard") %>% 
+  round(digits = 2)
+info_per <- paste0(Jac_per," (",
+                   paste(nb_per_fer,nb_per_nat, sep = ";"),
+                   ")" )
+
+
+
+TABLE <- data.frame(Trait = "Releves",
+                    Annuals = info_ann,
+                    Perennials = info_per)
 for (ftrait in  traits){
   
   # species present for the focal trait
@@ -64,8 +127,8 @@ for (ftrait in  traits){
     
     Jac <- vegan::vegdist(x = MEAN_jaccard_LH,method="jaccard") %>% 
       round(digits = 2)
-    info <- paste0(" (",
-                   paste(nb_sp_fer,nb_sp_nat,Jac, sep = ";"),
+    info <- paste0(Jac," (",
+                   paste(nb_sp_fer,nb_sp_nat, sep = ";"),
                    ")" )
     
     if(LH == "annual"){
@@ -79,12 +142,15 @@ for (ftrait in  traits){
 }
 
 TABLE %>% 
-  filter(Trait %in% c("LDMC","LCC","Ldelta13C","Hrepro","Disp","SeedMass")) #"H_FLORE","FLO_FLORE",
+  # filter(Trait %in% c("LDMC","LCC","Ldelta13C","Hrepro","Disp","SeedMass")) %>% #"H_FLORE","FLO_FLORE",
+  kableExtra::kable( escape = F,
+                     col.names = c("Origin", "Annuals", "Perennials")) %>%
+  kableExtra::kable_styling("hover", full_width = F)
 
 # AJOUTER JACCARD GLOBAL (= SUR RELEVES BOTANIQUES)
 
 #_______________________________________________________________________________
-# INterspecific comparisons ####
+# Interspecific comparisons ####
 
 
 # changer les noms des traits
@@ -302,13 +368,11 @@ legend <- ggpubr::as_ggplot(leg)
 
 
 boxplot_all_traits <- ggpubr::ggarrange(PLOTS[[1]],PLOTS[[2]],PLOTS[[3]],PLOTS[[4]],PLOTS[[5]],PLOTS[[6]],
-                                        PLOTS[[7]],PLOTS[[8]],PLOTS[[9]],
-                                        PLOTS[[10]],PLOTS[[11]],PLOTS[[12]],legend)
+                                        PLOTS[[7]],PLOTS[[8]],PLOTS[[9]],legend)
 
 ggsave("draft/boxplot_all_traits.jpg",boxplot_all_traits,width = 14, height = 8)
 
 ## Table ####
-library(kableExtra)
 table_trait_diff <- TABLE_PVAL %>% 
   transmute(
     Trait = Trait, 
@@ -337,73 +401,137 @@ cat(table_trait_diff, file = "draft/differences_traits.doc")
 
 # Intraspecific comparisons ####
 
+## test if real value is significant ####
+diff_to_random <- function(intrasp_var){
+  # create columns randfer and randnat, which randomize whether 
+  # the trait value was observed in fer or nat of the given species 
+  random_diff <- intrasp_var %>% 
+    mutate(rand1 = rbinom(length(Fer),1,0.5),
+           rand2 = 1 - rand1) %>% 
+    mutate(randfer = if_else(rand1 == 1, Fer,Nat),
+           randnat = if_else(rand2==1, Fer,Nat)) %>% 
+    mutate(randdiff = randnat - randfer) %>% 
+    group_by(LifeHistory) %>% 
+    summarize(mean_diff = mean(randdiff)) %>% 
+    arrange(LifeHistory)
+  # vector with random differences for annuals and perennials
+  random_diff$mean_diff
+}
+
+## test difference between ann and per ####
+diff_ann_per <- function(intrasp_var){
+  random_diff <- intrasp_var %>% 
+    select(code_sp,LifeHistory,diff) %>% 
+    mutate(LifeHistory_random = sample(LifeHistory)) %>% 
+    group_by(LifeHistory_random) %>% 
+    summarise(mean_diff = mean(diff)) %>% 
+    arrange(LifeHistory_random )
+  random_diff$mean_diff[2] %>% abs() -  random_diff$mean_diff[1] %>% abs()
+}
+
 # Problème : sens de variation et différences 
-INTRA <- NULL
+
+PVAL_ANN <- NULL
+PVAL_PER <- NULL
 for (ftrait in traits){
   intrasp_var <- MEAN %>% 
     # filter(LifeHistory=="annual") %>% 
     select(species,code_sp,LifeHistory,treatment,ftrait) %>% 
     spread(key=treatment,value=ftrait) %>% 
+    mutate(trait = ftrait) %>% 
     na.omit() %>%  # keep only sp measured in the 2 treatments
-    mutate(ratio = Nat / Fer)
+    mutate(ratio = Nat / Fer) %>% 
+    mutate(diff = Nat-Fer)
   
-  ggplot(intrasp_var,aes(x=LifeHistory,y=ratio)) +
-    geom_boxplot() +
-    geom_point() +
-    ggtitle(ftrait)
+  # ggplot(intrasp_var,aes(x=LifeHistory,y=diff)) +
+  #   geom_boxplot() +
+  #   geom_point() +
+  #   ggtitle(ftrait)
   
-  kruskal.test(ratio ~ LifeHistory,data=intrasp_var)
-  # voir si ça change en prenant l'inverse du ratio (ne devrait pas...)
+  real_difference <- intrasp_var %>%
+    group_by(LifeHistory) %>% 
+    summarize(mean_diff = mean(diff)) %>% 
+    arrange(LifeHistory) %>% 
+    pull(mean_diff)
   
-  var_ann <- intrasp_var %>% 
-    filter(LifeHistory == "annual") %>% 
-    pull(ratio)
-  var_per <- intrasp_var %>% 
-    filter(LifeHistory == "perennial") %>% 
-    pull(ratio)
-  
-  if( length(var_ann)< length(var_per) ){
-    var_small <- var_ann
-    var_big <- var_per
-  } else { 
-      var_small <- var_per
-      var_big <- var_ann
-  }
-  
-  # bootstrap
-  nb_boot <- 100
-  test_pval <- NULL
-  DISTRIB <- NULL
+  TEST_DIFF_ZERO <- data.frame(trait = ftrait,
+                               randomization = "real",
+                               mean_diff_ann = real_difference[1],
+                               mean_diff_per = real_difference[2])
+  nb_boot <- 50
   for (i in c(1:nb_boot)){
-    var_big_subsampled <- sample(var_big,size = length(var_small))
-    
-    test <- t.test(var_big_subsampled,var_small)
-    # test_pval <- c(test_pval, test$p.value)
-    
-    # if(length(var_small) == length(var_ann)){
-    #   ratio_mean <- mean(var_big_subsampled) / mean(var_ann)
-    # }else{
-    #   ratio_mean <- mean(var_per) / mean(var_big_subsampled)
-    # }
-    DISTRIB <- c(DISTRIB,test$p.value)
+    randomized_difference <- diff_to_random(intrasp_var)
+    test_diff_zero <- data.frame(trait = ftrait,
+                                 randomization = i,
+                                 mean_diff_ann = randomized_difference[1],
+                                 mean_diff_per = randomized_difference[2])
+    TEST_DIFF_ZERO <- rbind(TEST_DIFF_ZERO,test_diff_zero)
   }
-  # plot(density(RATIO_MEAN))
   
-  pval_ratio <- length(which(abs(DISTRIB)<0.05)) / length(DISTRIB)
-  # pval_ratio2 <- length(which(abs(RATIO_MEAN)>1)) / length(RATIO_MEAN)
+  # plot(density(TEST_DIFF_ZERO %>% 
+  #                filter(!(randomization == "real")) %>% 
+  #                pull(mean_diff_ann)
+  #              ))
+  # abline(v = TEST_DIFF_ZERO[1,3])
+  # 
+  # plot(density(TEST_DIFF_ZERO %>% 
+  #                filter(!(randomization == "real")) %>% 
+  #                pull(mean_diff_per)
+  # ))
+  # abline(v = TEST_DIFF_ZERO[1,4])
   
-  intra <- data.frame(trait = ftrait,
-                      nb_ann = length(var_ann),
-                      nb_per = length(var_per),
-                      ratio_ann = mean(var_ann),
-                      ratio_per = mean(var_per),
-                      pval_ratio = pval_ratio)
+  pval_ann <- min(
+    length(which(TEST_DIFF_ZERO$mean_diff_ann < TEST_DIFF_ZERO[1,3] )) / dim(TEST_DIFF_ZERO)[1] ,
+    length(which(TEST_DIFF_ZERO$mean_diff_ann > TEST_DIFF_ZERO[1,3] )) / dim(TEST_DIFF_ZERO)[1]
+  )
+  pval_per <- min(
+    length(which(TEST_DIFF_ZERO$mean_diff_per < TEST_DIFF_ZERO[1,4] )) / dim(TEST_DIFF_ZERO)[1],
+    length(which(TEST_DIFF_ZERO$mean_diff_per > TEST_DIFF_ZERO[1,4] )) / dim(TEST_DIFF_ZERO)[1]
+  )
+  PVAL_ANN <- c(PVAL_ANN,pval_ann)
+  PVAL_PER <- c(PVAL_PER,pval_per)
   
-  INTRA <- rbind(INTRA,intra)
 }
+
+
+test_plasticity <- data.frame(trait = traits,
+           pval_ann = PVAL_ANN,
+           pval_per = PVAL_PER)
+
   
+PVAL <- NULL
+for (ftrait in traits){
+  intrasp_var <- MEAN %>% 
+    # filter(LifeHistory=="annual") %>% 
+    select(species,code_sp,LifeHistory,treatment,ftrait) %>% 
+    spread(key=treatment,value=ftrait) %>% 
+    mutate(trait = ftrait) %>% 
+    na.omit() %>%  # keep only sp measured in the 2 treatments
+    mutate(ratio = Nat / Fer) %>% 
+    mutate(diff = Nat-Fer)
+  
+  DIFF_LH <- NULL
+  for (j in c(1:nb_boot)){
+    diff_LH <- diff_ann_per(intrasp_var)
+    DIFF_LH <- c(DIFF_LH,diff_LH)
+  }
+  real_diff <- intrasp_var %>% 
+    group_by(LifeHistory) %>% 
+    summarize(mean_diff = mean(diff)) %>%
+    arrange(LifeHistory) %>% 
+    pull(mean_diff)
+  real_abs_diff <- abs(real_diff[2]) - abs(real_diff[1])
+  
+  # plot(density(DIFF_LH))
+  # abline(v = real_abs_diff)
+  pval <- length(which(DIFF_LH < real_abs_diff)) / length(DIFF_LH)
+  
+  PVAL <- c(PVAL,pval)
+  
+}
 
-
+difference_in_plasticity <- data.frame(trait = traits,
+           p.value = PVAL)
 
 #_______________________________________________________________________________
 # Pairwise comparisons ####

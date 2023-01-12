@@ -1,6 +1,7 @@
 # Take the trait data averaged by species*origin
 # Complete missing trait values
 
+
 library(tidyverse)
 
 # Trait values computed in the G+F and GU(S+I) conditions, i.e. removing GUd for the latter

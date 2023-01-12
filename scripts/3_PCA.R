@@ -13,6 +13,8 @@ MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_
 code_sp_lifeform <- read.csv2("data/species_names_lifehistory.csv")
 
 
+# PEUT ETRE AJOUTER SEED MASS MESURE DANS FERTILE POUR ANNUELLES MANQUANTES
+
 #_____________________________________________
 
 traits <- c("LDMC","SLA","L_Area",
