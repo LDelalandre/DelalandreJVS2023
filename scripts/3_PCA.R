@@ -6,9 +6,7 @@ library(ggpubr)
 
 # keep only traits measured in the Nat_Sab
 # = compare trait values in Nat_Sab and in fertile
-MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_SM_H_13C.csv") %>%
-  filter(!(species== "Geranium dissectum - pétiole")) %>% 
-  filter(!species == "Geranium dissectum - pÃ©tiole")
+MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_SM_H_13C.csv")
 
 code_sp_lifeform <- read.csv2("data/species_names_lifehistory.csv")
 
@@ -19,8 +17,8 @@ code_sp_lifeform <- read.csv2("data/species_names_lifehistory.csv")
 
 traits <- c("LDMC","SLA","L_Area",
             "LCC","LNC","Ldelta13C",#"LPC",
-            "H_FLORE",#"Hrepro"   , "Dmax"  , #    "Dmin" ,"Hveg"  , 
-            "FLO_FLORE", #Disp",#"Mat_Per", #"Mat","Flo",
+            "Hrepro"   , #"Dmax"  , #    "Dmin" ,"Hveg"  , "H_FLORE",#
+            "Disp", #"Mat_Per", #"Mat","Flo","FLO_FLORE", #
             "SeedMass"
 )
 
@@ -28,6 +26,8 @@ MEAN %>%
   # filter(treatment=="Nat") %>%
   select(all_of(traits)) %>% 
   psych::corPlot()
+
+
 
 
 annuals <- MEAN %>% 
@@ -135,7 +135,7 @@ ab_nat <- read.csv2("outputs/data/abundance_natif.csv") %>%
 data_traits_for_PCA <- MEAN %>% 
   select(!!c("code_sp","treatment",traits)) %>%  # subset of the traits that I want of analyse
   group_by(code_sp,treatment) %>% 
-  summarise(across(all_of(traits), mean, na.rm= TRUE)) 
+  summarise(across(all_of(traits), mean, na.rm= TRUE))
 # NB : des fois, certaines espèces ont le même code, mais pas le même nom d'espèce.
 # Il faut que je règle ça en faisant la moyenne dès  le départ (dans le script sur les traits)
 
@@ -249,8 +249,8 @@ for(i in 1:ncol(data_traits_for_PCA2)){
 pca_output <- perform_pca(data_traits_for_PCA2)
 # pca_output[[7]]
 coord_ind <- pca_output[[1]] %>% 
-  merge(code_sp_lifeform,by="Code_Sp") %>% 
-  merge(data_clusters %>% rename(Code_Sp = code_sp))
+  merge(code_sp_lifeform)
+  # merge(data_clusters %>% rename(Code_Sp = code_sp))
   
 coord_var <- pca_output[[2]]
 var.explain.dim1 <- pca_output[[3]]
@@ -283,9 +283,9 @@ PCA_fer12 <- plot_pca(coord_ind,coord_var,DimA=Dim.A,DimB=Dim.B ,Var.A,Var.B ) +
   # coord_fixed(ratio = ratio$ratio12) +
   # ggrepel::geom_label_repel(aes(label=Code_Sp)) + theme(legend.position = "none")
   # ellipse
-  ggforce::geom_mark_ellipse(data = coord_ind,aes(fill = cluster), # ,label = cluster
-                             expand = unit(0.5,"mm"),
-                             label.buffer = unit(-5, 'mm')) +
+  # ggforce::geom_mark_ellipse(data = coord_ind,aes(fill = cluster), # ,label = cluster
+  #                            expand = unit(0.5,"mm"),
+  #                            label.buffer = unit(-5, 'mm')) +
   scale_fill_brewer() 
   # theme(legend.position = "none")
   # scale_fill_manual( values = c("#9933FF","#33FFFF" ) )

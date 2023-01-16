@@ -23,6 +23,9 @@ mean_attribute_per_species <- function(dataset,subset_gt_nat = F){
     mutate(LifeForm1 = if_else(Code_Sp == "ANTHVULN","Hem",LifeForm1)) %>%
     mutate(LifeForm1 = if_else(Code_Sp == "LOTUCORN","Hem",LifeForm1)) %>% 
     
+    mutate(Species = if_else(Species == "Myosostis ramosissima subsp. ramosissima",
+                             "Myosotis ramosissima subsp. ramosissima",Species)) %>% 
+    
     mutate(LifeHistory = if_else(LifeForm1=="The","annual","perennial")) %>% 
     mutate(Form = case_when(Family == "Poaceae" ~ "Grass",
                             Family =="Juncaceae" ~ "Rush",

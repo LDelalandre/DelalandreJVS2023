@@ -71,9 +71,34 @@ filled_SM <- left_join(to_fill_SM,to_add_SM) %>%
 MEAN_SM <- rbind(filled_SM,ok_SM) 
 
 
+## Complete seed mass in Nat from Seed Mass in Fer ####
+ann_SM_missing <- MEAN_SM %>% 
+  filter(treatment=="Nat" & LifeHistory == "annual") %>% 
+  filter((is.na(SeedMass))) %>% 
+  pull(code_sp)
+
+SM_to_complete <- MEAN_SM %>% 
+  filter(treatment=="Fer") %>% 
+  filter(code_sp %in% ann_SM_missing) %>% 
+  select(code_sp,SeedMass) %>% rename(SeedMass_fer = SeedMass) %>% 
+  mutate(treatment="Nat")
+
+MEAN_SM2 <- left_join(MEAN_SM,SM_to_complete) %>%
+  mutate(SeedMass = case_when(!(is.na(SeedMass_fer))~SeedMass_fer,
+                              TRUE ~ SeedMass)) %>%
+  select(-SeedMass_fer)
+
+ann_SM_missing2 <- MEAN_SM2 %>% 
+  filter(treatment=="Nat" & LifeHistory == "annual") %>% 
+  filter((is.na(SeedMass))) %>% 
+  pull(code_sp)
+
+ann_SM_missing %>% sort()
+ann_SM_missing2 %>% sort()
+
 # Add height ####
 # part of the dataset for which I have to add height
-to_fill_H <- MEAN_SM %>% 
+to_fill_H <- MEAN_SM2 %>% 
   filter(LifeHistory == "perennial" & treatment == "Nat" & is.na(Hrepro)) %>% 
   rename(HreproNA = Hrepro)
 # part of the dataset for which height is ok

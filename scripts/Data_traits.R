@@ -4,7 +4,8 @@
 library(openxlsx)
 library(tidyverse)
 # Characteristics of the species  ####
-names_LH <- read.csv2("data/species_names_lifehistory.csv")
+names_LH <- read.csv2("data/species_names_lifehistory.csv") %>% 
+  rename(Code_Sp = code_sp)
 names_family <- read.csv2("data/traits/names and family.csv")
 
 
@@ -34,7 +35,7 @@ Leafchim_leo <- read.csv2(paste0("data/traits/leafchim_leo.csv")) %>%
   filter(!(Code_Sp %in% c("EROPVERN","STELMEDI"))) # senescent leaves
 # Species name and LifeForm
 L2 <- Leafchim_leo %>% 
-  merge(names_LH,by="Code_Sp") %>% 
+  merge(names_LH %>% rename(Species=species),by="Code_Sp") %>% 
   mutate(LifeForm2=NA)
 # Day of measurement
 L3 <- LeafMorpho_leo %>% 
@@ -43,7 +44,7 @@ L3 <- LeafMorpho_leo %>%
   merge(L2,by=c("Code_Sp","Plot"))
 # Family
 fam <- read.csv2("data/traits/names and family.csv")
-L4 <- merge(L3,fam,by="Species")
+L4 <- merge(L3,fam)
 # Rep
 L5 <- L4 %>% 
   group_by(Species,Plot) %>% 
@@ -102,7 +103,7 @@ pheno_leo_DP <- pheno_leo %>%
   mutate(Site= "La Fage", Block = "None",Plot = plot, Treatment = "Nat_Sab",Year = 2021,
   ) %>% 
   left_join(names_LH,by="Code_Sp") %>% 
-  left_join(names_family,by="Species") %>% 
+  left_join(names_family %>% rename(species = Species),by="species") %>% 
   separate(col = Day2,into = c("Year","Month","Day")) %>% 
   mutate(Year = as.numeric(Year), Month = as.numeric(Month), Day = as.numeric(Day)) %>% 
   mutate(Disp = map2_dbl(Month,Day,get_day_of_year)) %>% 
@@ -110,8 +111,9 @@ pheno_leo_DP <- pheno_leo %>%
   mutate(LifeForm2 = NA) %>%  # A compléter pour le data paper
   mutate(Flo = NA, Mat_Per = NA, nameOfProject = "Annuals",measurementDeterminedBy = "Léo Delalandre") %>% 
   mutate(Rep = "None") %>% 
-  group_by(Species) %>% 
+  group_by(species) %>% 
   filter(Disp == min (Disp)) %>%  # NB: une valeur de phéno par espèce*traitment dans la BDD ; je prends la min !
+  rename(Species = species) %>% 
   select(all_of(colnames))
 
 Pheno <- rbind(Pheno1,pheno_leo_DP)
@@ -127,7 +129,8 @@ Seed_leo <- read.csv2("data/traits/Seed_leo_lila.csv") %>%
          LifeForm2 = "None",
          SeedMass = TotSeedMass.mg./SeedNb, Mat = NA, 
          nameOfProject = "Annuals",measurementDeterminedBy = "Leo Delalandre")  %>% 
-  merge(names_LH, by = "Code_Sp") %>% 
+  merge(names_LH , by = "Code_Sp") %>%
+  rename(Species = species) %>% 
   merge(names_family,by = "Species") %>% 
   mutate(Treatment = if_else(Plot %in% c("P8","P1","P10"), "Nat_Sab","Fer_Clc")) %>% 
   select(all_of(colnames(Seed1)))

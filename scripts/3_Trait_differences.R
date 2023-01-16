@@ -401,7 +401,7 @@ cat(table_trait_diff, file = "draft/differences_traits.doc")
 
 # Intraspecific comparisons ####
 
-## test if real value is significant ####
+
 diff_to_random <- function(intrasp_var){
   # create columns randfer and randnat, which randomize whether 
   # the trait value was observed in fer or nat of the given species 
@@ -418,7 +418,7 @@ diff_to_random <- function(intrasp_var){
   random_diff$mean_diff
 }
 
-## test difference between ann and per ####
+
 diff_ann_per <- function(intrasp_var){
   random_diff <- intrasp_var %>% 
     select(code_sp,LifeHistory,diff) %>% 
@@ -429,7 +429,7 @@ diff_ann_per <- function(intrasp_var){
   random_diff$mean_diff[2] %>% abs() -  random_diff$mean_diff[1] %>% abs()
 }
 
-# Problème : sens de variation et différences 
+## test1: existence of intrasp var ####
 
 PVAL_ANN <- NULL
 PVAL_PER <- NULL
@@ -499,6 +499,7 @@ test_plasticity <- data.frame(trait = traits,
            pval_per = PVAL_PER)
 
   
+## test2: difference in intrasp var between annuals and perennials ####
 PVAL <- NULL
 for (ftrait in traits){
   intrasp_var <- MEAN %>% 
@@ -530,5 +531,16 @@ for (ftrait in traits){
   
 }
 
+
+## table ####
 difference_in_plasticity <- data.frame(trait = traits,
-           p.value = PVAL)
+           p.value_difference = PVAL)
+
+table_intrasp <- merge(test_plasticity,difference_in_plasticity) %>% 
+  arrange(match(trait,traits)) %>% 
+  kableExtra::kable( escape = F,
+                     col.names = c("Trait", "Annuals", "Perennials", "Difference")) %>%
+  kableExtra::kable_styling("hover", full_width = F) 
+  
+
+cat(table_intrasp, file = "draft/differences_variation_intrasp.doc")
