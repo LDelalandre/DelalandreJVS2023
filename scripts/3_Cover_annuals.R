@@ -56,7 +56,7 @@ soil_Maud <- data.frame(PC1score = c(-3.08,-2.85,-2.52,-1.78,-1.60,-1.56,-0.03,0
 # II) Figure_envt ####
 
 #specify path to save PDF to
-destination = "outputs/figures/fig_envt.pdf"
+destination = "draft/fig_envt.pdf"
 # destination2 = "outputs/figures/1_abundance_richness_annuals.jpg"
 
 #open PDF
@@ -64,28 +64,29 @@ pdf(file=destination,width = 3, height = 6)
 # png(file=destination2)
 
 #specify to save plots in 2x2 grid
-par(mar = c(2, 5.5, 0.1, 1),mfrow = c(4,1),mpg = c(1,1,0))
+par(mar = c(2, 6.5, 1.3, 1),mfrow = c(4,1),mpg = c(1,1,0))
 
 
-## 4) Bar plot of INN and INP ####
-BarPlot <- barplot(to_barplot,
-                   beside = TRUE, names.arg = c("Fer", "D","I","S"),#names.arg = IN2$soil, # yaxt = "n",
+## Bar plot of INN and INP ####
+BarPlot <- barplot(to_barplot[,c(1,4)],
+                   beside = TRUE, names.arg = c("Intensive", "Extensive"),#names.arg = IN2$soil, # yaxt = "n",
                    ylim=c(0, max(c(IN2$meanINN,IN2$meanINP)+3)  ),  
                    col = c("black","grey"),
                    ylab = "Nutrition index (%)",
-                   xaxt = "n",
-                   main = "a"
+                   xaxt = "n"
 )
+title("A - Nutrient availability",adj = 0,line = 0.5)
+
 legend("topright",
-       legend = c("INN (%)","INP (%)"),
+       legend = c("NNI (%)","PNI (%)"),
        pch = 15,
        col = c("black","grey"))
-error.bar(BarPlot,to_barplot,to_barplot_se)
+error.bar(BarPlot,to_barplot[,c(1,4)],to_barplot_se[,c(1,4)])
 
 
 
 
-## 3) Biomass production ####
+## Biomass production ####
 biomass <- read.xlsx("data/environment/Biomasses et indices La Fage.xlsx", 
                      sheet = "2009", 
                      startRow = 1, colNames = TRUE, rowNames = F) %>% 
@@ -99,57 +100,45 @@ biomass_may <- biomass %>%
   mutate(Position = case_when(is.na(Position) ~ "Fer",
                               TRUE ~ Position)) 
 biomass_may$Position <- factor(biomass_may$Position , levels = c("Fer","D","I","S"))
+biomass_may_reduced <- biomass_may %>% 
+  filter(Position %in% c("Fer","S"))
+biomass_may_reduced$Position <- factor(biomass_may_reduced$Position , levels = c("Fer","S"))
 
-boxplot(biomass_may$rdt.T.ha ~ biomass_may$Position,
+boxplot(biomass_may_reduced$rdt.T.ha ~ biomass_may_reduced$Position,
         xlab = NA,
         ylab = "Productivity (T/ha)",
         xaxt = "n",
         medlwd = 1
 )
+title("B - Productivity",adj = 0,line = 0.5)
 
+## Disturbance ####
 
-## 2) CWM CSR scores ####
-CSR_toplot_nat <- CWM3_nat %>% 
-  mutate(id_com = paste(depth,paddock,line,sep = "_")) %>% 
-  select(id_com,depth,CWM_C,CWM_S,CWM_R) %>% 
-  gather(key = "score", value = "value", -c(depth,id_com) ) 
-
-CSR_toplot_fer <- CWM3_fer %>% 
-  mutate(depth = "Fer") %>% 
-  select(depth,id_transect_quadrat,CWM_C,CWM_S,CWM_R) %>% 
-  gather(key = "score", value = "value", -c(depth,id_transect_quadrat) ) %>% 
-  rename(id_com = id_transect_quadrat)
-
-CSR_toplot <- rbind(CSR_toplot_nat,CSR_toplot_fer)
-CSR_toplot$score <- factor(CSR_toplot$score , levels = c("CWM_C","CWM_S","CWM_R"))
-CSR_toplot$depth <- factor(CSR_toplot$depth , levels = c("Fer","D","I","S"))
-
-
-boxplot(
-  value ~ score * depth , data = CSR_toplot, 
-  xaxt = "n",
-  xlab = "", 
-  ylab = "Score (%)",
-  col = c("black", "grey","white"),
-  medlwd = 1
-)
-legend(
-  "topleft", title = "Score",
-  legend = c("C", "S", "R"), fill = c("black", "grey","white"),
-  cex = 0.7
+boxplot(disturbance$Tx_CalcPic ~ disturbance$Trtmt ,  
+        width=c(1,4),
+        # col=c("orange" , "seagreen"),
+        xlab = "Zone of origin",
+        ylab = "Proportion of biomass eaten",
+        # xaxt = "n",
+        at = c(1,2),
+        medlwd = 1,
+        xaxt = "n"
 )
 
-dev.off()
+title("C - Disturbance",adj = 0,line = 0.5)
 
 
 
-# III) Richness of annual species ####
+
+
+
+##Richness of annual species ####
 #specify path to save PDF to
-destination = "outputs/figures/fig_richness_annuals.pdf"
-# destination2 = "outputs/figures/1_abundance_richness_annuals.jpg"
-
-#open PDF
-pdf(file=destination,width = 4, height = 4)
+# destination = "outputs/figures/fig_richness_annuals.pdf"
+# # destination2 = "outputs/figures/1_abundance_richness_annuals.jpg"
+# 
+# #open PDF
+# pdf(file=destination,width = 4, height = 4)
 # png(file=destination2)
 
 richness_per_guild_nat <- ab_nat %>% 
@@ -173,22 +162,25 @@ richness_per_guild_toplot <- richness_per_guild %>%
                           depth == "D" ~ "GU-D",
                           depth == "I" ~ "GU-I",
                           TRUE ~ "GU-S"))
-
+richness_per_guild_toplot_reduced <- richness_per_guild_toplot %>% 
+  filter(zone %in% c("G+F","GU-S"))
 # relative richness
+
+labels <- c("Intensive",
+            "Extensive")
 boxplot(relative_richness_annual *100 ~ zone,
-        data = richness_per_guild_toplot,
+        data = richness_per_guild_toplot_reduced,
         ylim=c(0,90),
         xlab = NA,
-        ylab = "Relative richness of annuals (%)",
+        ylab = "Relative richness \n of annuals (%)",
         # xaxt = "n",
         medlwd = 1,
-        xaxt = "n")
-axis(1,                         # Define x-axis manually
-     at = 1:4,
-     labels = c(expression(paste("G"^'+',"F",sep='')),
-                expression(paste("GU"[D],sep='')),
-                expression(paste("GU"[I],sep='')),
-                expression(paste("GU"[S],sep=''))) )
+        # xaxt = "n",
+        names = labels)
+
+title("D - Relative richness of annuals",adj = 0,line = 0.3)
+
+dev.off()
 
 # legend("topleft", legend="d", bty='n')
 
@@ -226,30 +218,15 @@ text(x=c(1:4),y=c(85,40,40,60), labels = comp_binom$.group)
 dev.off() 
 
 
-# IV) Independent figure : biomass consumption ####
-jpeg("draft/disturbance.jpeg")
-boxplot(disturbance$Tx_CalcPic ~ disturbance$Trtmt ,  
-        width=c(1,4),
-        # col=c("orange" , "seagreen"),
-        xlab = "Zone of origin",
-        ylab = "Proportion of biomass eaten",
-        # xaxt = "n",
-        at = c(1,2),
-        medlwd = 1,
-        xaxt = "n"
-)
 
-axis(1,                         # Define x-axis manually
-     at = 1:2,
-     labels = c(expression(paste("G"^'+',"F",sep='')),
-                expression("GU") ) )
 
-dev.off()
 
-disturbance %>% 
-  group_by(Trtmt) %>% 
-  summarize(mean = mean(Tx_CalcPic))
+# disturbance %>% 
+#   group_by(Trtmt) %>% 
+#   summarize(mean = mean(Tx_CalcPic))
 
+
+#________________________________________________________________________________
 # V) Optional graphs ####
 
 ## only C score ####

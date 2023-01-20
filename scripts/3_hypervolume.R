@@ -157,6 +157,16 @@ coord_ind <- PCA_hypervolume$ind$coord %>%
   left_join(code_sp_lifeform) %>% 
   mutate(LifeHistory = if_else(LifeForm1 == "The","annual","perennial"))
 
+axes_toplot <- PCA_hypervolume$var$coord %>%
+  as.data.frame() %>% 
+  rownames_to_column("trait") 
+ggplot(axes_toplot) +
+  ggrepel::geom_text_repel( aes(x=Dim.1, Dim.2, label=trait), size = 6, vjust=1, color="black")  +
+  geom_segment( aes(x=0, y=0, xend=Dim.1, yend=Dim.2), 
+               arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") 
+
+  
+
 
 # Plot PCA
 coord_ind %>% 
@@ -294,13 +304,14 @@ df_PN <- hypervolume_to_data_frame(H_PN) %>%
 df_hypervolumes <- rbind(df_AF,df_AN,df_PF,df_PN)
 
 ggplot(df_hypervolumes,aes(x=Dim.1,y=Dim.2,color = treatment)) +
-  geom_point(alpha = 0.2)+
+  geom_point(alpha = 0.1)+
   xlim(c(-5,6))+
   ylim(c(-4,5))+
-  facet_wrap(~LifeHistory)
+  facet_wrap(~LifeHistory) +
+  theme_classic()
 
 # write.csv2(CENTROID,"outputs/data/centroid_interspecific.csv",row.names=F)
-    
+CENTROID <- read.csv2("outputs/data/centroid_interspecific.csv")  
 
 # compute euclidean distances in the two dimensions
 euclid_dist <- CENTROID %>% 
@@ -312,10 +323,12 @@ euclid_dist <- CENTROID %>%
   
 euclid_dist %>% 
   gather(key = comparison,value = distance,-num) %>% 
+  filter(comparison %in% c("within_A","within_P")) %>% 
   ggplot(aes(x=factor(comparison, levels = c("within_A","within_P","within_F","within_N")),
              y=distance)) +
   geom_boxplot() +
-  xlab("comparison")
+  xlab("comparison") +
+  theme_classic()
 
 # also compute distances in each dimension! (dim2 = LDMC - SLA)
 euclid_dist_separate_dim <- CENTROID %>% 
@@ -334,7 +347,8 @@ euclid_dist_separate_dim %>%
   geom_boxplot() +
   xlab("comparison") +
   facet_wrap(~dim) +
-  geom_point()
+  geom_point() +
+  theme_classic()
 
 
 ## intraspecific ####

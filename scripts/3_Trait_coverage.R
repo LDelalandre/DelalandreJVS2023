@@ -5,8 +5,7 @@ library(dplyr)
 MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_SM_H_13C.csv") %>%
   filter(!(species== "Geranium dissectum - pétiole"))
 
-sp_lifeform <- read.csv2("data/species_names_lifehistory.csv") %>% 
-  rename(code_sp = Code_Sp, species= Species)
+sp_lifeform <- read.csv2("data/species_names_lifehistory.csv")
 
 trait_unit <- read.csv2("data/trait_unit.csv",encoding = "latin1")
 
@@ -36,7 +35,8 @@ ab_nat_ann <- ab_nat %>%
 # Species in the abundance, but not in the trait, data? ####
 # lifehistory == "annual"
 
-FTRAIT <- c("LDMC","LCC","Ldelta13C","Hrepro","Disp","SeedMass")
+# FTRAIT <- c("LDMC","LCC","Ldelta13C","Hrepro","Disp","SeedMass")
+FTRAIT <- traits
 FDF <- NULL
 
 for (ftrait in FTRAIT){
@@ -129,16 +129,25 @@ for (ftrait in FTRAIT){
 FDF 
 
 # table à faire
-table_trait_abundance_overlap <- FDF %>% 
-  kableExtra::kable( escape = F,
-                     col.names = c("Trait", "Abbr.", "Unit",
-                                   "Abundance in G+F",
-                                   "Abundance in GUs",
-                                   "Abundance in G+F",
-                                   "Abundance in GUs")) %>%
-  kableExtra::kable_styling("hover", full_width = F) %>% 
-  kableExtra::add_header_above(c(" " = 3,"Annuals" = 2,"Perennials" = 2))
 
+table_trait_coverage_nb_sp <- FDF %>% 
+  mutate(LH_tr = paste(LifeForm1,treatment)) %>% 
+  mutate(trait_coverage = round(trait_coverage,2)) %>% 
+  select(trait,LH_tr,trait_coverage) %>% 
+  spread(key = LH_tr,value = trait_coverage) %>% 
+  arrange(trait = factor (trait, levels = traits)) %>% 
+  kableExtra::kable( escape = F,
+                     col.names = c("Trait",
+                                   "Intensive",
+                                   "Extensive",
+                                   "Intensive",
+                                   "Extensive")) %>%
+  kableExtra::kable_styling("hover", full_width = F) %>% 
+  kableExtra::add_header_above(c(" " =1,"Management" = 4)) %>% 
+  kableExtra::add_header_above(c(" " = 1,"Annuals" = 2,"Perennials" = 2))
+
+table_trait_coverage_nb_sp
+cat(table_trait_coverage_nb_sp, file = "draft/table_trait_coverage_richness.doc")
 
 #________________________________________________
 # Abundance and trait coverage info together ####
@@ -313,15 +322,15 @@ for (choice_life_history in c("annual","perennial")){
 }
 
 cover_ann <- TRAITS_ABUNDANCE_COVERAGE[[1]] %>% 
-  mutate(yes = round(yes,3)) %>% 
-  mutate(no = round(no,3)) %>% 
+  mutate(yes = round(yes,2)) %>% 
+  mutate(no = round(no,2)) %>% 
   select(-no) %>% 
   spread(key=treatment,value=yes) %>% 
   arrange(factor(trait,levels = traits))
 
 cover_per <- TRAITS_ABUNDANCE_COVERAGE[[2]]%>% 
-  mutate(yes = round(yes,3)) %>% 
-  mutate(no = round(no,3)) %>% 
+  mutate(yes = round(yes,2)) %>% 
+  mutate(no = round(no,2)) %>% 
   select(-no) %>% 
   spread(key=treatment,value=yes) %>% 
   arrange(factor(trait,levels = traits))
@@ -340,17 +349,18 @@ cover <- merge(cover_ann,cover_per,by="trait")%>%
 table_trait_coverage <- cover %>% 
   kableExtra::kable( escape = F,
                      col.names = c("Trait", "Abbr.", "Unit",
-                                   "Abundance in G+F",
-                                   "Abundance in GUs",
-                                   "Abundance in G+F",
-                                   "Abundance in GUs")) %>%
-  kableExtra::kable_styling("hover", full_width = F) %>% 
+                                   "Intensive",
+                                   "Extensive",
+                                   "Intensive",
+                                   "Extensive")) %>%
+  kableExtra::kable_styling("hover", full_width = F)  %>% 
+  kableExtra::add_header_above(c(" " = 3,"Management" = 4)) %>% 
   kableExtra::add_header_above(c(" " = 3,"Annuals" = 2,"Perennials" = 2))
 
 table_trait_coverage 
 
 
-cat(table_trait_coverage, file = "draft/cover_traits.doc")
+cat(table_trait_coverage, file = "draft/table_trait_coverage_abundance.doc")
 # cat(table_trait_coverage, file = "draft/cover_traits_annuals.doc")
 # cat(table_trait_coverage, file = "draft/cover_traits_perennials_approx_SM.doc")
 
