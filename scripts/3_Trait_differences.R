@@ -25,6 +25,12 @@ traits <- c("LDMC","SLA","log_LA",
             "SeedMass"
 )#"H_FLORE","FLO_FLORE",
 
+traits_names <- c("Leaf Dry Matter Content (mg/g)", "Specific Leaf Area (mm²/mg)"," log(Leaf Area (cm²))",
+                  "Leaf Carbon Content (mg/g)","Leaf Nitrogen Content (mg/g)", "Leaf delta 13C (part per thousand)",
+                  "Reproductive Height (cm)", 
+                  "Date of first dispersal (Julian day)",
+                  "Seed Mass (mg)")
+
 # Chose to take species in trait data, or in both trait and abundance data
 
 
@@ -149,6 +155,8 @@ TABLE %>%
 
 # AJOUTER JACCARD GLOBAL (= SUR RELEVES BOTANIQUES)
 
+# Faire plutôt un indice de jaccard par paire de transect
+
 #_______________________________________________________________________________
 # Interspecific comparisons ####
 
@@ -166,7 +174,9 @@ for (ftrait in traits){
     # select(code_sp,treatment,LifeHistory,C,S,R) %>%
     # gather(key = score, value = value, -c(code_sp, LifeHistory,treatment)) %>% 
     filter(treatment%in% c("Nat","Fer")) %>% 
-    mutate(log_L_Area = log(L_Area))
+    mutate(log_L_Area = log(L_Area)) %>% 
+    mutate(treatment = as.factor(treatment) ) %>% 
+    mutate(LifeHistory = as.factor(LifeHistory))
   
   formula0 <- as.formula(paste0(ftrait, " ~ 1 + (1|code_sp)"))
   formula <- as.formula(paste0(ftrait, " ~ treatment * LifeHistory", " + (1|code_sp)"))
@@ -194,6 +204,37 @@ for (ftrait in traits){
                               Life_History = pval[2],
                               Interaction = pval[3]
     )
+    
+    # part of variance explained
+    var_code_sp <- as.data.frame(VarCorr(mmod))[1,"vcov"]
+    var_code_sp_residuals <- sum(as.data.frame(VarCorr(mmod))[,"vcov"])
+
+    sum <- summary(mmod)
+    coef_fer_ann <- sum$coefficients["(Intercept)","Estimate"]
+    coef_nat_ann <- coef_fer_ann + sum$coefficients["treatmentNat","Estimate"]
+    coef_fer_per <- coef_fer_ann + sum$coefficients["LifeHistoryperennial","Estimate"]
+    coef_nat_per <- coef_fer_ann + sum$coefficients["treatmentNat:LifeHistoryperennial","Estimate"]
+
+    var_fixed = coef_fer_ann ^2* var(data.anovaCSR %>% 
+                                    filter(treatment == "Fer" & LifeHistory == "annual") %>% 
+                                    pull(sym(ftrait)) %>% 
+                                    na.omit()) +
+      coef_nat_ann ^2* var(data.anovaCSR %>% 
+                             filter(treatment == "Nat" & LifeHistory == "annual") %>% 
+                             pull(sym(ftrait)) %>% 
+                             na.omit()) +
+      coef_fer_per ^2* var(data.anovaCSR %>% 
+                             filter(treatment == "Fer" & LifeHistory == "perennial") %>% 
+                             pull(sym(ftrait)) %>% 
+                             na.omit()) +
+      coef_nat_per ^2* var(data.anovaCSR %>% 
+                             filter(treatment == "Nat" & LifeHistory == "perennial") %>% 
+                             pull(sym(ftrait)) %>% 
+                             na.omit()) 
+      
+    percent_var_code_sp <- var_code_sp / (var_code_sp_residuals + var_fixed)
+    
+    
 
     # if( table_pval$Interaction < 0.05 ){
       posthoc <- multcomp::cld(emmeans::emmeans(mmod, specs = c("treatment","LifeHistory"),  type = "response",
@@ -213,11 +254,12 @@ for (ftrait in traits){
         select(contrast,estimate,p.value) %>% 
         mutate(estimate = round(estimate,digits =1)) %>% 
         mutate(p.value = format(p.value,scientific = TRUE, digits = 2)) %>% 
-        mutate(est_pval = paste0(estimate, "(",p.value,")")) %>%
+        mutate(est_pval = paste0(estimate, " (",p.value,")")) %>%
         select(contrast,est_pval) %>% 
         spread(key = contrast,value = est_pval)
       
       table_pval2 <- cbind(table_pval,contrasts)
+      table_pval2$percent_var_code_sp <- percent_var_code_sp
       TABLE_PVAL <- rbind(TABLE_PVAL,table_pval2)
       
       comp <- as.data.frame(posthoc$emmeans) %>% 
@@ -278,7 +320,8 @@ for (ftrait in traits){
     # scale_fill_manual(values = c("grey30", "grey80")) +
     geom_line(aes(group = code_sp),
               alpha=0.4) + #,color=LifeHistory
-    ylim(c(miny,maxy)) +
+    ylim(c(miny- 1/10*(maxy-miny),
+           maxy)) +
     theme(legend.position="none") +
     # ggtitle ("annuals")
     theme(axis.text.x=element_blank(),
@@ -289,8 +332,8 @@ for (ftrait in traits){
     annotate("text", x = 1, y=maxy, label = comp[1,]$.group)+ 
     annotate("text", x = 2, y=maxy, label = comp[2,]$.group) + 
     
-    annotate("text", x = 1, y=miny, label = nb1)+ 
-    annotate("text", x = 2, y=miny, label = nb2) +
+    annotate("text", x = 1, y=miny - 1/10*(maxy-miny), label = nb1)+ 
+    annotate("text", x = 2, y=miny - 1/10*(maxy-miny), label = nb2) +
     labs(x = "Annuals")
   # annotate("text", x = 2, y=maxy + maxy/10, label = trait) 
   
@@ -313,7 +356,8 @@ for (ftrait in traits){
     geom_line(aes(group = code_sp),
               alpha = 0.4) + #,color=LifeHistory
     scale_color_manual(values = "#00BFC4") +
-    ylim(c(miny,maxy))+
+    ylim(c(miny - 1/10*(maxy-miny), 
+           maxy))+
     theme(legend.position="none") +
     ggeasy::easy_remove_y_axis() +
     # ggtitle("perennials") 
@@ -325,19 +369,23 @@ for (ftrait in traits){
     annotate("text", x = 1, y=maxy, label = comp[3,]$.group)+ 
     annotate("text", x = 2, y=maxy, label = comp[4,]$.group)+ 
     
-    annotate("text", x = 1, y=miny, label = nb3)+ 
-    annotate("text", x = 2, y=miny, label = nb4)
+    annotate("text", x = 1, y=miny - 1/10*(maxy-miny), label = nb3)+ 
+    annotate("text", x = 2, y=miny- 1/10*(maxy-miny), label = nb4)
   
   
   
   # Create a text grob (for the title = trait name)
-  tgrob <- ggpubr::text_grob(ftrait,size = 10)
+  tgrob <- ggpubr::text_grob(traits_names[i],size = 10)
   # Draw the text
   plot_0 <- ggpubr::as_ggplot(tgrob) + theme(plot.margin = margin(0,3,0,0, "cm"))
   
-  plot <- ggpubr::ggarrange(plot_0,NULL,A, B,
-                            ncol = 2,nrow = 2,heights = c(1,5))
-  PLOTS[[i]] <- plot
+  plot <- ggpubr::ggarrange(A, B,
+                            ncol = 2,nrow = 1,heights = c(1,5))
+  plot2 <- annotate_figure(plot, top = text_grob(traits_names[i], 
+                                        color = "black", 
+                                        # face = "bold", 
+                                        size = 12))
+  PLOTS[[i]] <- plot2
   i <- i+1
 }
 
@@ -346,9 +394,10 @@ for (ftrait in traits){
 # Extract the legend alone, from the data frame of species removal expe
 plot <- MEAN %>% 
   filter(treatment%in% c("Nat","Fer")) %>% 
-  mutate(zone = if_else(treatment == "Fer", "G+F","GU-S")) %>% 
+  mutate(zone = if_else(treatment == "Fer", "G+F","GU-S")) %>%
+  mutate(Management = if_else(treatment=="Fer","Intensive","Extensive")) %>% 
   
-  ggplot(aes_string(x="zone", y=ftrait, label = "code_sp",fill = "zone")) + #,shape = "LifeHistory"
+  ggplot(aes_string(x="Management", y=ftrait, label = "code_sp",fill = "Management")) + #,shape = "LifeHistory"
   theme_classic()+
   theme(axis.title.x=element_blank())+
   # geom_boxplot(aes(color = LifeHistory)) +
@@ -368,9 +417,10 @@ legend <- ggpubr::as_ggplot(leg)
 
 
 boxplot_all_traits <- ggpubr::ggarrange(PLOTS[[1]],PLOTS[[2]],PLOTS[[3]],PLOTS[[4]],PLOTS[[5]],PLOTS[[6]],
-                                        PLOTS[[7]],PLOTS[[8]],PLOTS[[9]],legend)
+                                        PLOTS[[7]],PLOTS[[8]],PLOTS[[9]],legend,
+                                        ncol = 3,nrow = 4)
 
-ggsave("draft/boxplot_all_traits.jpg",boxplot_all_traits,width = 14, height = 8)
+ggsave("draft/boxplot_all_traits.jpg",boxplot_all_traits,width = 10, height = 10)
 
 ## Table ####
 table_trait_diff <- TABLE_PVAL %>% 
@@ -395,7 +445,7 @@ table_trait_diff <- TABLE_PVAL %>%
   
 
 
-cat(table_trait_diff, file = "draft/differences_traits.doc")
+cat(table_trait_diff, file = "draft/table_mixed_model_boxplot.doc")
 
 
 
@@ -418,6 +468,20 @@ diff_to_random <- function(intrasp_var){
   random_diff$mean_diff
 }
 
+diff_to_random_all <- function(intrasp_var){
+  # create columns randfer and randnat, which randomize whether 
+  # the trait value was observed in fer or nat of the given species 
+  random_diff <- intrasp_var %>% 
+    mutate(rand1 = rbinom(length(Fer),1,0.5),
+           rand2 = 1 - rand1) %>% 
+    mutate(randfer = if_else(rand1 == 1, Fer,Nat),
+           randnat = if_else(rand2==1, Fer,Nat)) %>% 
+    mutate(randdiff = randnat - randfer) %>% 
+    summarize(mean_diff = mean(randdiff))
+  # vector with random differences for annuals and perennials
+  random_diff$mean_diff
+}
+
 
 diff_ann_per <- function(intrasp_var){
   random_diff <- intrasp_var %>% 
@@ -430,10 +494,14 @@ diff_ann_per <- function(intrasp_var){
 }
 
 ## test1: existence of intrasp var ####
-
+# randomize treatment in which species were measured
+# measure difference between trait values in the two treatments
+# compute proportion of times when real difference was either greater or smaller than randomized
 PVAL_ANN <- NULL
 PVAL_PER <- NULL
+PVAL_ALL <- NULL
 for (ftrait in traits){
+  # compute trait difference and ratio across the two treatments
   intrasp_var <- MEAN %>% 
     # filter(LifeHistory=="annual") %>% 
     select(species,code_sp,LifeHistory,treatment,ftrait) %>% 
@@ -448,23 +516,31 @@ for (ftrait in traits){
   #   geom_point() +
   #   ggtitle(ftrait)
   
+  # compute difference 
   real_difference <- intrasp_var %>%
     group_by(LifeHistory) %>% 
     summarize(mean_diff = mean(diff)) %>% 
     arrange(LifeHistory) %>% 
     pull(mean_diff)
+  real_difference_all <- intrasp_var %>%
+    summarize(mean_diff = mean(diff)) %>% 
+    pull(mean_diff)
+  
   
   TEST_DIFF_ZERO <- data.frame(trait = ftrait,
                                randomization = "real",
                                mean_diff_ann = real_difference[1],
-                               mean_diff_per = real_difference[2])
+                               mean_diff_per = real_difference[2],
+                               mean_diff_all = real_difference_all)
   nb_boot <- 50
   for (i in c(1:nb_boot)){
     randomized_difference <- diff_to_random(intrasp_var)
+    randomized_difference_all <- diff_to_random_all(intrasp_var)
     test_diff_zero <- data.frame(trait = ftrait,
                                  randomization = i,
                                  mean_diff_ann = randomized_difference[1],
-                                 mean_diff_per = randomized_difference[2])
+                                 mean_diff_per = randomized_difference[2],
+                                 mean_diff_all = randomized_difference_all)
     TEST_DIFF_ZERO <- rbind(TEST_DIFF_ZERO,test_diff_zero)
   }
   
@@ -481,25 +557,61 @@ for (ftrait in traits){
   # abline(v = TEST_DIFF_ZERO[1,4])
   
   pval_ann <- min(
-    length(which(TEST_DIFF_ZERO$mean_diff_ann < TEST_DIFF_ZERO[1,3] )) / dim(TEST_DIFF_ZERO)[1] ,
-    length(which(TEST_DIFF_ZERO$mean_diff_ann > TEST_DIFF_ZERO[1,3] )) / dim(TEST_DIFF_ZERO)[1]
+    length(which(TEST_DIFF_ZERO$mean_diff_ann <= TEST_DIFF_ZERO[1,3] )) / dim(TEST_DIFF_ZERO)[1] ,
+    length(which(TEST_DIFF_ZERO$mean_diff_ann >= TEST_DIFF_ZERO[1,3] )) / dim(TEST_DIFF_ZERO)[1]
   )
+  
   pval_per <- min(
-    length(which(TEST_DIFF_ZERO$mean_diff_per < TEST_DIFF_ZERO[1,4] )) / dim(TEST_DIFF_ZERO)[1],
-    length(which(TEST_DIFF_ZERO$mean_diff_per > TEST_DIFF_ZERO[1,4] )) / dim(TEST_DIFF_ZERO)[1]
+    length(which(TEST_DIFF_ZERO$mean_diff_per <= TEST_DIFF_ZERO[1,4] )) / dim(TEST_DIFF_ZERO)[1],
+    length(which(TEST_DIFF_ZERO$mean_diff_per >= TEST_DIFF_ZERO[1,4] )) / dim(TEST_DIFF_ZERO)[1]
   )
+  
+  pval_all <- min(
+    length(which(TEST_DIFF_ZERO$mean_diff_all <= TEST_DIFF_ZERO[1,5] )) / dim(TEST_DIFF_ZERO)[1],
+    length(which(TEST_DIFF_ZERO$mean_diff_all >= TEST_DIFF_ZERO[1,5] )) / dim(TEST_DIFF_ZERO)[1]
+  )
+  
   PVAL_ANN <- c(PVAL_ANN,pval_ann)
   PVAL_PER <- c(PVAL_PER,pval_per)
+  PVAL_ALL <- c(PVAL_ALL,pval_all)
   
 }
 
 
 test_plasticity <- data.frame(trait = traits,
-           pval_ann = PVAL_ANN,
-           pval_per = PVAL_PER)
+           pval_ann = PVAL_ANN %>% round(digits = 2),
+           pval_per = PVAL_PER %>% round(digits = 2),
+           pval_all = PVAL_ALL %>% round(digits = 2) )
+# ATTENTION NE PAS TESTER PLASTICITE SUR H_repro, Disp, SeedMass = j'ai complété les données
 
   
 ## test2: difference in intrasp var between annuals and perennials ####
+
+# wilcox.test
+PVAL <- NULL
+STAT <- NULL
+for (ftrait in traits){
+  intrasp_var <- MEAN %>% 
+    # filter(LifeHistory=="annual") %>% 
+    select(species,code_sp,LifeHistory,treatment,ftrait) %>% 
+    spread(key=treatment,value=ftrait) %>% 
+    mutate(trait = ftrait) %>% 
+    na.omit() %>%  # keep only sp measured in the 2 treatments
+    mutate(ratio = Nat / Fer) %>% 
+    mutate(diff = Nat-Fer)
+  # https://perso.ens-lyon.fr/lise.vaudor/test-de-wilcoxon-mann-whitney/
+  test <- wilcox.test(diff ~ LifeHistory, data = intrasp_var)
+  
+  PVAL <- c(PVAL, test$p.value )
+  STAT <- c(STAT,test$statistic)
+}
+difference_in_plasticity <- data.frame(trait = traits,
+                                       W = STAT,
+           p.value = TEST %>% round(digits = 2))
+
+
+
+# randomizations (avoid it: adds to much complexity)
 PVAL <- NULL
 for (ftrait in traits){
   intrasp_var <- MEAN %>% 
@@ -533,14 +645,13 @@ for (ftrait in traits){
 
 
 ## table ####
-difference_in_plasticity <- data.frame(trait = traits,
-           p.value_difference = PVAL)
-
-table_intrasp <- merge(test_plasticity,difference_in_plasticity) %>% 
+table_intrasp <- merge(test_plasticity %>% select(trait,pval_all),difference_in_plasticity) %>% 
   arrange(match(trait,traits)) %>% 
   kableExtra::kable( escape = F,
-                     col.names = c("Trait", "Annuals", "Perennials", "Difference")) %>%
-  kableExtra::kable_styling("hover", full_width = F) 
-  
+                     col.names = c("Trait", "p.value", "W","p.value")) %>%
+  kableExtra::kable_styling("hover", full_width = F)  %>% 
+  kableExtra::add_header_above(c(" "=1,
+                                 "Intraspecific variation" = 1, 
+                                 "Effect of life history" = 2))
 
-cat(table_intrasp, file = "draft/differences_variation_intrasp.doc")
+cat(table_intrasp, file = "draft/table_intrasp_change.doc")

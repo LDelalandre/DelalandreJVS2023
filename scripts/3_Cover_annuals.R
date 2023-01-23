@@ -53,6 +53,10 @@ soil_Maud <- data.frame(PC1score = c(-3.08,-2.85,-2.52,-1.78,-1.60,-1.56,-0.03,0
 
 
 
+
+
+
+
 # II) Figure_envt ####
 
 #specify path to save PDF to
@@ -60,11 +64,11 @@ destination = "draft/fig_envt.pdf"
 # destination2 = "outputs/figures/1_abundance_richness_annuals.jpg"
 
 #open PDF
-pdf(file=destination,width = 3, height = 6)
+pdf(file=destination,width = 6.5, height = 6)
 # png(file=destination2)
 
 #specify to save plots in 2x2 grid
-par(mar = c(2, 6.5, 1.3, 1),mfrow = c(4,1),mpg = c(1,1,0))
+par(mar = c(2, 6.5, 1.3, 1),mfrow = c(2,2),mpg = c(1,1,0))
 
 
 ## Bar plot of INN and INP ####
@@ -114,15 +118,18 @@ title("B - Productivity",adj = 0,line = 0.5)
 
 ## Disturbance ####
 
+labels <- c("Intensive",
+            "Extensive")
+
 boxplot(disturbance$Tx_CalcPic ~ disturbance$Trtmt ,  
         width=c(1,4),
         # col=c("orange" , "seagreen"),
-        xlab = "Zone of origin",
+        xlab = "",
         ylab = "Proportion of biomass eaten",
         # xaxt = "n",
         at = c(1,2),
         medlwd = 1,
-        xaxt = "n"
+        names = labels
 )
 
 title("C - Disturbance",adj = 0,line = 0.5)
@@ -166,8 +173,7 @@ richness_per_guild_toplot_reduced <- richness_per_guild_toplot %>%
   filter(zone %in% c("G+F","GU-S"))
 # relative richness
 
-labels <- c("Intensive",
-            "Extensive")
+
 boxplot(relative_richness_annual *100 ~ zone,
         data = richness_per_guild_toplot_reduced,
         ylim=c(0,90),
@@ -178,9 +184,38 @@ boxplot(relative_richness_annual *100 ~ zone,
         # xaxt = "n",
         names = labels)
 
-title("D - Relative richness of annuals",adj = 0,line = 0.3)
+title("D - Richness",adj = 0,line = 0.3)
 
 dev.off()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # legend("topleft", legend="d", bty='n')
 

@@ -83,7 +83,7 @@ relat_ab_fer <- ab_fer %>%
 choice_life_history <- "perennial"
 
 trait_available <- MEAN %>% 
-  filter(treatment=="Fer") %>%
+  filter(treatment=="Nat") %>%
   filter(LifeHistory==choice_life_history) %>% 
   select(species,code_sp,LifeHistory,all_of(traits)) %>% 
   select(-Disp) %>% 
@@ -156,16 +156,6 @@ coord_ind <- PCA_hypervolume$ind$coord %>%
   separate("sp_trt",into = c("code_sp","treatment"),sep="_") %>% 
   left_join(code_sp_lifeform) %>% 
   mutate(LifeHistory = if_else(LifeForm1 == "The","annual","perennial"))
-
-axes_toplot <- PCA_hypervolume$var$coord %>%
-  as.data.frame() %>% 
-  rownames_to_column("trait") 
-ggplot(axes_toplot) +
-  ggrepel::geom_text_repel( aes(x=Dim.1, Dim.2, label=trait), size = 6, vjust=1, color="black")  +
-  geom_segment( aes(x=0, y=0, xend=Dim.1, yend=Dim.2), 
-               arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") 
-
-  
 
 
 # Plot PCA
@@ -288,6 +278,62 @@ for(i in c(1:nb_replicates)) {
 }
 
 
+
+# write.csv2(CENTROID,"outputs/data/centroid_interspecific.csv",row.names=F)
+
+# write.csv2(CENTROID_intrasp,"outputs/data/centroid_intraspecific_small_PCA.csv",row.names=F)
+
+
+# Fonctions utiles
+# get_centroid()
+# get_centroid_weighted()
+?hypervolume_set_n_intersection()
+
+
+#______________________________________________________________________________
+# Plot Intersp ####
+## PCA axis ####
+PCA_hypervolume <- PCA(data_hypervolume,scale.unit=TRUE)
+
+coord_axes <- PCA_hypervolume$var$coord %>%
+  as.data.frame() %>% 
+  rownames_to_column("trait") %>% 
+  mutate(trait = case_when(trait == "L_Area" ~ "LA",
+                           trait == "Hrepro" ~ "H",
+                           TRUE ~ trait))
+
+plot_axis_pca <- ggplot(coord_axes) +
+  geom_segment( aes(x=0, y=0, xend=Dim.1, yend=Dim.2), 
+                arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
+  ggrepel::geom_label_repel( aes(x=Dim.1, Dim.2, label=trait), size = 4, vjust=1, color="black")  +
+  theme_classic() +
+  xlab("Dim.1") + ylab("Dim.2")
+plot_axis_pca
+
+## hypervolume ####
+
+# One example of hypervolume:
+# 10 1000 10000 
+# Pas trop mal (per nat en deux ensembles) : 1000, 
+# pas mal 11, 12
+# keep seed = 80
+# set.seed(50)
+set.seed(80)
+
+scoord_AF <- sample_n(coord_AF,10,replace = F)
+scoord_AN <- sample_n(coord_AN,10,replace = F)
+scoord_PF <- sample_n(coord_PF,10,replace = F)
+scoord_PN <- sample_n(coord_PN,10,replace = F)
+
+H_AF <- hypervolume_gaussian(scoord_AF, 
+                             kde.bandwidth = estimate_bandwidth(scoord_AF), # default
+                             quantile.requested = 0.95, # default
+                             quantile.requested.type = "probability") # default
+H_AN <- hypervolume_gaussian(scoord_AN)
+H_PF <- hypervolume_gaussian(scoord_PF)
+H_PN <- hypervolume_gaussian(scoord_PN) #,kde.bandwidth = bandwidth
+
+
 df_AF <- hypervolume_to_data_frame(H_AF) %>% 
   mutate(LifeHistory = "annual",
          treatment = "Fer")
@@ -303,56 +349,116 @@ df_PN <- hypervolume_to_data_frame(H_PN) %>%
 
 df_hypervolumes <- rbind(df_AF,df_AN,df_PF,df_PN)
 
-ggplot(df_hypervolumes,aes(x=Dim.1,y=Dim.2,color = treatment)) +
+example_hypervolume <- ggplot(df_hypervolumes,aes(x=Dim.1,y=Dim.2,color = treatment)) +
   geom_point(alpha = 0.1)+
-  xlim(c(-5,6))+
-  ylim(c(-4,5))+
+  xlim(c(-5,9.5))+
+  ylim(c(-5,8))+
   facet_wrap(~LifeHistory) +
   theme_classic()
+# ggsave("draft/plot_hypervolume.png",example_hypervolume)
 
-# write.csv2(CENTROID,"outputs/data/centroid_interspecific.csv",row.names=F)
+## centroid shift ####
 CENTROID <- read.csv2("outputs/data/centroid_interspecific.csv")  
 
 # compute euclidean distances in the two dimensions
 euclid_dist <- CENTROID %>% 
   group_by(num) %>% 
   summarize(within_A = euclidean(AF,AN),
-         within_P = euclidean(PF,PN),
-         within_F = euclidean(AF,PF),
-         within_N = euclidean(AN,PN))
-  
-euclid_dist %>% 
-  gather(key = comparison,value = distance,-num) %>% 
-  filter(comparison %in% c("within_A","within_P")) %>% 
-  ggplot(aes(x=factor(comparison, levels = c("within_A","within_P","within_F","within_N")),
-             y=distance)) +
-  geom_boxplot() +
-  xlab("comparison") +
-  theme_classic()
+            within_P = euclidean(PF,PN),
+            within_F = euclidean(AF,PF),
+            within_N = euclidean(AN,PN))
+
+
+## stats
+mod <- lm(distance~ comparison * dim, data = euclid_dist2,plot_euclid_dist2)
+table_anova <- anova(mod)
+summary(mod)
+
+rownames(table_anova) <- c("Life History","Dimension","Interaction","Residuals")
+table_anova_centroid <- table_anova %>% 
+  kableExtra::kable( escape = F,
+                     col.names = c("Df", "Sum Sq", "Mean Sq", "F value", "Pr(>F)")) %>%
+  kableExtra::kable_styling("hover", full_width = F) 
+
+cat(table_anova_centroid, file = "draft/table_anova_centroid_intersp.doc")
+
+
+posthoc <- multcomp::cld(emmeans::emmeans(mod, specs = c("comparison","dim"),  type = "response",
+                                          adjust = "tuckey"),
+                         Letters = "abcdefghi", details = T)
+comp <- as.data.frame(posthoc$emmeans)  %>% 
+  arrange(dim,comparison) %>% 
+  mutate(comparison = case_when(comparison == "within_A"~"Annuals",
+                                TRUE ~ "Perennials"))
+  # mutate(treatment = factor(treatment,levels = c("Fer","Nat"))) %>% 
+  # mutate(LifeHistory = factor(LifeHistory, levels = c("annual","perennial"))) %>% 
+  # arrange(LifeHistory,treatment)
+
+## plot
+# euclid_dist_2dim <- euclid_dist %>% 
+#   gather(key = comparison,value = distance,-num) %>% 
+#   filter(comparison %in% c("within_A","within_P")) %>% 
+#   ggplot(aes(x=factor(comparison, levels = c("within_A","within_P","within_F","within_N")),
+#              y=distance)) +
+#   geom_boxplot() +
+#   xlab("comparison") +
+#   theme_classic() 
 
 # also compute distances in each dimension! (dim2 = LDMC - SLA)
 euclid_dist_separate_dim <- CENTROID %>% 
   ungroup() %>% 
   mutate(within_A = map2_dbl(AF,AN,euclidean),
-            within_P = map2_dbl(PF,PN,euclidean),
-            within_F = map2_dbl(AF,PF,euclidean),
-            within_N = map2_dbl(AN,PN,euclidean))
+         within_P = map2_dbl(PF,PN,euclidean),
+         within_F = map2_dbl(AF,PF,euclidean),
+         within_N = map2_dbl(AN,PN,euclidean))
 
-euclid_dist_separate_dim %>% 
+euclid_dist2 <- euclid_dist_separate_dim %>% 
   select(-c(AF,AN,PF,PN)) %>% 
   gather(key = comparison,value = distance,-c(num,dim)) %>% 
-  filter(comparison %in% c("within_A","within_P")) %>% 
-  ggplot(aes(x=factor(comparison, levels = c("within_A","within_P","within_F","within_N")),
+  filter(comparison %in% c("within_A","within_P"))
+  
+maxy <- euclid_dist2$distance %>% max()
+plot_euclid_dist2 <- 
+  euclid_dist2 %>% 
+  mutate(comparison = case_when(comparison == "within_A"~"Annuals",
+                                comparison == "within_P"~"Perennials",
+                                TRUE ~ comparison)) %>%
+  ggplot(aes(x=factor(comparison, levels = c("Annuals","Perennials","within_F","within_N")),
              y=distance)) +
   geom_boxplot() +
+  # geom_point()+
   xlab("comparison") +
   facet_wrap(~dim) +
-  geom_point() +
-  theme_classic()
+  ylim(c(0,maxy+0.1*maxy))+
+  theme_classic() +
+  geom_text(
+    data    = comp,
+    aes(y=maxy + 0.1*maxy,label = .group),
+    position = position_dodge(width = .75)) + # ne pas oublier ça pour les lettres du test post hoc: POSITION DODGE
+  theme(axis.title.x=element_blank()) +
+  ylab("Euclidean distance")
+plot_euclid_dist2 
+
+  # ggsignif::geom_signif(comparisons = list(
+  #   c("within_A","within_P")),
+  #   map_signif_level = T)
+
+plot_euclid_dist2
 
 
-## intraspecific ####
-# write.csv2(CENTROID_intrasp,"outputs/data/centroid_intraspecific_small_PCA.csv",row.names=F)
+## complete plot ####
+first_row = cowplot::plot_grid(example_hypervolume, labels = c('A'))
+second_row = cowplot::plot_grid(plot_axis_pca, plot_euclid_dist2, labels = c('B', 'C'), nrow = 1)
+plot_hypervolume = cowplot::plot_grid(first_row, second_row, labels=c('', ''), ncol=1)
+
+ggsave("draft/plot_hypervolume.png",plot_hypervolume,
+       width = 30,height = 30,units='cm')
+
+
+
+
+
+# Intraspecific ####
 CENTROID_intrasp <- read.csv2("outputs/data/centroid_intraspecific_small_PCA.csv")
 
 # compute euclidean distances in the two dimensions
@@ -391,10 +497,3 @@ mod <- lm(distance ~ comparison*dim , data = euclid_dist_separate_dim)
 anova(mod)
 # plot(mod)
 summary(mod)
-
-
-# Fonctions utiles
-# get_centroid()
-# get_centroid_weighted()
-?hypervolume_set_n_intersection()
-
