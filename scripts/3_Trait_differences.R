@@ -25,7 +25,7 @@ traits <- c("LDMC","SLA","log_LA",
             "SeedMass"
 )#"H_FLORE","FLO_FLORE",
 
-traits_names <- c("Leaf Dry Matter Content (mg/g)", "Specific Leaf Area (mm²/mg)"," log(Leaf Area (cm²))",
+traits_names <- c("Leaf Dry Matter Content (%)", "Specific Leaf Area (mm²/mg)"," log(Leaf Area (cm²))",
                   "Leaf Carbon Content (mg/g)","Leaf Nitrogen Content (mg/g)", "Leaf delta 13C (part per thousand)",
                   "Reproductive Height (cm)", 
                   "Date of first dispersal (Julian day)",
@@ -208,8 +208,8 @@ for (ftrait in traits){
     )
     
     # part of variance explained
-    var_code_sp <- as.data.frame(VarCorr(mmod))[1,"vcov"]
-    var_code_sp_residuals <- sum(as.data.frame(VarCorr(mmod))[,"vcov"])
+    var_code_sp <- as.data.frame(lme4::VarCorr(mmod))[1,"vcov"]
+    var_code_sp_residuals <- sum(as.data.frame(lme4::VarCorr(mmod))[,"vcov"])
 
     sum <- summary(mmod)
     coef_fer_ann <- sum$coefficients["(Intercept)","Estimate"]
@@ -426,7 +426,7 @@ ggsave("draft/boxplot_all_traits.jpg",boxplot_all_traits,width = 10, height = 10
 
 ## Table ####
 table_trait_diff <- TABLE_PVAL %>% 
-  mutate(percent_var_code_sp = round(percent_var_code_sp,digits = 5))
+  mutate(percent_var_code_sp = round(percent_var_code_sp,digits = 5)) %>% 
   transmute(
     Trait = Trait, 
     Treatment = ifelse(Treatment =="<0.05",
@@ -442,8 +442,8 @@ table_trait_diff <- TABLE_PVAL %>%
     Perennials = Perennials
   ) %>% 
   kableExtra::kable( escape = F,
-                     col.names = c("Trait", "Treatment", "LifeHistory","Interaction",
-                                   "Fer-Nat (annuals)", "Fer-Nat (perennials)")) %>%
+                     col.names = c("Trait", "Regime", "LifeHistory","Interaction",
+                                   "Int. - Ext. (annuals)", "Int. - Ext. (perennials)")) %>%
   kableExtra::kable_styling("hover", full_width = F)
   
 
