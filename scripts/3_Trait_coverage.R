@@ -143,7 +143,7 @@ table_trait_coverage_nb_sp <- FDF %>%
                                    "Intensive",
                                    "Extensive")) %>%
   kableExtra::kable_styling("hover", full_width = F) %>% 
-  kableExtra::add_header_above(c(" " =1,"Management" = 4)) %>% 
+  # kableExtra::add_header_above(c(" " =1,"Management" = 4)) %>% 
   kableExtra::add_header_above(c(" " = 1,"Annuals" = 2,"Perennials" = 2))
 
 table_trait_coverage_nb_sp

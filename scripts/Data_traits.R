@@ -13,7 +13,7 @@ data_file <- "LaFage_PlantTraitsDP_vp.xlsx"
 
 # Leaf Morphological traits ####
 LeafMorpho1 <-  read.xlsx(paste0("data/traits/",data_file), sheet = "LeafMorpho_traits", startRow = 1, colNames = TRUE)  
-LeafMorpho_leo <- read.csv2("data/traits/leafMorpho_3.csv") %>% 
+LeafMorpho_leo <- read.csv2("data/traits/leafMorpho_3.csv",encoding = "latin1") %>% 
   filter(!(Code_Sp %in% c("EROPVERN","STELMEDI"))) # senescent leaves
 LeafMorpho <- rbind(LeafMorpho1,LeafMorpho_leo)
 
@@ -31,7 +31,7 @@ LeafCN1 <- read.xlsx(paste0("data/traits/",data_file), sheet = "LeafC&N", startR
 LeafP <- read.xlsx(paste0("data/traits/",data_file), sheet = "LeafP", startRow = 1, colNames = TRUE) 
 Leaf13C1 <- read.xlsx(paste0("data/traits/",data_file), sheet = "Leaf13C", startRow = 1, colNames = TRUE)
 # measurements C, N, 13C spring 2021
-Leafchim_leo <- read.csv2(paste0("data/traits/leafchim_leo.csv")) %>% 
+Leafchim_leo <- read.csv2(paste0("data/traits/leafchim_leo.csv"),encoding ="latin1") %>% 
   filter(!(Code_Sp %in% c("EROPVERN","STELMEDI"))) # senescent leaves
 # Species name and LifeForm
 L2 <- Leafchim_leo %>% 
@@ -65,7 +65,7 @@ Leaf13C <- rbind(Leaf13C1,Leaf13C_leo)
 Biovolume1 <- read.xlsx(paste0("data/traits/",data_file), sheet = "Biovolume", startRow = 1, colNames = TRUE) %>% 
   mutate(Hrepro = as.numeric(Hrepro))
 
-Biovolume_leo <- read.csv2("data/traits/Biovolume_leo.csv")
+Biovolume_leo <- read.csv2("data/traits/Biovolume_leo.csv",encoding = "latin1" )
 # Sort min and max diameter
 nrows <- dim(Biovolume_leo)[1]
 for (i in c(1:nrows)){
@@ -123,12 +123,12 @@ Pheno <- rbind(Pheno1,pheno_leo_DP)
 # Seed mass ####
 Seed1 <- read.xlsx(paste0("data/traits/",data_file), sheet = "Seed", startRow = 1, colNames = TRUE) 
 
-Seed_leo <- read.csv2("data/traits/Seed_leo_lila.csv") %>%
+Seed_leo <- read.csv2("data/traits/Seed_leo_lila.csv",encoding="latin1") %>%
   mutate(Rep = paste0("Rsd",Rep)) %>% 
   mutate(Site = "La Fage",Block = "None",Year = 2022, 
          LifeForm2 = "None",
          SeedMass = TotSeedMass.mg./SeedNb, Mat = NA, 
-         nameOfProject = "Annuals",measurementDeterminedBy = "Leo Delalandre")  %>% 
+         nameOfProject = "Annuals",measurementDeterminedBy = "Léo Delalandre")  %>% 
   merge(names_LH , by = "Code_Sp") %>%
   rename(Species = species) %>% 
   merge(names_family,by = "Species") %>% 

@@ -26,6 +26,10 @@ traits <- c("LDMC","SLA","L_Area",
 )
 
 
+MEAN %>% 
+  ggplot(aes(x=SLA,y=LDMC,color=LifeHistory)) +
+  geom_point() 
+
 # 1) SLA-LNC ####
 MEAN %>% 
   ggplot(aes(x=SLA,y=LNC,color=LifeHistory)) +

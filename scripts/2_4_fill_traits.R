@@ -71,6 +71,7 @@ filled_SM <- left_join(to_fill_SM,to_add_SM) %>%
 MEAN_SM <- rbind(filled_SM,ok_SM) 
 
 
+
 ## Complete seed mass in Nat from Seed Mass in Fer ####
 ann_SM_missing <- MEAN_SM %>% 
   filter(treatment=="Nat" & LifeHistory == "annual") %>% 
@@ -96,8 +97,10 @@ ann_SM_missing2 <- MEAN_SM2 %>%
 ann_SM_missing %>% sort()
 ann_SM_missing2 %>% sort()
 
+
+
 # Add height ####
-# part of the dataset for which I have to add height
+# I complete with data from GUD
 to_fill_H <- MEAN_SM2 %>% 
   filter(LifeHistory == "perennial" & treatment == "Nat" & is.na(Hrepro)) %>% 
   rename(HreproNA = Hrepro)
@@ -117,7 +120,7 @@ MEAN_SM_H <- rbind(filled_H,ok_H)
 
 
 # Add Ldelta13C ####
-# part of the dataset for which I have to add height
+# I complete with data from GUD
 to_fill_13C <- MEAN_SM_H %>% 
   filter(LifeHistory == "perennial" & treatment == "Nat" & is.na(Ldelta13C)) %>% 
   rename(Ldelta13CNA = Ldelta13C)
@@ -139,6 +142,17 @@ MEAN_SM_H_13C <- rbind(filled_13C,ok_13C)
 
 write.csv2(MEAN_SM_H_13C,"outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_SM_H_13C.csv",row.names=F)
 
+
+
+# how many species did we add at each step? ####
+dim(MEAN %>% filter(treatment == "Nat" & !is.na(SeedMass)))[1]
+dim(MEAN_SM2 %>% filter(treatment == "Nat" & !is.na(SeedMass)))[1]
+
+dim(MEAN_SM2 %>% filter(treatment == "Nat" & !is.na(Hrepro)))[1]
+dim(MEAN_SM_H %>% filter(treatment == "Nat" & !is.na(Hrepro)))[1]
+
+dim(MEAN_SM_H %>% filter(treatment == "Nat" & !is.na(Ldelta13C)))[1]
+dim(MEAN_SM_H_13C %>% filter(treatment == "Nat" & !is.na(Ldelta13C)))[1]
 
 ## From other treatment in La Fage ####
 # 

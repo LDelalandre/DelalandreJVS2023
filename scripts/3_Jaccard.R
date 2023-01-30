@@ -98,3 +98,5 @@ summary(mod)
 ggplot(jaccard,aes(x=JAC))+
   geom_density() +
   facet_wrap(~LH)
+
+wilcox.test(JAC ~ LH,data = jaccard)

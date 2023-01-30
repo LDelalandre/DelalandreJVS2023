@@ -147,11 +147,13 @@ for (ftrait in  traits){
   TABLE <- rbind(TABLE,line_table)
 }
 
-TABLE %>% 
+table_sp_replacement <- TABLE %>% 
   # filter(Trait %in% c("LDMC","LCC","Ldelta13C","Hrepro","Disp","SeedMass")) %>% #"H_FLORE","FLO_FLORE",
   kableExtra::kable( escape = F,
                      col.names = c("Origin", "Annuals", "Perennials")) %>%
   kableExtra::kable_styling("hover", full_width = F)
+
+cat(table_sp_replacement, file = "draft/table_species_replacement.doc")
 
 # AJOUTER JACCARD GLOBAL (= SUR RELEVES BOTANIQUES)
 
@@ -424,6 +426,7 @@ ggsave("draft/boxplot_all_traits.jpg",boxplot_all_traits,width = 10, height = 10
 
 ## Table ####
 table_trait_diff <- TABLE_PVAL %>% 
+  mutate(percent_var_code_sp = round(percent_var_code_sp,digits = 5))
   transmute(
     Trait = Trait, 
     Treatment = ifelse(Treatment =="<0.05",
@@ -497,6 +500,8 @@ diff_ann_per <- function(intrasp_var){
 # randomize treatment in which species were measured
 # measure difference between trait values in the two treatments
 # compute proportion of times when real difference was either greater or smaller than randomized
+nb_boot <- 1000
+
 PVAL_ANN <- NULL
 PVAL_PER <- NULL
 PVAL_ALL <- NULL
@@ -509,7 +514,9 @@ for (ftrait in traits){
     mutate(trait = ftrait) %>% 
     na.omit() %>%  # keep only sp measured in the 2 treatments
     mutate(ratio = Nat / Fer) %>% 
-    mutate(diff = Nat-Fer)
+    mutate(diff = Nat-Fer) %>% 
+    mutate(RDPI = diff/Fer)
+  # Relative Distances Plasticity Index (RDPI)
   
   # ggplot(intrasp_var,aes(x=LifeHistory,y=diff)) +
   #   geom_boxplot() +
@@ -517,11 +524,11 @@ for (ftrait in traits){
   #   ggtitle(ftrait)
   
   # compute difference 
-  real_difference <- intrasp_var %>%
-    group_by(LifeHistory) %>% 
-    summarize(mean_diff = mean(diff)) %>% 
-    arrange(LifeHistory) %>% 
-    pull(mean_diff)
+  # real_difference <- intrasp_var %>%
+  #   group_by(LifeHistory) %>% 
+  #   summarize(mean_diff = mean(RDPI)) %>% 
+  #   arrange(LifeHistory) %>% 
+  #   pull(mean_diff)
   real_difference_all <- intrasp_var %>%
     summarize(mean_diff = mean(diff)) %>% 
     pull(mean_diff)
@@ -529,17 +536,17 @@ for (ftrait in traits){
   
   TEST_DIFF_ZERO <- data.frame(trait = ftrait,
                                randomization = "real",
-                               mean_diff_ann = real_difference[1],
-                               mean_diff_per = real_difference[2],
+                               # mean_diff_ann = real_difference[1],
+                               # mean_diff_per = real_difference[2],
                                mean_diff_all = real_difference_all)
-  nb_boot <- 50
+  
   for (i in c(1:nb_boot)){
-    randomized_difference <- diff_to_random(intrasp_var)
+    # randomized_difference <- diff_to_random(intrasp_var)
     randomized_difference_all <- diff_to_random_all(intrasp_var)
     test_diff_zero <- data.frame(trait = ftrait,
                                  randomization = i,
-                                 mean_diff_ann = randomized_difference[1],
-                                 mean_diff_per = randomized_difference[2],
+                                 # mean_diff_ann = randomized_difference[1],
+                                 # mean_diff_per = randomized_difference[2],
                                  mean_diff_all = randomized_difference_all)
     TEST_DIFF_ZERO <- rbind(TEST_DIFF_ZERO,test_diff_zero)
   }
@@ -556,33 +563,32 @@ for (ftrait in traits){
   # ))
   # abline(v = TEST_DIFF_ZERO[1,4])
   
-  pval_ann <- min(
-    length(which(TEST_DIFF_ZERO$mean_diff_ann <= TEST_DIFF_ZERO[1,3] )) / dim(TEST_DIFF_ZERO)[1] ,
-    length(which(TEST_DIFF_ZERO$mean_diff_ann >= TEST_DIFF_ZERO[1,3] )) / dim(TEST_DIFF_ZERO)[1]
-  )
-  
-  pval_per <- min(
-    length(which(TEST_DIFF_ZERO$mean_diff_per <= TEST_DIFF_ZERO[1,4] )) / dim(TEST_DIFF_ZERO)[1],
-    length(which(TEST_DIFF_ZERO$mean_diff_per >= TEST_DIFF_ZERO[1,4] )) / dim(TEST_DIFF_ZERO)[1]
-  )
+  # pval_ann <- min(
+  #   length(which(TEST_DIFF_ZERO$mean_diff_ann <= TEST_DIFF_ZERO[1,3] )) / dim(TEST_DIFF_ZERO)[1] ,
+  #   length(which(TEST_DIFF_ZERO$mean_diff_ann >= TEST_DIFF_ZERO[1,3] )) / dim(TEST_DIFF_ZERO)[1]
+  # )
+  # 
+  # pval_per <- min(
+  #   length(which(TEST_DIFF_ZERO$mean_diff_per <= TEST_DIFF_ZERO[1,4] )) / dim(TEST_DIFF_ZERO)[1],
+  #   length(which(TEST_DIFF_ZERO$mean_diff_per >= TEST_DIFF_ZERO[1,4] )) / dim(TEST_DIFF_ZERO)[1]
+  # )
   
   pval_all <- min(
-    length(which(TEST_DIFF_ZERO$mean_diff_all <= TEST_DIFF_ZERO[1,5] )) / dim(TEST_DIFF_ZERO)[1],
-    length(which(TEST_DIFF_ZERO$mean_diff_all >= TEST_DIFF_ZERO[1,5] )) / dim(TEST_DIFF_ZERO)[1]
+    length(which(TEST_DIFF_ZERO$mean_diff_all <= TEST_DIFF_ZERO[1,3] )) / dim(TEST_DIFF_ZERO)[1],
+    length(which(TEST_DIFF_ZERO$mean_diff_all >= TEST_DIFF_ZERO[1,3] )) / dim(TEST_DIFF_ZERO)[1]
   )
   
-  PVAL_ANN <- c(PVAL_ANN,pval_ann)
-  PVAL_PER <- c(PVAL_PER,pval_per)
+  # PVAL_ANN <- c(PVAL_ANN,pval_ann)
+  # PVAL_PER <- c(PVAL_PER,pval_per)
   PVAL_ALL <- c(PVAL_ALL,pval_all)
   
 }
 
+write.csv2(data.frame(trait = traits,
+                      pval_all = PVAL_ALL), 
+           "outputs/data/test_plasticity_1000_bootstrap.csv",row.names=F)
 
-test_plasticity <- data.frame(trait = traits,
-           pval_ann = PVAL_ANN %>% round(digits = 2),
-           pval_per = PVAL_PER %>% round(digits = 2),
-           pval_all = PVAL_ALL %>% round(digits = 2) )
-# ATTENTION NE PAS TESTER PLASTICITE SUR H_repro, Disp, SeedMass = j'ai complété les données
+
 
   
 ## test2: difference in intrasp var between annuals and perennials ####
@@ -607,7 +613,7 @@ for (ftrait in traits){
 }
 difference_in_plasticity <- data.frame(trait = traits,
                                        W = STAT,
-           p.value = TEST %>% round(digits = 2))
+           p.value = PVAL %>% round(digits = 2))
 
 
 
@@ -645,6 +651,10 @@ for (ftrait in traits){
 
 
 ## table ####
+test_plasticity <- read.csv2("outputs/data/test_plasticity_1000_bootstrap.csv")
+# ATTENTION NE PAS TESTER PLASTICITE SUR H_repro, Disp, SeedMass = j'ai complété les données
+
+
 table_intrasp <- merge(test_plasticity %>% select(trait,pval_all),difference_in_plasticity) %>% 
   arrange(match(trait,traits)) %>% 
   kableExtra::kable( escape = F,

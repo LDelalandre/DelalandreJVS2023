@@ -80,32 +80,48 @@ relat_ab_fer <- ab_fer %>%
     TRUE ~ LifeHistory))
 
 
-choice_life_history <- "perennial"
+trtmt = "Nat"
+if (trtmt == "Nat"){
+  file_abundance <- relat_ab_nat
+}else{
+  file_abundance <- relat_ab_fer
+}
+
 
 trait_available <- MEAN %>% 
-  filter(treatment=="Nat") %>%
-  filter(LifeHistory==choice_life_history) %>% 
+  filter(treatment==trtmt) %>%
+  # filter(LifeHistory==choice_life_history) %>% 
+  group_by(LifeHistory) %>%
+  
   select(species,code_sp,LifeHistory,all_of(traits)) %>% 
   select(-Disp) %>% 
   na.omit() %>% 
   mutate(sp_in_trait = 1) %>% 
   select(species,code_sp,LifeHistory,sp_in_trait) %>% 
-  # full_join(relat_ab_nat,by=c("species","code_sp","LifeHistory")) %>%
-  full_join(relat_ab_fer,by=c("species","code_sp","LifeHistory")) %>%
-  filter(LifeHistory==choice_life_history) %>%
-  
+  full_join(file_abundance,by=c("species","code_sp","LifeHistory")) %>%
+  # filter(LifeHistory==choice_life_history) %>%
+  select(-LifeForm1) %>% 
+  select(-code_sp) %>% 
+  replace(is.na(.),0) %>%
+  group_by(LifeHistory) %>%
   mutate(sp_relat_abundance = sp_abundance/sum(sp_abundance,na.rm=T)) %>% 
-  select(species,sp_in_trait,code_sp,sp_relat_abundance,LifeHistory) %>% 
-  replace(is.na(.),0)
+  select(species,sp_in_trait,sp_relat_abundance,LifeHistory)
 
 # cumulated abundance for species for which we have the trait
 info_coverage <- trait_available %>%
-  group_by(sp_in_trait) %>% 
+  group_by(sp_in_trait,LifeHistory) %>% 
   summarise(abundance_covered = sum(sp_relat_abundance)) %>% 
-  spread(key = sp_in_trait, value = abundance_covered)
+  spread(key = sp_in_trait, value = abundance_covered) %>% 
+  mutate(treatment = trtmt) %>% 
+  rename(no = '0', yes = '1')
 info_coverage
 
-
+trait_available %>%
+  group_by(sp_in_trait,LifeHistory) %>% 
+  summarise(n = n()) %>% 
+  spread(key = sp_in_trait, value = n) %>% 
+  rename(absent = '0',present = '1') %>% 
+  mutate(proportion_sp = present/(present+absent))
 
 #_______________________________________________________________________________
 # Hypervolume ####
@@ -219,7 +235,7 @@ estimate_bandwidth(coord_PF, method = "silverman")
 estimate_bandwidth(coord_PN, method = "silverman")
 
 # compute hypervolumes and extract centroids
-nb_replicates <- 100
+nb_replicates <- 1000
 
 intrasp <- F
 col <- c("AF","AN","PF","PN")
@@ -489,11 +505,17 @@ euclid_dist_separate_dim  %>%
              y=distance)) +
   geom_boxplot() +
   xlab("comparison") +
-  facet_wrap(~dim) +
-  geom_point()
+  facet_wrap(~dim) 
 
 
-mod <- lm(distance ~ comparison*dim , data = euclid_dist_separate_dim)
-anova(mod)
+mod_intra <- lm(distance ~ comparison*dim , data = euclid_dist_separate_dim)
+anova(mod_intra)
 # plot(mod)
 summary(mod)
+posthoc_intra <- multcomp::cld(emmeans::emmeans(mod_intra, specs = c("comparison","dim"),  type = "response",
+                                          adjust = "tuckey"),
+                         Letters = "abcdefghi", details = T)
+comp_intra <- as.data.frame(posthoc_intra$emmeans)  %>% 
+  arrange(dim,comparison) %>% 
+  mutate(comparison = case_when(comparison == "within_A"~"Annuals",
+                                TRUE ~ "Perennials"))
