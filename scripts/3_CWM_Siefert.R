@@ -46,29 +46,85 @@ LH <- "annual"
 # regarder les deux traitements
 
 
-trait_averaging <- "treatment" # "site" or "treatment"
 
-if (trait_averaging == "treatment"){
-  fMEAN <- MEAN
-} else {
-  fMEAN <- MEAN_site
+
+compute_cwm <- function(ab,MEAN,MEAN_site,level_of_trait_averaging){
+  
+  if (level_of_trait_averaging == "treatment"){
+    fMEAN <- MEAN %>% 
+      select("species","code_sp","LifeForm1","LifeHistory","treatment",
+             all_of(traits))
+  } else if (level_of_trait_averaging == "site") {
+    fMEAN <- MEAN_site %>% 
+      select("species","code_sp","LifeForm1","LifeHistory",
+             all_of(traits))
+  }
+  
+  ab_traits <- ab %>% 
+    left_join(fMEAN) %>% 
+    group_by(transect,LifeHistory,treatment) %>% 
+    mutate(relat_ab = abundance/sum(abundance))
+  
+  data_cwm <- ab_traits %>% 
+    mutate_at(vars(all_of(traits)),
+              .funs = list(CWM = ~ weighted.mean(.,relat_ab,na.rm=T) )) %>% 
+    rename_at( vars( contains( "_CWM") ), list( ~paste("CWM", gsub("_CWM", "", .), sep = "_") ) ) %>% 
+    unique() %>% 
+    select(LifeHistory,treatment,paddock, transect,starts_with("CWM")) %>% 
+    unique() %>% 
+    rename_at( vars( contains( "CWM_") ), list( ~ gsub("CWM_", "", .) ) )
+  
+  data_cwm
 }
 
-fMEAN <- fMEAN %>% 
-  select("species","code_sp","LifeForm1","LifeHistory","treatment",
-         all_of(traits))
+trait_averaging <- "site" # "site" or "treatment"
+compute_cwm(ab,MEAN,MEAN_site,level_of_trait_averaging = trait_averaging)
+# pb when working on site level
 
-ab_traits <- ab %>% 
-  left_join(MEAN,by = c("species","code_sp","LifeForm1","LifeHistory","treatment")) %>% 
-  group_by(transect,LifeHistory,treatment) %>% 
-  mutate(relat_ab = abundance/sum(abundance))
+# Compute the different CWM ####
 
-data_cwm <- ab_traits %>% 
-  mutate_at(vars(all_of(traits)),
-            .funs = list(CWM = ~ weighted.mean(.,relat_ab,na.rm=T) )) %>% 
-  rename_at( vars( contains( "_CWM") ), list( ~paste("CWM", gsub("_CWM", "", .), sep = "_") ) ) %>% 
-  unique() %>% 
-  select(LifeHistory,treatment,paddock, transect,starts_with("CWM")) %>% 
-  unique() %>% 
-  rename_at( vars( contains( "CWM_") ), list( ~ gsub("CWM_", "", .) ) )
+# CWM with both species replacement and intrasp variability  
+CWM <- compute_cwm(ab,MEAN,MEAN_site,level_of_trait_averaging = "treatment")
 
+# CWM with species replacement but no intraspecific variability
+CWMfixed <- compute_cwm(ab,MEAN,MEAN_site,level_of_trait_averaging = "site")
+
+# CWM intra  = CWM - CWMfixed pour chaque trait
+
+
+# Explain variation at different levels
+ftrait <- "SLA"
+# make a data frame with variation at these levels
+fCWM <- CWM %>% 
+  select(LifeHistory,treatment,paddock,transect, ftrait) %>% 
+  mutate(CWM = get(ftrait)) %>% 
+  select(-ftrait)
+fCWMfixed <- CWMfixed %>% 
+  select(LifeHistory,treatment,paddock,transect, ftrait) %>% 
+  mutate(CWMfixed = get(ftrait)) %>% 
+  select(-ftrait)
+
+# CWM data for the focal trait, at the three levels
+fCWMall <- full_join(fCWM,fCWMfixed) %>% 
+  mutate(CWMintra = CWM - CWMfixed)
+
+fLH <- "perennial"
+
+fdata <- fCWMall %>% 
+  filter(LifeHistory == fLH)
+
+mod <- lm(CWM ~ 1, data = fdata)
+ano <- anova(mod)
+SS <- ano$`Sum Sq`
+
+modfixed <- lm(CWMfixed ~ 1, data = fdata)
+anofixed <- anova(modfixed)
+SSfixed <- anofixed$`Sum Sq`
+
+modintra <- lm(CWMintra ~ 1, data = fdata)
+anointra <- anova(modintra)
+SSintra <- anointra$`Sum Sq`
+
+
+# aITV (Siefert), à faire pour annuelles et pérennes. Et voir l'effet du traitement (comment le coder ?)
+aITV <- log(SSintra/SSfixed)
