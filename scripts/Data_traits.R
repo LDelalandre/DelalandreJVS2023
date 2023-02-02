@@ -114,7 +114,8 @@ pheno_leo_DP <- pheno_leo %>%
   group_by(species) %>% 
   filter(Disp == min (Disp)) %>%  # NB: une valeur de phéno par espèce*traitment dans la BDD ; je prends la min !
   rename(Species = species) %>% 
-  select(all_of(colnames))
+  select(all_of(colnames)) %>% 
+  mutate(Species = if_else(Code_Sp=="SAXITRIDA","Saxifraga tridactylites",Species))
 
 Pheno <- rbind(Pheno1,pheno_leo_DP)
 # Virer filago pyramidata, pour lequel j'ai peut-être estimé trop tard la dispersion (et elle avait aussi lieu
@@ -138,3 +139,33 @@ Seed_leo <- read.csv2("data/traits/Seed_leo_lila.csv",encoding="latin1") %>%
 Seed <- rbind(Seed1,Seed_leo) 
   # filter(!(Code_Sp == "GERADISS")) # truc chelou avec les masses de graines, à voir
 
+
+
+# Data paper ####
+# checker données pour être sûr
+# exporter en csv
+# les copier_coller dans la dernière version des fichiers de La Fage après avoir demandé à Eric
+
+LeafMorpho_leo %>%
+  mutate(Species = case_when(
+    Species == "Myosostis ramosissima subsp. ramosissima" ~ "Myosotis ramosissima subsp. ramosissima", # s en trop
+    Species == "Vicia sativa sativa" ~ "Vicia sativa subsp. sativa",
+    TRUE ~ Species)) %>% 
+  filter(!(Species == "Medicago rigidula")) # je ne suis pas sûr de l'identification
+# corriger idem ensuite
+LeafCN_leo
+Leaf13C_leo
+Biovolume_leo
+pheno_leo_DP
+Seed_leo
+
+# species Léo
+data.frame( Species = c(
+  LeafMorpho_leo$Species,
+  LeafCN_leo $Species,
+  Leaf13C_leo$Species,
+  Biovolume_leo$Species,
+  pheno_leo_DP$Species,
+  Seed_leo$Species) %>% unique() ) %>% 
+  arrange(Species) %>% 
+  write.csv2("outputs/data/species_leo.csv",row.names=F)

@@ -11,7 +11,7 @@ source("scripts/Data_traits.R") # Load traits per group of traits (e.g. LeafMorp
 # treatment is either Fer against Nat, 
 # or G+F (= Fer) against GU-S (= Nat_Sab).
 
-mean_attribute_per_species <- function(dataset,subset_gt_nat = F){
+mean_attribute_per_species <- function(dataset,subset_gt_nat = T,site_level = F){
   # Computes mean trait values for a given dataset corresponding
   # to a category of traits (e.g. LeafMorpho)
   # Decide whether to measure mean trait values in the Natif, or Nat_Sab, treatment
@@ -38,14 +38,10 @@ mean_attribute_per_species <- function(dataset,subset_gt_nat = F){
     # NB : /!\ I sould keep family and lifeform info, but only when these are variables are clean in the dataset.
     # (sinon, ça découple une espèce en deux artificiellement dans le calcul de la moyenne).
     select(-c(nameOfProject,measurementDeterminedBy,Rep))
-  if (subset_gt_nat == T){
-    dataset2 <- dataset2 %>%
-      filter(Treatment %in% c("Fer_Clc","Fer_Dlm","Nat_Sab","Nat_Int")) 
-      # data just in Nat_Dol to see if height is very plastic between this and nat sab
-      # filter(Treatment %in% c("Nat_Dol","Nat_Clc_Dol","Nat_Clc_Sab","Nat_Dlm")) 
-
-    
-  }
+  
+  # Do not consider trait values in the Nat_Dol
+  dataset2 <- dataset2 %>%
+    filter(Treatment %in% c("Fer_Clc","Fer_Dlm","Nat_Sab","Nat_Int"))
   
   # Variables on which we want to summarize:
   vars <- dataset2 %>% 
@@ -53,25 +49,34 @@ mean_attribute_per_species <- function(dataset,subset_gt_nat = F){
               Trtmt,LifeHistory,Form)) %>% 
     colnames()
   
-  e <- dataset2 %>%     
-    group_by(Species,Trtmt,Code_Sp ,    Form, LifeHistory, LifeForm1) %>% 
-    summarise_at( .vars = vars , mean,na.rm=T)
+  if(site_level == F){ # average trait values at the treatment level
+    mean_trait_values <- dataset2 %>%     
+      group_by(Species,Trtmt,Code_Sp ,    Form, LifeHistory, LifeForm1) %>% 
+      summarise_at( .vars = vars , mean,na.rm=T)
+  }else{ # average trait values at the site level
+    mean_trait_values <- dataset2 %>%
+      group_by(Species,Code_Sp ,    Form, LifeHistory, LifeForm1) %>% 
+      summarise_at( .vars = vars , mean,na.rm=T) %>% 
+      mutate(Trtmt = "not_considered")
+  }
+
+  mean_trait_values
 }
 
 
 # The code below uses the function 'mean_attribute_per_species' to compute mean attributes
 # across all the traits and merges it into one data frame
 
-take_nat_sab_int_only <-  T
+average_at_site_level = T
 
 # Generate a list of mean attributes per sp*treatment
-MEAN_list <- list( mean_attribute_per_species(LeafMorpho, subset_gt_nat = take_nat_sab_int_only),
-                   mean_attribute_per_species(LeafCN, subset_gt_nat = take_nat_sab_int_only),
-                   mean_attribute_per_species(LeafP, subset_gt_nat = take_nat_sab_int_only),
-                   mean_attribute_per_species(Leaf13C, subset_gt_nat = take_nat_sab_int_only),
-                   mean_attribute_per_species(Biovolume , subset_gt_nat = take_nat_sab_int_only), 
-                   mean_attribute_per_species(Pheno, subset_gt_nat = take_nat_sab_int_only),
-                   mean_attribute_per_species(Seed, subset_gt_nat = take_nat_sab_int_only) )
+MEAN_list <- list( mean_attribute_per_species(LeafMorpho,site_level = average_at_site_level),
+                   mean_attribute_per_species(LeafCN,site_level = average_at_site_level),
+                   mean_attribute_per_species(LeafP,site_level = average_at_site_level),
+                   mean_attribute_per_species(Leaf13C,site_level = average_at_site_level),
+                   mean_attribute_per_species(Biovolume ,site_level = average_at_site_level), 
+                   mean_attribute_per_species(Pheno,site_level = average_at_site_level),
+                   mean_attribute_per_species(Seed,site_level = average_at_site_level) )
 
 
 
@@ -95,10 +100,8 @@ Geranium dissectum - pétiole","Geranium dissectum - limbe"))) %>%
   unique()
 
   
-if(take_nat_sab_int_only == F){
-  write.csv2(MEAN2,"outputs/data/mean_attribute_per_treatment.csv",row.names=F)
-} else{
+if(average_at_site_level == F){ # work at the level of treatments
   write.csv2(MEAN2,"outputs/data/mean_attribute_per_treatment_subset_nat_sab_int.csv",row.names=F)
+} else{ # average traits values across the whole site
+  write.csv2(MEAN2,"outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_site_level.csv",row.names=F)
 }
-
-# write.csv2(MEAN2,"outputs/data/mean_attribute_Nat_Dol.csv",row.names=F)

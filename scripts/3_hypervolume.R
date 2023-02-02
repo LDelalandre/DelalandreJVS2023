@@ -295,7 +295,7 @@ for(i in c(1:nb_replicates)) {
 
 
 
-# write.csv2(CENTROID,"outputs/data/centroid_interspecific.csv",row.names=F)
+write.csv2(CENTROID,"outputs/data/centroid_interspecific.csv",row.names=F)
 
 # write.csv2(CENTROID_intrasp,"outputs/data/centroid_intraspecific_small_PCA.csv",row.names=F)
 
@@ -386,7 +386,20 @@ euclid_dist <- CENTROID %>%
 
 
 ## stats
-mod <- lm(distance~ comparison * dim, data = euclid_dist2,plot_euclid_dist2)
+euclid_dist_separate_dim <- CENTROID %>% 
+  ungroup() %>% 
+  mutate(within_A = map2_dbl(AF,AN,euclidean),
+         within_P = map2_dbl(PF,PN,euclidean),
+         within_F = map2_dbl(AF,PF,euclidean),
+         within_N = map2_dbl(AN,PN,euclidean))
+
+euclid_dist2 <- euclid_dist_separate_dim %>% 
+  select(-c(AF,AN,PF,PN)) %>% 
+  gather(key = comparison,value = distance,-c(num,dim)) %>% 
+  filter(comparison %in% c("within_A","within_P"))
+
+
+mod <- lm(distance~ comparison * dim, data = euclid_dist2)
 table_anova <- anova(mod)
 summary(mod)
 
@@ -421,17 +434,7 @@ comp <- as.data.frame(posthoc$emmeans)  %>%
 #   theme_classic() 
 
 # also compute distances in each dimension! (dim2 = LDMC - SLA)
-euclid_dist_separate_dim <- CENTROID %>% 
-  ungroup() %>% 
-  mutate(within_A = map2_dbl(AF,AN,euclidean),
-         within_P = map2_dbl(PF,PN,euclidean),
-         within_F = map2_dbl(AF,PF,euclidean),
-         within_N = map2_dbl(AN,PN,euclidean))
 
-euclid_dist2 <- euclid_dist_separate_dim %>% 
-  select(-c(AF,AN,PF,PN)) %>% 
-  gather(key = comparison,value = distance,-c(num,dim)) %>% 
-  filter(comparison %in% c("within_A","within_P"))
   
 maxy <- euclid_dist2$distance %>% max()
 plot_euclid_dist2 <- 
