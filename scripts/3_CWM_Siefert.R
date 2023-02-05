@@ -121,10 +121,7 @@ compute_SS <- function(data,LH){
   data.frame(SStot = SStot,SSfixed = SSfixed,SSintra = SSintra ,SScov = SScov)
 }
 
-compute_aITV <- function(SumSq){
-  aITV <- log(SumSq$SSintra/SumSq$SSfixed)
-  aITV
-}
+
 
 # Analyses ####
 
@@ -144,7 +141,10 @@ fCWMall %>%
 fLH <- "annual"
 SumSq <- compute_SS(fCWMall,fLH) %>% 
   mutate(sum = SSfixed + SSintra + SScov) # vérifier que SStot = SSfixed + SSintra + SScov. Pas le cas, visiblement...
-
+# A VERIFIER!
+# (après, je ne m'intéresse aps à la covariance... Si, peut-être ?)
+# Je peux produire le graphe de la contribution relative de chaque variance pour annuelles et pérennes
+# En disant bien que la variance est plus forte chez les pérennes
 
 SumSq %>% 
   gather(key = level,value = sq) %>% 
@@ -161,7 +161,9 @@ for (ftrait in traits){
   fCWMall <- get_cwm_decomposition(ftrait,CWM,CWMfixed) 
   for (fLH in c("annual","perennial")){
     # compute aITV for each LH
-    aITV <- compute_SS(fCWMall,fLH) %>% compute_aITV()
+    aITV <- compute_SS(fCWMall,fLH) %>% 
+      summarize(aITV = log(SSintra/SSfixed)) %>% 
+      pull(aITV)
     AITV <- c(AITV,aITV)
     TRAIT <- c(TRAIT,ftrait)
     LH <- c(LH,fLH)
@@ -181,4 +183,4 @@ data_aITV %>%
   geom_abline(intercept = 0, slope = 1) +
   xlim(c(0-10,2)) +
   ylim(c(-4,2)) +
-  geom_label()
+  ggrepel::geom_label_repel()
