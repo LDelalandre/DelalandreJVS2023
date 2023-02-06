@@ -175,7 +175,7 @@ plot <- CWM %>%
   ggplot(aes_string(x = "Management",y= ftrait,fill = "Management")) +
   facet_wrap(~LifeHistory,strip.position = "bottom") +
   geom_boxplot() +
-  geom_point() +
+  # geom_point() +
   theme_classic() +
   scale_fill_manual(values = c("grey", "white")) +
   theme(axis.text.x=element_blank(),
@@ -208,10 +208,6 @@ SumSq <- compute_SS(fCWMall,fLH) %>%
 # Je peux produire le graphe de la contribution relative de chaque variance pour annuelles et pérennes
 # En disant bien que la variance est plus forte chez les pérennes
 
-SumSq %>% 
-  gather(key = level,value = SS, -c(LifeHistory,trait)) %>% 
-  ggplot(aes(x=level,y=SS))+
-  geom_point()
 
 
 
@@ -243,20 +239,21 @@ data_aITV <- data.frame(aITV = AITV, trait = TRAIT,LifeHistory = LH) %>%
   filter(!(trait %in% c("Hrepro","SeedMass","Ldelta13C")))
 # If aITV inferior to zero: greater contribution of species turnover to total among-community variance
 
-data_aITV %>% 
+plot_aITV <- data_aITV %>% 
   filter(!(trait %in% c("Hrepro","SeedMass","Ldelta13C"))) %>% 
   ggplot(aes(x=perennial,y=annual,label = trait))+
   geom_point() +
   geom_abline(intercept = 0, slope = 1) +
   geom_hline(yintercept = 0,linetype = "dashed")+
   geom_vline(xintercept = 0,linetype = "dashed")+
-  xlim(c(-8,2)) +
-  ylim(c(-8,2)) +
+  xlim(c(-9,2)) +
+  ylim(c(-9,2)) +
   ggrepel::geom_label_repel() +
   xlab("aITV of perennials") +
   ylab("aITV of annuals") +
   theme_classic()
 
+ggsave("draft/plot_aITV.jpg",plot_aITV,width = 5, height = 5)
 
 # Decomposition variance ####
 ftrait <- "L_Area"
