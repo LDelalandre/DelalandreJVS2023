@@ -116,7 +116,7 @@ compute_SS <- function(data,LH){
   anointra <- anova(modintra)
   SSintra <- anointra$`Sum Sq`
   
-  SScov <- 100*(SStot - SSintra - SSfixed)/SStot
+  SScov <- 100*(SStot - SSintra - SSfixed)/SStot # BIZARRE, CETTE FORMULE NE DONNE PAS somme(SS) = SStot...
   
   data.frame(SStot = SStot,SSfixed = SSfixed,SSintra = SSintra ,SScov = SScov)
 }
@@ -131,9 +131,71 @@ CWM <- compute_cwm(ab,MEAN,MEAN_site,traits,level_of_trait_averaging = "treatmen
 CWMfixed <- compute_cwm(ab,MEAN,MEAN_site,traits,level_of_trait_averaging = "site")
 # CWM intra  = CWM - CWMfixed pour chaque trait
 
-ftrait <- "SLA"
-fCWMall <- get_cwm_decomposition(ftrait,CWM,CWMfixed)
 
+## CWM change f(LH) ####
+
+
+traits_names <- c("Leaf Dry Matter Content (mg/g)", "Specific Leaf Area (mm²/mg)"," Leaf Area (cm²) (log scale)",
+                  "Leaf Carbon Content (mg/g)","Leaf Nitrogen Content (mg/g)", "Leaf delta 13C (part per thousand)",
+                  "Reproductive Height (cm)", 
+                  "Date of first dispersal (Julian day)",
+                  "Seed Mass (mg)")
+
+i <- 0
+PLOTS <- NULL
+for (ftrait in traits){
+  i <- i+1
+  plot <- CWM %>%
+    mutate(LifeHistory = if_else(LifeHistory == "annual","Annuals","Perennials")) %>% 
+    # mutate(Management = factor(Management, levels = c("Intensive","Extensive"))) %>% 
+    mutate(treatment = factor(treatment,levels = c("Fer","Nat"))) %>% 
+    ggplot(aes_string(x = "treatment",y= ftrait,fill = "treatment")) +
+    facet_wrap(~LifeHistory,strip.position = "bottom") +
+    geom_boxplot() +
+    geom_point() +
+    theme_classic() +
+    scale_fill_manual(values = c("grey", "white")) +
+    theme(axis.text.x=element_blank(),
+          axis.ticks.x=element_blank() ,
+          axis.title.x = element_blank(),
+          axis.title.y = element_blank()
+    ) +
+    theme(legend.position="none") +
+    theme(legend.title.align = 50) +
+    ggtitle(traits_names[i]) +
+    {if(ftrait == "L_Area")scale_y_continuous(trans='log10')}
+  PLOTS[[i]] <- plot
+}
+
+  
+plot <- CWM %>%
+  rename(Management = treatment) %>% 
+  mutate(LifeHistory = if_else(LifeHistory == "annual","Annuals","Perennials")) %>% 
+  mutate(Management = if_else(Management == "Fer","Intensive","Extensive")) %>% 
+  ggplot(aes_string(x = "Management",y= ftrait,fill = "Management")) +
+  facet_wrap(~LifeHistory,strip.position = "bottom") +
+  geom_boxplot() +
+  geom_point() +
+  theme_classic() +
+  scale_fill_manual(values = c("grey", "white")) +
+  theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank() ,
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank()
+  ) +
+  theme(legend.title.align = 50) +
+  ggtitle(traits_names[i])
+leg <- ggpubr::get_legend(plot)
+legend <- ggpubr::as_ggplot(leg)
+
+boxplot_all_traits <- ggpubr::ggarrange(PLOTS[[1]],PLOTS[[2]],PLOTS[[3]],PLOTS[[4]],PLOTS[[5]],PLOTS[[6]],
+                                        PLOTS[[7]],PLOTS[[8]],PLOTS[[9]],legend,
+                                        ncol = 3,nrow = 4)
+
+ggsave("draft/boxplot_CWM_all_traits.jpg",boxplot_all_traits,width = 10, height = 10)
+
+
+fCWMall <- get_cwm_decomposition(ftrait,CWM,CWMfixed)
 fCWMall %>% 
   ggplot(aes(x=CWMfixed,y=CWM,color=treatment)) +
   geom_point()
@@ -147,8 +209,8 @@ SumSq <- compute_SS(fCWMall,fLH) %>%
 # En disant bien que la variance est plus forte chez les pérennes
 
 SumSq %>% 
-  gather(key = level,value = sq) %>% 
-  ggplot(aes(x=level,y=sq))+
+  gather(key = level,value = SS, -c(LifeHistory,trait)) %>% 
+  ggplot(aes(x=level,y=SS))+
   geom_point()
 
 
@@ -156,20 +218,25 @@ SumSq %>%
 AITV <- NULL
 TRAIT <- NULL
 LH <- NULL
+SUMSQ <- NULL
 for (ftrait in traits){
   # compute the 3 CWM on this trait, for each LH in each transect
   fCWMall <- get_cwm_decomposition(ftrait,CWM,CWMfixed) 
   for (fLH in c("annual","perennial")){
+    SumSq <- compute_SS(fCWMall,fLH) %>% 
+      mutate(trait = ftrait,LifeHistory = fLH)
     # compute aITV for each LH
-    aITV <- compute_SS(fCWMall,fLH) %>% 
+    aITV <-  SumSq %>% 
       summarize(aITV = log(SSintra/SSfixed)) %>% 
       pull(aITV)
     AITV <- c(AITV,aITV)
     TRAIT <- c(TRAIT,ftrait)
     LH <- c(LH,fLH)
+    SUMSQ <- rbind(SUMSQ,SumSq) 
   }
 }
 
+# aITV ####
 data_aITV <- data.frame(aITV = AITV, trait = TRAIT,LifeHistory = LH) %>% 
   spread(key = LifeHistory,value=aITV) %>% 
   arrange(factor(trait),levels = traits) %>% 
@@ -181,6 +248,25 @@ data_aITV %>%
   ggplot(aes(x=perennial,y=annual,label = trait))+
   geom_point() +
   geom_abline(intercept = 0, slope = 1) +
-  xlim(c(0-10,2)) +
-  ylim(c(-4,2)) +
-  ggrepel::geom_label_repel()
+  geom_hline(yintercept = 0,linetype = "dashed")+
+  geom_vline(xintercept = 0,linetype = "dashed")+
+  xlim(c(-8,2)) +
+  ylim(c(-8,2)) +
+  ggrepel::geom_label_repel() +
+  xlab("aITV of perennials") +
+  ylab("aITV of annuals") +
+  theme_classic()
+
+
+# Decomposition variance ####
+ftrait <- "L_Area"
+SUMSQ %>% 
+  mutate(sum = SSfixed + SSintra + SScov) %>% 
+  mutate(SSfixed = SSfixed / SStot,
+         SSintra = SSintra/SStot,
+         SScov = SScov/SStot) %>% 
+  select(-c(SStot,sum)) %>% 
+  gather(key = level,value = SS, -c(LifeHistory,trait)) %>%
+  filter(trait == ftrait) %>%
+  ggplot(aes(x=level,y=SS,fill = LifeHistory))+
+  geom_bar(stat = 'identity',position = "dodge")

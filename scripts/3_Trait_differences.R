@@ -25,7 +25,7 @@ traits <- c("LDMC","SLA","log_LA",
             "SeedMass"
 )#"H_FLORE","FLO_FLORE",
 
-traits_names <- c("Leaf Dry Matter Content (%)", "Specific Leaf Area (mm²/mg)"," log(Leaf Area (cm²))",
+traits_names <- c("Leaf Dry Matter Content (mg/g)", "Specific Leaf Area (mm²/mg)"," log(Leaf Area (cm²))",
                   "Leaf Carbon Content (mg/g)","Leaf Nitrogen Content (mg/g)", "Leaf delta 13C (part per thousand)",
                   "Reproductive Height (cm)", 
                   "Date of first dispersal (Julian day)",

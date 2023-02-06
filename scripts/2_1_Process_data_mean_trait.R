@@ -67,41 +67,44 @@ mean_attribute_per_species <- function(dataset,subset_gt_nat = T,site_level = F)
 # The code below uses the function 'mean_attribute_per_species' to compute mean attributes
 # across all the traits and merges it into one data frame
 
-average_at_site_level = T
-
-# Generate a list of mean attributes per sp*treatment
-MEAN_list <- list( mean_attribute_per_species(LeafMorpho,site_level = average_at_site_level),
-                   mean_attribute_per_species(LeafCN,site_level = average_at_site_level),
-                   mean_attribute_per_species(LeafP,site_level = average_at_site_level),
-                   mean_attribute_per_species(Leaf13C,site_level = average_at_site_level),
-                   mean_attribute_per_species(Biovolume ,site_level = average_at_site_level), 
-                   mean_attribute_per_species(Pheno,site_level = average_at_site_level),
-                   mean_attribute_per_species(Seed,site_level = average_at_site_level) )
 
 
-
-# Convert the list into a data frame
-MEAN <- MEAN_list[[1]]
-MEAN$Species <- recode(MEAN$Species,"Cirsium acaulon" = "Cirsium acaule")
-for (i in 2:length(MEAN_list)){
-  MEAN <- full_join(MEAN,MEAN_list[[i]], by = c('Species','Trtmt','Code_Sp','LifeHistory','LifeForm1','Form'))
-  MEAN$Species <- recode(MEAN$Species,"Cirsium acaulon" = "Cirsium acaule")
-}
-
-# Clean (uniformize) the data
-MEAN$Species <- recode(MEAN$Species,"Festuca christiani-bernardii" = "Festuca christianii-bernardii")
-MEAN2 <- MEAN %>% 
-  dplyr::rename(species = Species, code_sp = Code_Sp, treatment = Trtmt) %>% 
-  filter(!(species %in% c("Carex humilis?","Carex sp.","Geranium dissectum - petiole","	
-Geranium dissectum - pétiole","Geranium dissectum - limbe"))) %>% 
-  filter(!(treatment %in% c("Tem","Che"))) %>% 
-  mutate(LDMC = LDMC/10) %>% # good units for CSR ()
-  mutate(L_Area = L_Area*100) %>%  # good units for CSR
-  unique()
-
+for (average_at_site_level in c(T,F)){
   
-if(average_at_site_level == F){ # work at the level of treatments
-  write.csv2(MEAN2,"outputs/data/mean_attribute_per_treatment_subset_nat_sab_int.csv",row.names=F)
-} else{ # average traits values across the whole site
-  write.csv2(MEAN2,"outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_site_level.csv",row.names=F)
+  # Generate a list of mean attributes per sp*treatment
+  MEAN_list <- list( mean_attribute_per_species(LeafMorpho,site_level = average_at_site_level),
+                     mean_attribute_per_species(LeafCN,site_level = average_at_site_level),
+                     mean_attribute_per_species(LeafP,site_level = average_at_site_level),
+                     mean_attribute_per_species(Leaf13C,site_level = average_at_site_level),
+                     mean_attribute_per_species(Biovolume ,site_level = average_at_site_level), 
+                     mean_attribute_per_species(Pheno,site_level = average_at_site_level),
+                     mean_attribute_per_species(Seed,site_level = average_at_site_level) )
+  
+  
+  
+  # Convert the list into a data frame
+  MEAN <- MEAN_list[[1]]
+  MEAN$Species <- recode(MEAN$Species,"Cirsium acaulon" = "Cirsium acaule")
+  for (i in 2:length(MEAN_list)){
+    MEAN <- full_join(MEAN,MEAN_list[[i]], by = c('Species','Trtmt','Code_Sp','LifeHistory','LifeForm1','Form'))
+    MEAN$Species <- recode(MEAN$Species,"Cirsium acaulon" = "Cirsium acaule")
+  }
+  
+  # Clean (uniformize) the data
+  MEAN$Species <- recode(MEAN$Species,"Festuca christiani-bernardii" = "Festuca christianii-bernardii")
+  MEAN2 <- MEAN %>% 
+    dplyr::rename(species = Species, code_sp = Code_Sp, treatment = Trtmt) %>% 
+    filter(!(species %in% c("Carex humilis?","Carex sp.","Geranium dissectum - petiole","	
+Geranium dissectum - pétiole","Geranium dissectum - limbe"))) %>% 
+    filter(!(treatment %in% c("Tem","Che"))) %>% 
+    # mutate(LDMC = LDMC/10) %>% # good units for CSR ()
+    mutate(L_Area = L_Area*100) %>%  # good units for CSR
+    unique()
+  
+  
+  if(average_at_site_level == F){ # work at the level of treatments
+    write.csv2(MEAN2,"outputs/data/mean_attribute_per_treatment_subset_nat_sab_int.csv",row.names=F)
+  } else{ # average traits values across the whole site
+    write.csv2(MEAN2,"outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_site_level.csv",row.names=F)
+  }
 }
