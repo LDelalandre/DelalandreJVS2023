@@ -135,6 +135,7 @@ fMEAN <- MEAN %>%
 rownames(fMEAN) <- NULL
 
 data_hypervolume <- fMEAN %>% 
+  # filter(treatment == "Fer") %>% 
   column_to_rownames("sp_trt") %>% 
   select(-c(code_sp,LifeHistory,treatment)) 
 
@@ -163,7 +164,6 @@ data_hypervolume_intrasp <- fMEAN %>%
 # 2) reduce dimensionality:
 #   i) traits are highly correlated
 #   ii) there are few observations
-
 
 PCA_hypervolume <- PCA(data_hypervolume,scale.unit=TRUE)
 coord_ind <- PCA_hypervolume$ind$coord %>% 
