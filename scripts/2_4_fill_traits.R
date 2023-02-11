@@ -71,6 +71,8 @@ filled_SM <- left_join(to_fill_SM,to_add_SM) %>%
 MEAN_SM <- rbind(filled_SM,ok_SM) 
 
 
+write.csv2(MEAN_SM,"outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_SM.csv",row.names=F)
+
 
 ## Complete seed mass in Nat from Seed Mass in Fer ####
 ann_SM_missing <- MEAN_SM %>% 

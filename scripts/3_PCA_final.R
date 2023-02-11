@@ -21,15 +21,14 @@ fMEAN <- MEAN %>%
 rownames(fMEAN) <- NULL
 
 
-trt <- "Nat"
 data_hypervolume <- fMEAN %>% 
-  # filter(treatment == trt) %>%
+  # filter(treatment == "Nat") %>%
   # filter(LifeHistory == "annual") %>% 
   column_to_rownames("sp_trt") %>% 
   select(-c(code_sp,LifeHistory,treatment)) 
 
 
-PCA_hypervolume <- PCA(data_hypervolume,scale.unit=TRUE,graph=F)
+PCA_hypervolume <- PCA(data_hypervolume,scale.unit=TRUE,graph=T)
 percent_var <- factoextra::fviz_eig(PCA_hypervolume, addlabels = TRUE, ylim = c(0, 30))
 # point d'inflexion sur le troisième axe. Présenter les trois axes
 var.explain.dim1 <- round(PCA_hypervolume$eig[1,2])
@@ -46,7 +45,6 @@ ggplot(AUC, aes(x = dim, y = AUC))+
   geom_smooth()
 
 
-
 coord_ind <- PCA_hypervolume$ind$coord %>% 
   as.data.frame() %>% 
   rownames_to_column("sp_trt") %>% 
@@ -58,12 +56,48 @@ coord_var <- PCA_hypervolume$var$coord %>%
   as.data.frame() %>% 
   rownames_to_column("trait")
 
-fLH <- "perennial"
+# identify species on both treatment, or in one treatment only
+zones <- coord_ind %>% 
+  select(code_sp,treatment,LifeHistory) %>% 
+  mutate(presence = 1) %>% 
+  spread(key = treatment,value = presence) %>% 
+  mutate(zone = case_when(is.na(Fer) & Nat ==1 ~ "Nat",
+                          Fer == 1 & Nat == 1 ~ "Both",
+                          TRUE ~ "Fer")) %>% 
+  select(code_sp,zone,LifeHistory) %>% 
+  mutate(zone2 = if_else(zone == "Both","Both","One"))
+coord_ind <- full_join(coord_ind,zones)
+
+fLH <- "annual"
 
 DimA <- "Dim.1"
 DimB <- "Dim.2"
 var.explain.dimA <- var.explain.dim1
 var.explain.dimB <- var.explain.dim2
+
+# Faire 3 graphes pour l'acp, un juste avec les traits, et un par forme de vie
+# Ajouter les ellipsoides
+
+plot_var <- coord_var %>% 
+  ggplot()+
+  geom_segment( aes(x=0, y=0, xend=get(DimA), yend=get(DimB)), 
+                arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
+  ggrepel::geom_text_repel(aes(x=get(DimA), get(DimB), label=trait), size = 5, vjust=1, color="black") +
+  
+  
+  theme_classic() +
+  geom_hline(aes(yintercept=0), size=.2,linetype="longdash") + 
+  geom_vline(aes(xintercept = 0),linetype = "longdash", size=.2)+
+  coord_equal() +
+
+  xlab(paste0(DimA," (",var.explain.dimA,"%)"))+
+  ylab(paste0(DimB," (",var.explain.dimB,"%)")) + 
+  theme(text=element_text(size=15)) +
+  xlim(c(-1,1.2))+
+  ylim(c(-1,1))
+# ADD A CIRCLE AROUND VARIABLES
+
+plot_var
 
 PLOT <- NULL
 i <- 0
@@ -76,33 +110,38 @@ for (fLH in c("annual","perennial")){
     geom_hline(aes(yintercept=0), size=.2,linetype="longdash") + 
     geom_vline(aes(xintercept = 0),linetype = "longdash", size=.2)+
     coord_equal() +
-    geom_point(size=4,aes(shape = treatment)) + # ,colour=treatment
-    geom_segment(data=coord_var, aes(x=0, y=0, xend=get(DimA)*5.5-0.2, yend=get(DimB)*5.5-0.2), 
-                 arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
-    geom_text_repel(data=coord_var, aes(x=get(DimA)*5.5, get(DimB)*5.5, label=trait), size = 6, vjust=1, color="black") +
-    # theme(legend.position = "none") +
+    geom_point(size=4,aes(color = treatment,shape = zone2)) + # ,colour=treatment
+    # geom_segment(data=coord_var, aes(x=0, y=0, xend=get(DimA)*5.5-0.2, yend=get(DimB)*5.5-0.2), 
+    #              arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
+    # ggrepel::geom_text_repel(data=coord_var, aes(x=get(DimA)*5.5, get(DimB)*5.5, label=trait), size = 6, vjust=1, color="black") +
+    theme(legend.position = "none") +
     xlab(paste0(DimA," (",var.explain.dimA,"%)"))+
     ylab(paste0(DimB," (",var.explain.dimB,"%)")) + 
-    theme(text=element_text(size=20)) +
-    theme(legend.position = "none")+
-    {if(fLH == "annual") scale_shape_manual(values = c(1,19)) } + # pour les annuelles
-    {if(fLH == "perennial") scale_shape_manual(values = c(2,17)) } # pour les pérennes
+    theme(text=element_text(size=15)) +
+    ggforce::geom_mark_ellipse(data = coord_ind %>% 
+                                 filter(LifeHistory == fLH),aes(fill = treatment), # ,label = cluster
+                               expand = unit(0.5,"mm"),
+                               label.buffer = unit(-5, 'mm')) +
+    xlim(c(-3,7.5)) +
+    ylim(c(-3,6)) +
+    {if(fLH == "annual") scale_shape_manual(values = c(1,19)) } + # pour les annuelles 
+    {if(fLH == "perennial") scale_shape_manual(values = c(2,17)) } # pour les pérennes METTRE UN TRIANGLE A L'ENVERS POUR PERENNES MESUREES DANS LES DEUX
   
   PLOT[[i]] <- plot_ACP
   
   boxplot <- coord_ind %>% 
     filter(LifeHistory == fLH) %>% 
-    gather(key = dim, value = coordinate, - c(code_sp,treatment,LifeHistory,species,LifeForm1)) %>% 
+    gather(key = dim, value = coordinate, - c(code_sp,treatment,LifeHistory,species,LifeForm1,zone2)) %>% 
     filter(dim %in% c("Dim.1","Dim.2")) %>% 
-    ggplot(aes(x = treatment, y = coordinate,shape = treatment)) +
+    mutate(coordinate = as.numeric(coordinate)) %>% 
+    ggplot(aes(x = treatment, y = coordinate,color = treatment)) +
     geom_boxplot(outlier.shape = NA) +
     facet_wrap(~dim) +
     theme_classic() +
-    geom_point(position = position_dodge(width = 0.75)) +
     ggtitle(fLH) +
-    theme(legend.position = "none")+
-    {if(fLH == "annual") scale_shape_manual(values = c(1,19)) } + # pour les annuelles
-    {if(fLH == "perennial") scale_shape_manual(values = c(2,17)) } # pour les pérennes
+    theme(legend.position  = "none")+
+    {if(fLH == "annual") geom_point(position = position_dodge(width = 0.75),shape = 19) } +
+    {if(fLH == "perennial") geom_point(position = position_dodge(width = 0.75),shape = 17) } 
   
   i <- i+1
   PLOT[[i]] <- boxplot
@@ -111,9 +150,38 @@ for (fLH in c("annual","perennial")){
 }
 
 
+plot <- coord_ind %>% 
+  filter(LifeHistory == "annual") %>%
+  ggplot(aes_string(x=DimA,y=DimB), width = 10, height = 10)+
+  theme_classic() +
+  geom_hline(aes(yintercept=0), size=.2,linetype="longdash") + 
+  geom_vline(aes(xintercept = 0),linetype = "longdash", size=.2)+
+  coord_equal() +
+  geom_point(size=4,aes(color = treatment,shape = zone2)) + # ,colour=treatment
+  # geom_segment(data=coord_var, aes(x=0, y=0, xend=get(DimA)*5.5-0.2, yend=get(DimB)*5.5-0.2), 
+  #              arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
+  # ggrepel::geom_text_repel(data=coord_var, aes(x=get(DimA)*5.5, get(DimB)*5.5, label=trait), size = 6, vjust=1, color="black") +
+  # theme(legend.position = "none") +
+  xlab(paste0(DimA," (",var.explain.dimA,"%)"))+
+  ylab(paste0(DimB," (",var.explain.dimB,"%)")) + 
+  theme(text=element_text(size=15)) +
+  ggforce::geom_mark_ellipse(data = coord_ind %>% 
+                               filter(LifeHistory == fLH),aes(fill = treatment), # ,label = cluster
+                             expand = unit(0.5,"mm"),
+                             label.buffer = unit(-5, 'mm')) +
+  xlim(c(-3,7.5)) +
+  ylim(c(-3,6)) +
+  scale_shape_manual(values = c(1,19)) 
 
-PCA <- ggarrange(PLOT[[1]],PLOT[[3]],PLOT[[2]],PLOT[[4]],
-                 labels = c("A","B","C","D"))
+# CHANGE LEGEND NAMES
+
+leg <- ggpubr::get_legend(plot)
+legend <- ggpubr::as_ggplot(leg)
+legend
+
+
+PCA <- ggpubr::ggarrange(PLOT[[1]],PLOT[[3]],plot_var,
+                         PLOT[[2]],PLOT[[4]],legend,ncol = 3,nrow = 2)
 
 # trash
 plot1 <- ggplot(coord_var,aes(x=Dim.1,y=Dim.2,label=trait)) +

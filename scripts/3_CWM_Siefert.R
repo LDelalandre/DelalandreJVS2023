@@ -7,7 +7,7 @@ library(tidyverse)
 # Load data ####
 
 # trait data
-MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_SM_H_13C.csv")
+MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_SM.csv")
 MEAN_site <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_site_level.csv")
 traits <- c("LDMC","SLA","L_Area",
             "LCC","LNC","Ldelta13C",#"LPC",
@@ -236,11 +236,32 @@ for (ftrait in traits){
 data_aITV <- data.frame(aITV = AITV, trait = TRAIT,LifeHistory = LH) %>% 
   spread(key = LifeHistory,value=aITV) %>% 
   arrange(factor(trait),levels = traits) %>% 
-  filter(!(trait %in% c("Hrepro","SeedMass","Ldelta13C")))
+  filter(!(trait == "SeedMass")) 
+  # filter(!(trait %in% c("Hrepro","SeedMass","Ldelta13C")))
 # If aITV inferior to zero: greater contribution of species turnover to total among-community variance
 
+
+boxplot_aITV <- data_aITV %>% 
+  rename(Annuals = annual, Perennials = perennial) %>% 
+  gather(key = LifeHistory, value = aITV, - trait) %>% 
+  ggplot(aes(x = LifeHistory,y = aITV)) +
+  geom_boxplot() +
+  theme_classic() +
+  geom_hline(yintercept = 0,linetype = "dashed") +
+  geom_signif(comparisons = list(c("Annuals", "Perennials")), 
+              map_signif_level=TRUE) +
+  xlab("")
+
+# stats sur les boxplot:
+# - aITV différent de zéro ?
+# - différent entre annuelles et pérennes ?
+mod_aITV <- lm(aITV ~ LifeHistory, data = data_aITV %>% 
+                 gather(key = LifeHistory, value = aITV, - trait))
+anova(mod_aITV) # METTRE LA SORTIE D'ANOVA EN LEGENDE ?
+summary(mod_aITV)
+
 plot_aITV <- data_aITV %>% 
-  filter(!(trait %in% c("Hrepro","SeedMass","Ldelta13C"))) %>% 
+  # filter(!(trait %in% c("L_Area"))) %>%
   ggplot(aes(x=perennial,y=annual,label = trait))+
   geom_point() +
   geom_abline(intercept = 0, slope = 1) +
@@ -251,9 +272,12 @@ plot_aITV <- data_aITV %>%
   ggrepel::geom_label_repel() +
   xlab("aITV of perennials") +
   ylab("aITV of annuals") +
-  theme_classic()
+  theme_classic() 
 
-ggsave("draft/plot_aITV.jpg",plot_aITV,width = 5, height = 5)
+# plots_aITV <- gridExtra::grid.arrange(boxplot_aITV,plot_aITV, ncol=2)
+plots_aITV <- ggpubr::ggarrange(boxplot_aITV,plot_aITV,labels = c("A","B"),ncol = 2)
+
+ggsave("draft/plot_aITV.jpg",plots_aITV,width = 8, height = 5)
 
 # Decomposition variance ####
 ftrait <- "L_Area"

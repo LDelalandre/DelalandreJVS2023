@@ -100,7 +100,7 @@ Geranium dissectum - pétiole","Geranium dissectum - limbe"))) %>%
     # mutate(LDMC = LDMC/10) %>% # good units for CSR ()
     mutate(L_Area = L_Area*100) %>%  # good units for CSR
     unique()
-  
+  MEAN2[which(MEAN2$code_sp=="BUPLBALD"),]$Hrepro <- 7 # Bupleurum, measurements on samples stored at cefe
   
   if(average_at_site_level == F){ # work at the level of treatments
     write.csv2(MEAN2,"outputs/data/mean_attribute_per_treatment_subset_nat_sab_int.csv",row.names=F)
