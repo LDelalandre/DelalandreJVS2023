@@ -25,10 +25,16 @@ data_hypervolume <- fMEAN %>%
   # filter(treatment == "Nat") %>%
   # filter(LifeHistory == "annual") %>% 
   column_to_rownames("sp_trt") %>% 
-  select(-c(code_sp,LifeHistory,treatment)) 
+  select(-c(code_sp,LifeHistory,treatment))
 
+data_hypervolume_Nmass <- data_hypervolume %>% 
+  mutate(Nmass = LNC * 10) %>% # change unit from mg/g to %
+  mutate(LMA = 1/SLA * 10^7) %>% # convert kg/cm² to g/m² (1kg sur 1cm² = 1^4 kg sur 1m², = 10^7 g sur 1m²)
+  mutate(log10_Amass = 0.74 * log10(Nmass) - 0.54 * log10(LMA) + 2.96) %>% #equation from supp. data Wright et al. 2003
+  mutate(Amass = 10^log10_Amass) %>% 
+  select(-c(Nmass,LMA,log10_Amass))
 
-PCA_hypervolume <- PCA(data_hypervolume,scale.unit=TRUE,graph=T)
+PCA_hypervolume <- PCA(data_hypervolume_Nmass,scale.unit=TRUE,graph=T,quanti.sup = 9)
 percent_var <- factoextra::fviz_eig(PCA_hypervolume, addlabels = TRUE, ylim = c(0, 30))
 # point d'inflexion sur le troisième axe. Présenter les trois axes
 var.explain.dim1 <- round(PCA_hypervolume$eig[1,2])
@@ -78,26 +84,10 @@ var.explain.dimB <- var.explain.dim2
 # Faire 3 graphes pour l'acp, un juste avec les traits, et un par forme de vie
 # Ajouter les ellipsoides
 
-plot_var <- coord_var %>% 
-  ggplot()+
-  geom_segment( aes(x=0, y=0, xend=get(DimA), yend=get(DimB)), 
-                arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
-  ggrepel::geom_text_repel(aes(x=get(DimA), get(DimB), label=trait), size = 5, vjust=1, color="black") +
-  
-  
-  theme_classic() +
-  geom_hline(aes(yintercept=0), size=.2,linetype="longdash") + 
-  geom_vline(aes(xintercept = 0),linetype = "longdash", size=.2)+
-  coord_equal() +
 
-  xlab(paste0(DimA," (",var.explain.dimA,"%)"))+
-  ylab(paste0(DimB," (",var.explain.dimB,"%)")) + 
-  theme(text=element_text(size=15)) +
-  xlim(c(-1,1.2))+
-  ylim(c(-1,1))
-# ADD A CIRCLE AROUND VARIABLES
 
-plot_var
+
+
 
 PLOT <- NULL
 i <- 0
@@ -109,7 +99,7 @@ for (fLH in c("annual","perennial")){
     theme_classic() +
     geom_hline(aes(yintercept=0), size=.2,linetype="longdash") + 
     geom_vline(aes(xintercept = 0),linetype = "longdash", size=.2)+
-    coord_equal() +
+    # coord_equal() +
     geom_point(size=4,aes(color = treatment,shape = zone2)) + # ,colour=treatment
     # geom_segment(data=coord_var, aes(x=0, y=0, xend=get(DimA)*5.5-0.2, yend=get(DimB)*5.5-0.2), 
     #              arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
@@ -140,8 +130,14 @@ for (fLH in c("annual","perennial")){
     theme_classic() +
     ggtitle(fLH) +
     theme(legend.position  = "none")+
-    {if(fLH == "annual") geom_point(position = position_dodge(width = 0.75),shape = 19) } +
-    {if(fLH == "perennial") geom_point(position = position_dodge(width = 0.75),shape = 17) } 
+    geom_line(aes(group = code_sp),
+              alpha = 0.4, color = "black") +
+    {if(fLH == "annual") geom_point(aes(shape = zone2)) } +
+    {if(fLH == "perennial") geom_point(aes(shape = zone2)) } + # position = position_dodge(width = 0.75)) SSi pas shape = zone2
+    {if(fLH == "annual") scale_shape_manual(values = c(1,19)) } + # pour les annuelles 
+    {if(fLH == "perennial") scale_shape_manual(values = c(2,17)) } # pour les pérennes METTRE UN TRIANGLE A L'ENVERS POUR PERENNES MESUREES DANS LES DEUX
+  
+  
   
   i <- i+1
   PLOT[[i]] <- boxplot
@@ -149,15 +145,33 @@ for (fLH in c("annual","perennial")){
   
 }
 
+## Plot variables ####
+coord_axes <- PCA_hypervolume$var$coord %>%
+  as.data.frame() %>% 
+  rownames_to_column("trait") %>% 
+  mutate(trait = case_when(trait == "L_Area" ~ "LA",
+                           trait == "Hrepro" ~ "H",
+                           TRUE ~ trait))
 
+plot_axis_pca <- ggplot(coord_axes) +
+  geom_segment( aes(x=0, y=0, xend=Dim.1, yend=Dim.2), 
+                arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
+  ggrepel::geom_label_repel( aes(x=Dim.1, Dim.2, label=trait), size = 4, vjust=1, color="black")  +
+  theme_classic() +
+  xlab("Dim.1") + ylab("Dim.2")
+
+
+## plot legend ####
 plot <- coord_ind %>% 
+  rename(Management = treatment) %>% 
+  mutate(Management = if_else(Management == "Fer","Intensive","Extensive")) %>% 
   filter(LifeHistory == "annual") %>%
   ggplot(aes_string(x=DimA,y=DimB), width = 10, height = 10)+
   theme_classic() +
   geom_hline(aes(yintercept=0), size=.2,linetype="longdash") + 
   geom_vline(aes(xintercept = 0),linetype = "longdash", size=.2)+
-  coord_equal() +
-  geom_point(size=4,aes(color = treatment,shape = zone2)) + # ,colour=treatment
+  # coord_equal() +
+  geom_point(size=4,aes(color = Management)) + # ,shape = zone2# ,colour=treatment
   # geom_segment(data=coord_var, aes(x=0, y=0, xend=get(DimA)*5.5-0.2, yend=get(DimB)*5.5-0.2), 
   #              arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
   # ggrepel::geom_text_repel(data=coord_var, aes(x=get(DimA)*5.5, get(DimB)*5.5, label=trait), size = 6, vjust=1, color="black") +
@@ -165,23 +179,40 @@ plot <- coord_ind %>%
   xlab(paste0(DimA," (",var.explain.dimA,"%)"))+
   ylab(paste0(DimB," (",var.explain.dimB,"%)")) + 
   theme(text=element_text(size=15)) +
-  ggforce::geom_mark_ellipse(data = coord_ind %>% 
-                               filter(LifeHistory == fLH),aes(fill = treatment), # ,label = cluster
+  ggforce::geom_mark_ellipse(data = coord_ind %>%
+                               rename(Management = treatment) %>% 
+                               mutate(Management = if_else(Management == "Fer","Intensive","Extensive")) %>%
+                               filter(LifeHistory == fLH),aes(fill = Management), # ,label = cluster
                              expand = unit(0.5,"mm"),
                              label.buffer = unit(-5, 'mm')) +
   xlim(c(-3,7.5)) +
   ylim(c(-3,6)) +
   scale_shape_manual(values = c(1,19)) 
+  
 
 # CHANGE LEGEND NAMES
 
 leg <- ggpubr::get_legend(plot)
 legend <- ggpubr::as_ggplot(leg)
-legend
 
 
-PCA <- ggpubr::ggarrange(PLOT[[1]],PLOT[[3]],plot_var,
-                         PLOT[[2]],PLOT[[4]],legend,ncol = 3,nrow = 2)
+# 
+# PCA <- ggpubr::ggarrange(PLOT[[1]],PLOT[[3]],plot_var,
+#                          PLOT[[2]],PLOT[[4]],legend,ncol = 3,nrow = 2)
+
+PCA <- gridExtra::grid.arrange(plot_axis_pca, legend,PLOT[[1]],PLOT[[3]],
+                         PLOT[[2]],PLOT[[4]],ncol = 2,nrow = 3)
+# 
+# library(cowplot)
+# plot_grid(plot_axis_pca, legend,
+#           PLOT[[1]],PLOT[[3]],
+#           PLOT[[2]],PLOT[[4]],
+#           ncol = 2, align = "hv")
+
+ggsave("draft/PCA.png",PCA,height = 10, width =6)
+
+
+
 
 # trash
 plot1 <- ggplot(coord_var,aes(x=Dim.1,y=Dim.2,label=trait)) +
