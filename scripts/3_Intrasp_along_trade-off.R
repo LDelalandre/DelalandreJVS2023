@@ -1,6 +1,6 @@
 library(tidyverse)
 
-MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_SM_H_13C.csv")
+MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int.csv")
 MEAN_site <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_site_level.csv")
 traits <- c("LDMC","SLA","L_Area",
             "LCC","LNC","Ldelta13C",#"LPC",
@@ -16,7 +16,7 @@ fdata <- LeafCN %>%
   filter(Treatment %in% c("Fer_Clc","Fer_Dlm","Nat_Sab","Nat_Int")) %>% 
   mutate(treatment = str_sub(Treatment,1,3) ) 
 
-ftrait <- "LCC"
+ftrait <- "LNC"
 fdata %>% 
   group_by(treatment,Code_Sp) %>% 
   summarise(n = n(),
@@ -27,15 +27,18 @@ fdata %>%
   View()
 
 fdata %>% 
-  filter(Code_Sp=="SESEMONT") %>%
+  filter(Code_Sp=="ERYNCAMP") %>%
   group_by(Code_Sp,treatment) %>% 
   ggplot(aes_string(x=ftrait)) +
   geom_histogram(binwidth = 1) +
   facet_wrap(~treatment)
 
 # ATTENTION, IL Y A DES OUTLIERS SUR CETTE VAR INTRA!
-ftrait <- "LCC"
-# for (ftrait in traits){
+ftrait <- "SeedMass"
+PLOT <- NULL
+i <- 0
+for (ftrait in traits){
+  i <- i+1
   # compute trait difference and ratio across the two treatments
   intrasp_var <- MEAN %>% 
     # filter(LifeHistory=="annual") %>% 
@@ -48,10 +51,26 @@ ftrait <- "LCC"
     mutate(RDPI = diff/Fer)
   
   intrasp_toplot <- MEAN_site %>% 
-    select(code_sp,SLA) %>% 
+    select(code_sp,SLA) %>%
     merge(intrasp_var)
-  intrasp_toplot %>% 
-    ggplot(aes(x=SLA,y=diff)) +
-    geom_point()
+  plot <- intrasp_toplot %>% 
+    ggplot(aes(x=SLA,y=RDPI,label = code_sp)) +
+    geom_point() +
+    geom_hline(yintercept = 0) +
+    ggtitle(ftrait) 
+    # ggrepel::geom_label_repel()
+    
+  PLOT[[i]] <- plot
+}
 
-# }
+# SeedMass: pas assez de couverture (que des annuelles)
+
+  
+traits
+PLOT[[9]]
+PLOT
+
+# Var in intra trop forte:
+  # sur heitht et LA pour GALICORR
+  # sur LCC pour SESEMONT
+  # Sur LDMC pour HIERPILO

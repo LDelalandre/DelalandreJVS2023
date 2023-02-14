@@ -94,13 +94,20 @@ for (average_at_site_level in c(T,F)){
   MEAN$Species <- recode(MEAN$Species,"Festuca christiani-bernardii" = "Festuca christianii-bernardii")
   MEAN2 <- MEAN %>% 
     dplyr::rename(species = Species, code_sp = Code_Sp, treatment = Trtmt) %>% 
-    filter(!(species %in% c("Carex humilis?","Carex sp.","Geranium dissectum - petiole","	
-Geranium dissectum - pétiole","Geranium dissectum - limbe"))) %>% 
+    filter(!(species %in% c("Carex humilis?","Carex sp.","Geranium dissectum - petiole","Geranium dissectum - pétiole","Geranium dissectum - limbe"))) %>% 
     filter(!(treatment %in% c("Tem","Che"))) %>% 
     # mutate(LDMC = LDMC/10) %>% # good units for CSR ()
     mutate(L_Area = L_Area*100) %>%  # good units for CSR
     unique()
   MEAN2[which(MEAN2$code_sp=="BUPLBALD"),]$Hrepro <- 7 # Bupleurum, measurements on samples stored at cefe
+  
+  
+  # REMOVE SPECIES WITH PROBLEMS IN INTRASP TRAIT VARIATION
+  MEAN2[which(MEAN2$code_sp == "GALICORR"),]$L_Area <- NA # problems on leaf surface of GALICORR (feuille très découpée)
+  MEAN2[which(MEAN2$code_sp == "HIERPILO" & MEAN2$treatment == "Nat"),]$LDMC <- NA # Mesures par Adeline dans Fer et Karim dans Nat, et très très différentes
+  MEAN2[which(MEAN2$code_sp == "SESEMONT" & MEAN2$treatment == "Fer"),]$LCC <- NA # Mesures par Adeline dans Fer et Karim dans Nat, et très très différentes
+  MEAN2[which(MEAN2$code_sp == "ERYNCAMP" & MEAN2$treatment == "Nat"),]$LNC <- NA # Mesures par Adeline dans Fer et Karim dans Nat, et très très différentes
+  
   
   if(average_at_site_level == F){ # work at the level of treatments
     write.csv2(MEAN2,"outputs/data/mean_attribute_per_treatment_subset_nat_sab_int.csv",row.names=F)
