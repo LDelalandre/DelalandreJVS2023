@@ -1,6 +1,9 @@
 library(tidyverse)
 library(vegan)
 
+
+
+# Jaccard distance ####
 ab_fer <- read.csv2("outputs/data/abundance_fertile.csv") %>% 
   mutate(code_sp = case_when(species == "Vicia sativa ssp. sativa"~ "VICISATI-SAT",
                              species == "Crepis vesicaria ssp. haenseleri" ~"CREPVESI-HAE",
@@ -78,25 +81,23 @@ for (lh in c("annual","perennial")){
 }
 
 jaccard <- data.frame(JAC,LH)
-plot_jaccard <- ggplot(jaccard,aes(x=LH,y=JAC))+
-  geom_boxplot(fill = "grey") +
+plot_jaccard <- jaccard %>% 
+  mutate(LH = if_else(LH == "perennial","Perennials","Annuals")) %>% 
+  ggplot(aes(x=LH,y=JAC))+
+  geom_boxplot() +
   ylab("Jaccard index between pairs of transects") +
   theme_classic() +
-  xlab("Life History") +
-  geom_signif(comparisons = list(c("annual", "perennial")), 
-              map_signif_level=TRUE)
-  # geom_point() 
-  # geom_jitter()
+  ggsignif::geom_signif(comparisons = list(c("Annuals", "Perennials")), 
+              map_signif_level=TRUE) +
+  xlab('')
+
+plot_jaccard
 
 ggsave("draft/plot_jaccard.png",plot = plot_jaccard)
 
-mod <- lm(JAC ~ LH,data = jaccard)
-plot(mod)
-anova(mod)
-summary(mod)
-
-ggplot(jaccard,aes(x=JAC))+
-  geom_density() +
-  facet_wrap(~LH)
+# mod <- lm(JAC ~ LH,data = jaccard)
+# # plot(mod)
+# anova(mod)
+# summary(mod)
 
 wilcox.test(JAC ~ LH,data = jaccard)

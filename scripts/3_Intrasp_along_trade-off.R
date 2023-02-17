@@ -33,8 +33,9 @@ fdata %>%
   geom_histogram(binwidth = 1) +
   facet_wrap(~treatment)
 
+
 # ATTENTION, IL Y A DES OUTLIERS SUR CETTE VAR INTRA!
-ftrait <- "SeedMass"
+ftrait <- "L_Area"
 PLOT <- NULL
 i <- 0
 for (ftrait in traits){
@@ -54,11 +55,18 @@ for (ftrait in traits){
     select(code_sp,SLA) %>%
     merge(intrasp_var)
   plot <- intrasp_toplot %>% 
-    ggplot(aes(x=SLA,y=RDPI,label = code_sp)) +
+    ggplot(aes(x=SLA,y=RDPI,label = code_sp,color = LifeHistory)) +
     geom_point() +
     geom_hline(yintercept = 0) +
     ggtitle(ftrait) 
     # ggrepel::geom_label_repel()
+  
+  # intrasp_toplot %>% 
+  #   ggplot(aes(x=LifeHistory,y=RDPI,label = code_sp,color = LifeHistory)) +
+  #   geom_boxplot() +
+  #   geom_point() +
+  #   geom_hline(yintercept = 0) +
+  #   ggtitle(ftrait) 
     
   PLOT[[i]] <- plot
 }

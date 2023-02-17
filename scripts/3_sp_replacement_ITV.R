@@ -1,10 +1,108 @@
 library(tidyverse)
+library(vegan)
 
 
-# NB A REFAIRE (COMME TOUT LE RESTE) UNE FOIS QUE LES COQUILLES DE FORME DE VIE SERONT CORRIGEES AVEC LE DATA PAPER
+# 1) Jaccard distance ####
+ab_fer <- read.csv2("outputs/data/abundance_fertile.csv") %>% 
+  mutate(code_sp = case_when(species == "Vicia sativa ssp. sativa"~ "VICISATI-SAT",
+                             species == "Crepis vesicaria ssp. haenseleri" ~"CREPVESI-HAE",
+                             species == "Taraxacum laevigatum" ~ "TARALAEV",
+                             species == "Cirsium acaulon" ~ "CIRSACAU",
+                             species == "Carthamus mitissimus" ~ "CARTMITI",
+                             TRUE~ code_sp)) %>% 
+  mutate(LifeHistory = if_else(LifeForm1=="The","annual","perennial"))
+ab_nat <- read.csv2("outputs/data/abundance_natif.csv") %>% 
+  mutate(LifeHistory = if_else(LifeForm1=="The","annual","perennial"))
 
 
-# Load data ####
+
+## build presence matrix ####
+pres_fer <- ab_fer %>% 
+  mutate(treatment = "Fer") %>% 
+  rename(line = id_transect_quadrat) %>%  
+  mutate(presence = if_else(relat_ab >0,1,0)) %>% 
+  select(code_sp,LifeHistory,treatment,line,presence)
+
+pres_nat <- ab_nat %>% 
+  mutate(treatment = "Nat") %>% 
+  filter(depth == "S") %>% 
+  mutate(presence = if_else(relat_ab >0,1,0)) %>%
+  select(code_sp,LifeHistory,treatment,Ligne,presence) %>% 
+  rename(line = Ligne)
+
+presence <- rbind(pres_fer,pres_nat)
+
+presence_matrix <- presence %>% 
+  unique() %>% 
+  spread(key = code_sp,value = presence) %>% 
+  replace(is.na(.),0)
+
+presence_matrix %>% 
+  filter(treatment=="Fer") %>%
+  pull(line) %>% 
+  length()
+
+presence_matrix %>% 
+  filter(treatment=="Nat") %>% 
+  pull(line) %>% 
+  unique() %>%
+  length()
+
+
+## Species turnover between pairs of transects ####
+JAC <- NULL
+LH <- NULL
+for (lh in c("annual","perennial")){
+  fpres_nat <- presence_matrix %>%
+    filter(treatment=="Nat") %>% 
+    filter(LifeHistory == lh)
+  fpres_fer <- presence_matrix %>%
+    filter(treatment=="Fer") %>% 
+    filter(LifeHistory == lh)
+  species <- presence %>% 
+    filter(LifeHistory == lh) %>% 
+    pull(code_sp) %>% 
+    unique()
+  for (i in c(1:dim(fpres_nat[1]))){
+    for(j in c(1:dim(fpres_fer[1]))){
+      A <- fpres_nat[i,] %>% select(-c(LifeHistory,treatment,line))
+      B <- fpres_fer[j,] %>% select(-c(LifeHistory,treatment,line))
+      jac  <- vegan::vegdist(x = rbind(A,B) %>% 
+                               select(all_of(species)),method="jaccard") 
+      JAC <- c(JAC,jac)
+      LH <- c(LH,lh)
+    }
+  }
+}
+
+jaccard <- data.frame(JAC,LH)
+plot_jaccard <- jaccard %>% 
+  mutate(LH = if_else(LH == "perennial","Perennials","Annuals")) %>% 
+  ggplot(aes(x=LH,y=JAC))+
+  geom_boxplot() +
+  ylab("Jaccard index between pairs of transects") +
+  theme_classic() +
+  ggsignif::geom_signif(comparisons = list(c("Annuals", "Perennials")), 
+                        map_signif_level=TRUE) +
+  xlab('')
+
+plot_jaccard
+
+ggsave("draft/plot_jaccard.png",plot = plot_jaccard)
+
+# mod <- lm(JAC ~ LH,data = jaccard)
+# # plot(mod)
+# anova(mod)
+# summary(mod)
+
+wilcox.test(JAC ~ LH,data = jaccard)
+
+
+
+
+
+# 2) aITV ####
+## Load data ####
 
 # trait data
 MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_SM.csv")
@@ -36,7 +134,7 @@ ab <- rbind(ab_fer2,ab_nat2) %>%
   select(species,code_sp,LifeForm1,LifeHistory,treatment,paddock,transect,abundance)
 
 
-# Functions ####
+## Functions ####
 
 compute_cwm <- function(ab,MEAN,MEAN_site, traits,level_of_trait_averaging){
   # This function computes CWM on all the traits.
@@ -60,7 +158,7 @@ compute_cwm <- function(ab,MEAN,MEAN_site, traits,level_of_trait_averaging){
     left_join(fMEAN) %>% 
     group_by(transect,LifeHistory,treatment) %>% 
     mutate(relat_ab = abundance/sum(abundance)) 
-    
+  
   data_cwm <- ab_traits %>% 
     mutate_at(vars(all_of(traits)),
               .funs = list(CWM = ~ weighted.mean(.,relat_ab,na.rm=T) )) %>% 
@@ -123,7 +221,7 @@ compute_SS <- function(data,LH){
 
 
 
-# Analyses ####
+## Analyses ####
 
 # CWM with both species replacement and intrasp variability  
 CWM <- compute_cwm(ab,MEAN,MEAN_site,traits,level_of_trait_averaging = "treatment")
@@ -165,12 +263,12 @@ for (ftrait in traits){
   }
 }
 
-# aITV ####
+## aITV ####
 data_aITV <- data.frame(aITV = AITV, trait = TRAIT,LifeHistory = LH) %>% 
   spread(key = LifeHistory,value=aITV) %>% 
   arrange(factor(trait),levels = traits) %>% 
   filter(!(trait == "SeedMass")) 
-  # filter(!(trait %in% c("Hrepro","SeedMass","Ldelta13C")))
+# filter(!(trait %in% c("Hrepro","SeedMass","Ldelta13C")))
 # If aITV inferior to zero: greater contribution of species turnover to total among-community variance
 
 
@@ -182,8 +280,9 @@ boxplot_aITV <- data_aITV %>%
   theme_classic() +
   geom_hline(yintercept = 0,linetype = "dashed") +
   ggsignif::geom_signif(comparisons = list(c("Annuals", "Perennials")), 
-              map_signif_level=TRUE) +
-  xlab("")
+                        map_signif_level=TRUE) +
+  xlab("") +
+  ylab("Contribution of ITV to trait variance (aITV)")
 
 # stats sur les boxplot:
 # - aITV différent de zéro ?
@@ -214,88 +313,9 @@ ggsave("draft/plot_aITV.jpg",plots_aITV,width = 8, height = 5)
 
 
 
+# 3) combine plots ####
 
+plots_turnover_ITV <- ggpubr::ggarrange(plot_jaccard,boxplot_aITV,plot_aITV,labels = c("A","B","C"),ncol = 3)
 
+ggsave("draft/plots_turnover_ITV.jpg",plots_turnover_ITV,width = 11, height = 5)
 
-
-
-
-# DISCARDED Decomposition variance ####
-ftrait <- "L_Area"
-SUMSQ %>% 
-  mutate(sum = SSfixed + SSintra + SScov) %>% 
-  mutate(SSfixed = SSfixed / SStot,
-         SSintra = SSintra/SStot,
-         SScov = SScov/SStot) %>% 
-  select(-c(SStot,sum)) %>% 
-  gather(key = level,value = SS, -c(LifeHistory,trait)) %>%
-  filter(trait == ftrait) %>%
-  ggplot(aes(x=level,y=SS,fill = LifeHistory))+
-  geom_bar(stat = 'identity',position = "dodge")
-
-
-
-
-
-
-
-
-# DISCARDED CWM change f(LH) ####
-traits_names <- c("Leaf Dry Matter Content (mg/g)", "Specific Leaf Area (mm²/mg)"," Leaf Area (cm²) (log scale)",
-                  "Leaf Carbon Content (mg/g)","Leaf Nitrogen Content (mg/g)", "Leaf delta 13C (part per thousand)",
-                  "Reproductive Height (cm)", 
-                  "Date of first dispersal (Julian day)",
-                  "Seed Mass (mg)")
-
-i <- 0
-PLOTS <- NULL
-for (ftrait in traits){
-  i <- i+1
-  plot <- CWM %>%
-    mutate(LifeHistory = if_else(LifeHistory == "annual","Annuals","Perennials")) %>% 
-    # mutate(Management = factor(Management, levels = c("Intensive","Extensive"))) %>% 
-    mutate(treatment = factor(treatment,levels = c("Fer","Nat"))) %>% 
-    ggplot(aes_string(x = "treatment",y= ftrait,fill = "treatment")) +
-    facet_wrap(~LifeHistory,strip.position = "bottom") +
-    geom_boxplot() +
-    geom_point() +
-    theme_classic() +
-    scale_fill_manual(values = c("grey", "white")) +
-    theme(axis.text.x=element_blank(),
-          axis.ticks.x=element_blank() ,
-          axis.title.x = element_blank(),
-          axis.title.y = element_blank()
-    ) +
-    theme(legend.position="none") +
-    theme(legend.title.align = 50) +
-    ggtitle(traits_names[i]) +
-    {if(ftrait == "L_Area")scale_y_continuous(trans='log10')}
-  PLOTS[[i]] <- plot
-}
-
-
-plot <- CWM %>%
-  rename(Management = treatment) %>% 
-  mutate(LifeHistory = if_else(LifeHistory == "annual","Annuals","Perennials")) %>% 
-  mutate(Management = if_else(Management == "Fer","Intensive","Extensive")) %>% 
-  ggplot(aes_string(x = "Management",y= ftrait,fill = "Management")) +
-  facet_wrap(~LifeHistory,strip.position = "bottom") +
-  geom_boxplot() +
-  # geom_point() +
-  theme_classic() +
-  scale_fill_manual(values = c("grey", "white")) +
-  theme(axis.text.x=element_blank(),
-        axis.ticks.x=element_blank() ,
-        axis.title.x = element_blank(),
-        axis.title.y = element_blank()
-  ) +
-  theme(legend.title.align = 50) +
-  ggtitle(traits_names[i])
-leg <- ggpubr::get_legend(plot)
-legend <- ggpubr::as_ggplot(leg)
-
-boxplot_all_traits <- ggpubr::ggarrange(PLOTS[[1]],PLOTS[[2]],PLOTS[[3]],PLOTS[[4]],PLOTS[[5]],PLOTS[[6]],
-                                        PLOTS[[7]],PLOTS[[8]],PLOTS[[9]],legend,
-                                        ncol = 3,nrow = 4)
-
-ggsave("draft/boxplot_CWM_all_traits.jpg",boxplot_all_traits,width = 10, height = 10)

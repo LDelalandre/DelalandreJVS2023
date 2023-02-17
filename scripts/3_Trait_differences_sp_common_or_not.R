@@ -40,23 +40,22 @@ for (ftrait in traits){
     pull(code_sp) %>% 
     setdiff(sp_both)
   # Use trait values computed at site level
-  MEAN3 <- MEAN_site %>% 
+  MEAN3 <- MEAN %>% 
     mutate(treatment2 = case_when(code_sp %in% sp_both ~"Both",
                                   code_sp %in% sp_nat ~ "Nat",
                                   TRUE ~"Fer")) %>% 
-    select(-treatment) %>% 
     unique()
   
-  plot <- MEAN3 %>%
+  
+  plot <-MEAN3 %>%
     mutate(LifeHistory = if_else(LifeHistory == "annual","Annuals","Perennials")) %>% 
     mutate(treatment2 = factor(treatment2,levels = c("Fer","Both","Nat"))) %>% 
     filter(!is.na(LifeHistory)) %>% 
-    ggplot(aes_string(x = "treatment2",y= ftrait,fill = "treatment2")) +
+    ggplot(aes_string(x = "treatment",y= ftrait,fill = "treatment2")) +
     facet_wrap(~LifeHistory,strip.position = "bottom") +
     geom_boxplot() +
-    # geom_point() +
     theme_classic() +
-    scale_fill_manual(values = c("darkgrey","lightgrey", "white")) +
+    # scale_fill_manual(values = c("darkgrey","lightgrey", "white")) +
     theme(axis.text.x=element_blank(),
           axis.ticks.x=element_blank() ,
           axis.title.x = element_blank(),
@@ -65,7 +64,10 @@ for (ftrait in traits){
     theme(legend.position="none") +
     theme(legend.title.align = 50) +
     ggtitle(traits_names[i]) +
-    {if(ftrait == "L_Area")scale_y_continuous(trans='log10')}
+    {if(ftrait == "L_Area")scale_y_continuous(trans='log10')} 
+    # geom_point(position = position_dodge(width = 5))
+    # geom_line(aes(group = code_sp),alpha = 4)
+
   plot
   PLOTS[[i]] <- plot
 }
@@ -81,7 +83,7 @@ plot <- MEAN3 %>%
   geom_boxplot() +
   geom_point() +
   theme_classic() +
-  scale_fill_manual(values = c("darkgrey","lightgrey", "white")) +
+  # scale_fill_manual(values = c("darkgrey","lightgrey", "white")) +
   theme(axis.text.x=element_blank(),
         axis.ticks.x=element_blank() ,
         axis.title.x = element_blank(),
@@ -96,4 +98,4 @@ boxplot_all_traits <- ggpubr::ggarrange(PLOTS[[1]],PLOTS[[2]],PLOTS[[3]],PLOTS[[
                                         PLOTS[[7]],PLOTS[[8]],PLOTS[[9]],legend,
                                         ncol = 3,nrow = 4)
 
-ggsave("draft/boxplot_CWM_all_traits_sp_in_common.jpg",boxplot_all_traits,width = 10, height = 10)
+ggsave("draft/boxplot_trait_values_sp_in_common.jpg",boxplot_all_traits,width = 10, height = 10)
