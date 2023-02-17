@@ -1,5 +1,8 @@
 library(tidyverse)
 library(FactoMineR)
+library(ggpubr)
+library(rstatix)
+library(cowplot)
 
 
 MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_SM_H_13C.csv")
@@ -42,13 +45,13 @@ var.explain.dim2 <- round(PCA_hypervolume$eig[2,2])
 var.explain.dim3 <- round(PCA_hypervolume$eig[3,2])
 
 # Number of dimensions ####
-source("scripts/functions/dimensionality_script_mouillot_V1.R")
-AUC <- dimension_funct_taina(trait_df = data.frame(scale(data_hypervolume, center=T, scale=T)), dim_pcoa = 10, rep = 99, cores = 1,
-                      metric_scaled = TRUE)
-# three dimensions selected!
-ggplot(AUC, aes(x = dim, y = AUC))+
-  geom_point() + 
-  geom_smooth()
+# source("scripts/functions/dimensionality_script_mouillot_V1.R")
+# AUC <- dimension_funct_taina(trait_df = data.frame(scale(data_hypervolume, center=T, scale=T)), dim_pcoa = 10, rep = 99, cores = 1,
+#                       metric_scaled = TRUE)
+# # three dimensions selected!
+# ggplot(AUC, aes(x = dim, y = AUC))+
+#   geom_point() + 
+#   geom_smooth()
 
 
 coord_ind <- PCA_hypervolume$ind$coord %>% 
@@ -105,13 +108,14 @@ for (fLH in c("annual","perennial")){
     #              arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
     # ggrepel::geom_text_repel(data=coord_var, aes(x=get(DimA)*5.5, get(DimB)*5.5, label=trait), size = 6, vjust=1, color="black") +
     theme(legend.position = "none") +
-    xlab(paste0(DimA," (",var.explain.dimA,"%)"))+
-    ylab(paste0(DimB," (",var.explain.dimB,"%)")) + 
-    theme(text=element_text(size=15)) +
+    xlab("Dim.1") + ylab("Dim.2")+
+    theme(text=element_text(size=10)) +
     ggforce::geom_mark_ellipse(data = coord_ind %>% 
                                  filter(LifeHistory == fLH),aes(fill = treatment), # ,label = cluster
                                expand = unit(0.5,"mm"),
                                label.buffer = unit(-5, 'mm')) +
+    # {if(fLH == "annual") ggtitle("Annuals") } +
+    # {if(fLH == "perennial") ggtitle("Perennials") } +
     xlim(c(-3,7.5)) +
     ylim(c(-3,6)) +
     {if(fLH == "annual") scale_shape_manual(values = c(1,19)) } + # pour les annuelles 
@@ -119,25 +123,65 @@ for (fLH in c("annual","perennial")){
   
   PLOT[[i]] <- plot_ACP
   
-  boxplot <- coord_ind %>% 
+
+  # https://www.datanovia.com/en/blog/how-to-add-p-values-to-ggplot-facets/
+  
+  to_boxplot <- coord_ind %>% 
     filter(LifeHistory == fLH) %>% 
-    gather(key = dim, value = coordinate, - c(code_sp,treatment,LifeHistory,species,LifeForm1,zone2)) %>% 
+    mutate(Management = if_else(treatment == "Fer","Int.","Ext.")) %>% 
+    mutate(Management = factor(Management, levels = c("Int.","Ext."))) %>% 
+    # select(-treatment) %>% 
+    gather(key = dim, value = coordinate, - c(code_sp,Management,treatment,LifeHistory,species,LifeForm1,zone2)) %>% 
     filter(dim %in% c("Dim.1","Dim.2")) %>% 
-    mutate(coordinate = as.numeric(coordinate)) %>% 
-    ggplot(aes(x = treatment, y = coordinate,color = treatment)) +
+    mutate(Coordinate = as.numeric(coordinate))
+  
+
+  
+  stat.test <- to_boxplot %>%
+    group_by(dim) %>%
+    t_test(Coordinate ~ Management) %>%
+    adjust_pvalue(method = "bonferroni") %>%
+    add_significance() %>% 
+    add_xy_position(x = "Management")
+  
+  bxp <- ggboxplot(
+    to_boxplot, x = "Management", y = "Coordinate", fill = "#00AFBB", 
+    facet.by = "dim"
+  )
+  
+  bxp +stat_pvalue_manual(stat.test)
+  
+  boxplot <- to_boxplot %>% 
+    ggplot(aes(x = Management, y = Coordinate,color = Management)) +
     geom_boxplot(outlier.shape = NA) +
     facet_wrap(~dim) +
     theme_classic() +
-    ggtitle(fLH) +
-    theme(legend.position  = "none")+
+    # ggtitle(fLH) +
+    ylab("Coordinate") +
+    theme(legend.position  = "none") +
+    # ggsignif::geom_signif(
+    #   data = annotation_df,
+    #   aes(xmin = start, xmax = end, annotations = label, y_position = y),
+    #   textsize = 3, vjust = -0.2,
+    #   manual = TRUE
+    # )
+    
+    # MANUAL ANNOTATION ggsignif!!
+    # ggsignif::geom_signif(data = data.frame(Group = c("Dim.1","Dim.2")),
+    #                         aes(y_position=c(5.3, 6.3), xmin=c(0.8, 0.8), xmax=c(1.2, 1.2),
+    #                             annotations=c("**", "NS")), tip_length=0, manual = T)
+    # ggsignif::geom_signif(comparisons = list(c("annual", "perennial","Extensive","Intensive")), 
+    #                       map_signif_level=TRUE) +
     geom_line(aes(group = code_sp),
               alpha = 0.4, color = "black") +
-    {if(fLH == "annual") geom_point(aes(shape = zone2)) } +
-    {if(fLH == "perennial") geom_point(aes(shape = zone2)) } + # position = position_dodge(width = 0.75)) SSi pas shape = zone2
+    {if(fLH == "annual") geom_point(aes(shape = zone2),size = 2) } +
+    {if(fLH == "perennial") geom_point(aes(shape = zone2),size = 2) } + # position = position_dodge(width = 0.75)) SSi pas shape = zone2
     {if(fLH == "annual") scale_shape_manual(values = c(1,19)) } + # pour les annuelles 
-    {if(fLH == "perennial") scale_shape_manual(values = c(2,17)) } # pour les pérennes METTRE UN TRIANGLE A L'ENVERS POUR PERENNES MESUREES DANS LES DEUX
-  
-  
+    {if(fLH == "perennial") scale_shape_manual(values = c(2,17)) } + # pour les pérennes METTRE UN TRIANGLE A L'ENVERS POUR PERENNES MESUREES DANS LES DEUX
+    ylim(c(-3,8)) +
+    stat_pvalue_manual(stat.test)
+    
+
   
   i <- i+1
   PLOT[[i]] <- boxplot
@@ -158,7 +202,8 @@ plot_axis_pca <- ggplot(coord_axes) +
                 arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
   ggrepel::geom_label_repel( aes(x=Dim.1, Dim.2, label=trait), size = 4, vjust=1, color="black")  +
   theme_classic() +
-  xlab("Dim.1") + ylab("Dim.2")
+  xlab(paste0(DimA," (",var.explain.dimA,"%)"))+
+  ylab(paste0(DimB," (",var.explain.dimB,"%)")) 
 
 
 ## plot legend ####
@@ -200,18 +245,17 @@ legend <- ggpubr::as_ggplot(leg)
 # PCA <- ggpubr::ggarrange(PLOT[[1]],PLOT[[3]],plot_var,
 #                          PLOT[[2]],PLOT[[4]],legend,ncol = 3,nrow = 2)
 
-PCA <- gridExtra::grid.arrange(plot_axis_pca, legend,PLOT[[1]],PLOT[[3]],
-                         PLOT[[2]],PLOT[[4]],ncol = 2,nrow = 3)
+# PCA <- gridExtra::grid.arrange(plot_axis_pca, legend,PLOT[[1]],PLOT[[3]],
+#                          PLOT[[2]],PLOT[[4]],ncol = 2,nrow = 3)
 # 
-# library(cowplot)
-# plot_grid(plot_axis_pca, legend,
-#           PLOT[[1]],PLOT[[3]],
-#           PLOT[[2]],PLOT[[4]],
-#           ncol = 2, align = "hv")
+
+PCA <- plot_grid(plot_axis_pca, legend,
+          PLOT[[1]],PLOT[[3]],
+          PLOT[[2]],PLOT[[4]],
+          ncol = 2, align = "hv",
+          labels = c("A","","B","C","D","E"))
 
 ggsave("draft/PCA.png",PCA,height = 10, width =6)
-
-
 
 
 # trash

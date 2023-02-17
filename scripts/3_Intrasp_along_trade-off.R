@@ -17,21 +17,21 @@ fdata <- LeafCN %>%
   mutate(treatment = str_sub(Treatment,1,3) ) 
 
 ftrait <- "LNC"
-fdata %>% 
-  group_by(treatment,Code_Sp) %>% 
-  summarise(n = n(),
-            mean = mean(get(ftrait),na.rm=T),
-            sd = sd(get(ftrait),na.rm=T),
-            cv = sd/mean) %>% 
-  arrange(Code_Sp) %>% 
-  View()
+# fdata %>% 
+#   group_by(treatment,Code_Sp) %>% 
+#   summarise(n = n(),
+#             mean = mean(get(ftrait),na.rm=T),
+#             sd = sd(get(ftrait),na.rm=T),
+#             cv = sd/mean) %>% 
+#   arrange(Code_Sp) %>% 
+#   View()
 
-fdata %>% 
-  filter(Code_Sp=="ERYNCAMP") %>%
-  group_by(Code_Sp,treatment) %>% 
-  ggplot(aes_string(x=ftrait)) +
-  geom_histogram(binwidth = 1) +
-  facet_wrap(~treatment)
+# fdata %>% 
+#   filter(Code_Sp=="ERYNCAMP") %>%
+#   group_by(Code_Sp,treatment) %>% 
+#   ggplot(aes_string(x=ftrait)) +
+#   geom_histogram(binwidth = 1) +
+#   facet_wrap(~treatment)
 
 
 # ATTENTION, IL Y A DES OUTLIERS SUR CETTE VAR INTRA!
