@@ -6,6 +6,7 @@ library(cowplot)
 
 
 MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_SM_H_13C.csv")
+# MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_site_level.csv")
 
 code_sp_lifeform <- read.csv2("data/species_names_lifehistory.csv")
 
@@ -16,7 +17,7 @@ traits <- c("LDMC","SLA","L_Area",
             "SeedMass"
 )
 
-fMEAN <- MEAN %>% 
+fMEAN <- MEAN %>%
   select(code_sp,LifeHistory,treatment,all_of(traits)) %>% 
   select(-Disp) %>% 
   na.omit() %>% # WE DON'T FILL THE MATRIX
@@ -25,8 +26,8 @@ rownames(fMEAN) <- NULL
 
 
 data_hypervolume <- fMEAN %>% 
-  # filter(treatment == "Nat") %>%
-  # filter(LifeHistory == "annual") %>% 
+  # filter(treatment == "Fer") %>%
+  # filter(LifeHistory == "annual") %>%
   column_to_rownames("sp_trt") %>% 
   select(-c(code_sp,LifeHistory,treatment))
 
@@ -37,7 +38,8 @@ data_hypervolume_Nmass <- data_hypervolume %>%
   mutate(Amass = 10^log10_Amass) %>% 
   select(-c(Nmass,LMA,log10_Amass))
 
-PCA_hypervolume <- PCA(data_hypervolume_Nmass,scale.unit=TRUE,graph=T,quanti.sup = 9)
+# PCA_hypervolume <- PCA(data_hypervolume_Nmass,scale.unit=TRUE,graph=T,quanti.sup = 9) # for A maxx
+PCA_hypervolume <- PCA(data_hypervolume,scale.unit=TRUE,graph=F) 
 percent_var <- factoextra::fviz_eig(PCA_hypervolume, addlabels = TRUE, ylim = c(0, 30))
 # point d'inflexion sur le troisième axe. Présenter les trois axes
 var.explain.dim1 <- round(PCA_hypervolume$eig[1,2])
@@ -84,12 +86,6 @@ DimB <- "Dim.2"
 var.explain.dimA <- var.explain.dim1
 var.explain.dimB <- var.explain.dim2
 
-# Faire 3 graphes pour l'acp, un juste avec les traits, et un par forme de vie
-# Ajouter les ellipsoides
-
-
-
-
 
 
 PLOT <- NULL
@@ -116,15 +112,37 @@ for (fLH in c("annual","perennial")){
                                label.buffer = unit(-5, 'mm')) +
     # {if(fLH == "annual") ggtitle("Annuals") } +
     # {if(fLH == "perennial") ggtitle("Perennials") } +
-    xlim(c(-3,7.5)) +
-    ylim(c(-3,6)) +
+    xlim(c(-4,7.5)) +
+    ylim(c(-4,6)) +
     {if(fLH == "annual") scale_shape_manual(values = c(1,19)) } + # pour les annuelles 
     {if(fLH == "perennial") scale_shape_manual(values = c(2,17)) } # pour les pérennes METTRE UN TRIANGLE A L'ENVERS POUR PERENNES MESUREES DANS LES DEUX
+  
+  if (fLH == "annual"){
+    data_sp_names <- coord_ind %>% 
+      filter(LifeHistory == fLH) %>%
+      filter(code_sp %in% c("BUPLBALD","MINUHYBR","HORNPETR",
+                            "VICISATI-SATI","CREPVESI-HAE","HORDMURI","TRIFSCAB","BROMDIAN"))
+  } else{
+    data_sp_names <- coord_ind %>% 
+      filter(LifeHistory == fLH) %>%
+      filter(code_sp %in% c("STIPPENN","TEUCMONT","FESTCHRI",
+                            "CARDNUTA","RUMEACET","TRIFREPE","POATRIV","BELLPERE"))
+  }
+
+  
+  plot_ACP2 <- plot_ACP +
+    ggrepel::geom_text_repel(data = data_sp_names,
+                             aes(x = Dim.1, y = Dim.2, label = code_sp),
+                             max.overlaps = 10000)
+                             # min.segment.length = 0) # ,box.padding = 2
+  plot_ACP2
   
   PLOT[[i]] <- plot_ACP
   
 
   # https://www.datanovia.com/en/blog/how-to-add-p-values-to-ggplot-facets/
+  
+  # https://ggrepel.slowkow.com/articles/examples.html
   
   to_boxplot <- coord_ind %>% 
     filter(LifeHistory == fLH) %>% 

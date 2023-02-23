@@ -2,7 +2,7 @@
 
 library(tidyverse)
 
-MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_SM_H_13C.csv")
+MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_SM.csv")
 
 code_sp_lifeform <- read.csv2("data/species_names_lifehistory.csv")
 
@@ -124,6 +124,7 @@ cover <- INFO_COVERAGE %>%
   arrange(factor(trait,levels = c(traits,"Multivariate"))) 
 
 table_trait_coverage <- cover %>% 
+  filter(!(trait == "Multivariate")) %>%
   kableExtra::kable( escape = F,
                      col.names = c("Trait",
                                    "Intensive",
@@ -139,32 +140,154 @@ cat(table_trait_coverage, file = "draft/table_trait_coverage_abundance.doc")
                
 
 
-# nb of species ####
-table_nb_sp <- NB_SP %>% 
-  select(LifeHistory,treatment,trait,in_ab,in_trait,in_both) %>% 
-  arrange(LifeHistory,treatment,factor(trait,levels = c(traits, "Multivariate"))) %>% 
-  mutate(trait = case_when(trait %in% c("SLA","LDMC","L_Area") ~ "Leaf morphological traits",
-                            trait %in% c("LCC","LNC")~"Leaf chemical traits",
-                            TRUE ~trait)) %>%
-  unique() %>% 
-  mutate(treatment = if_else(treatment == "Fer","Int.","Ext.")) %>% 
-  mutate(percent_sp = round(in_both/(in_both+in_ab),digits =2))
+# proportion of species ####
+FTRAIT <- traits
+FDF <- NULL
 
-table_trait_coverage_nb_sp <- table_nb_sp %>% 
+for (ftrait in FTRAIT){
+  
+  MEAN_ftrait <- MEAN %>% 
+    filter(!is.na(get(ftrait)))
+  
+  per_ab_fer <- ab_fer %>% 
+    filter(!(LifeForm1=="The")) %>%
+    arrange(code_sp) %>% 
+    pull(code_sp) %>% 
+    unique() 
+  ann_ab_fer <- ab_fer %>% 
+    filter((LifeForm1=="The")) %>% 
+    pull(code_sp) %>% 
+    unique()
+  
+  per_trait_fer <- MEAN_ftrait %>% 
+    filter(!(LifeForm1=="The")) %>% 
+    filter(treatment == "Fer") %>%  
+    pull(code_sp) %>% unique()
+  ann_trait_fer <- MEAN_ftrait %>% 
+    filter((LifeForm1=="The")) %>% 
+    filter(treatment == "Fer") %>%  
+    pull(code_sp) %>% unique()
+  
+  A <- per_ab_fer
+  B <- per_trait_fer
+  
+  A2 <- ann_ab_fer
+  B2 <- ann_trait_fer
+  
+  fer_ab_onlyP <- setdiff(A,B) %>% length() # dans le premier mais pas dans le deuxième
+  fer_trait_onlyP <- setdiff(B,A) %>% length()
+  fer_instersectP <- intersect(A,B) %>% length()
+  
+  fer_ab_onlyA <- setdiff(A2,B2) %>% length() # dans le premier mais pas dans le deuxième
+  fer_trait_onlyA <- setdiff(B2,A2) %>% length()
+  fer_instersectA <- intersect(A2,B2) %>% length()
+  
+  per_ab_nat <- ab_nat %>%   
+    filter(!(LifeForm1=="The")) %>% 
+    filter(depth=="S") %>% 
+    arrange(code_sp) %>%
+    pull(code_sp) %>% unique()
+  ann_ab_nat <- ab_nat %>%   
+    filter((LifeForm1=="The")) %>% 
+    filter(depth=="S") %>% 
+    pull(code_sp) %>% unique()
+  
+  per_trait_nat <- MEAN_ftrait %>%   
+    filter(!(LifeForm1=="The")) %>% 
+    filter(treatment == "Nat") %>%  
+    pull(code_sp) %>% unique()
+  ann_trait_nat <- MEAN_ftrait %>%   
+    filter((LifeForm1=="The")) %>% 
+    filter(treatment == "Nat") %>%  
+    pull(code_sp) %>% unique()
+  
+  C <- per_ab_nat
+  D<- per_trait_nat
+  
+  C2 <- ann_ab_nat
+  D2 <- ann_trait_nat
+  
+  
+  
+  nat_ab_onlyP <- setdiff(C,D) %>% length() # dans le premier mais pas dans le deuxième
+  nat_trait_onlyP <- setdiff(D,C) %>% length()
+  nat_instersectP <- intersect(C,D) %>% length()
+  
+  nat_ab_onlyA <- setdiff(C2,D2) %>% length() # dans le premier mais pas dans le deuxième
+  nat_trait_onlyA <- setdiff(D2,C2) %>% length()
+  nat_instersectA <- intersect(C2,D2) %>% length()
+  
+  
+  fdf <- data.frame(trait = ftrait,
+                    treatment = c(rep("Fer",2),rep("Nat",2)),
+                    LifeForm1 = c(rep("Per",1),rep("Ann",1),rep("Per",1),rep("Ann",1)),
+                    in_ab_only = c(fer_ab_onlyP,fer_ab_onlyA,nat_ab_onlyP,nat_ab_onlyA) ,
+                    in_trait_only = c(fer_trait_onlyP,fer_trait_onlyA,nat_trait_onlyP,nat_trait_onlyA),
+                    intersect = c(fer_instersectP,fer_instersectA,nat_instersectP,nat_instersectA) ) %>% 
+    mutate(in_traits = in_trait_only + intersect)%>% 
+    mutate(trait_coverage = intersect/(intersect+in_ab_only))
+  
+  FDF <- rbind(FDF,fdf)
+  
+}
+
+FDF 
+
+# table à faire
+
+table_trait_coverage_nb_sp <- FDF %>% 
+  mutate(LH_tr = paste(LifeForm1,treatment)) %>% 
+  mutate(trait_coverage = round(trait_coverage,2)) %>% 
+  select(trait,LH_tr,trait_coverage) %>% 
+  spread(key = LH_tr,value = trait_coverage) %>% 
+  arrange(trait = factor (trait, levels = traits)) %>% 
   kableExtra::kable( escape = F,
-                     col.names = c("Life History ",
-                                   "Management regime",
-                                   "Trait",
-                                   "in transects only",
-                                   "in traits only",
-                                   "in both",
-                                   "Percentage of species covered")) %>%
-  kableExtra::kable_styling("hover", full_width = F)  %>% 
-  kableExtra::add_header_above(c(" " = 3,"Number of species" = 3," "=1))
+                     col.names = c("Trait",
+                                   "Intensive",
+                                   "Extensive",
+                                   "Intensive",
+                                   "Extensive")) %>%
+  kableExtra::kable_styling("hover", full_width = F) %>% 
+  # kableExtra::add_header_above(c(" " =1,"Management" = 4)) %>% 
+  kableExtra::add_header_above(c(" " = 1,"Annuals" = 2,"Perennials" = 2))
 
-table_trait_coverage_nb_sp 
-
+table_trait_coverage_nb_sp
 cat(table_trait_coverage_nb_sp, file = "draft/table_trait_coverage_richness.doc")
+
+
+
+# nb of species ####
+# NB: too complex for the paper, but useful working tool
+details <- F
+if (details == T){
+  
+  table_nb_sp <- NB_SP %>% 
+    select(LifeHistory,treatment,trait,in_ab,in_trait,in_both) %>% 
+    arrange(LifeHistory,treatment,factor(trait,levels = c(traits, "Multivariate"))) %>% 
+    mutate(trait = case_when(trait %in% c("SLA","LDMC","L_Area") ~ "Leaf morphological traits",
+                             trait %in% c("LCC","LNC")~"Leaf chemical traits",
+                             TRUE ~trait)) %>%
+    unique() %>% 
+    mutate(treatment = if_else(treatment == "Fer","Int.","Ext.")) %>% 
+    mutate(percent_sp = round(in_both/(in_both+in_ab),digits =2))
+  
+  table_trait_coverage_nb_sp <- table_nb_sp %>% 
+    kableExtra::kable( escape = F,
+                       col.names = c("Life History ",
+                                     "Management regime",
+                                     "Trait",
+                                     "in transects only",
+                                     "in traits only",
+                                     "in both",
+                                     "Percentage of species covered")) %>%
+    kableExtra::kable_styling("hover", full_width = F)  %>% 
+    kableExtra::add_header_above(c(" " = 3,"Number of species" = 3," "=1))
+  
+  table_trait_coverage_nb_sp 
+  
+  cat(table_trait_coverage_nb_sp, file = "draft/table_trait_coverage_richness.doc")
+}
+
 
 
 

@@ -12,11 +12,11 @@ traits <- c("LDMC","SLA","L_Area",
 
 # reasons for outliers ?
 source("scripts/Data_traits.R") # Load traits per group of traits (e.g. LeafMorpho)
-fdata <- LeafCN %>%
+fdata <- LeafMorpho %>%
   filter(Treatment %in% c("Fer_Clc","Fer_Dlm","Nat_Sab","Nat_Int")) %>% 
   mutate(treatment = str_sub(Treatment,1,3) ) 
 
-ftrait <- "LNC"
+# ftrait <- "L_Area"
 # fdata %>% 
 #   group_by(treatment,Code_Sp) %>% 
 #   summarise(n = n(),
@@ -54,12 +54,17 @@ for (ftrait in traits){
   intrasp_toplot <- MEAN_site %>% 
     select(code_sp,SLA) %>%
     merge(intrasp_var)
+  
   plot <- intrasp_toplot %>% 
-    ggplot(aes(x=SLA,y=RDPI,label = code_sp,color = LifeHistory)) +
-    geom_point() +
+    ggplot(aes(x=SLA,y=RDPI,label = code_sp)) +
+    geom_point(aes(color = LifeHistory)) +
     geom_hline(yintercept = 0) +
-    ggtitle(ftrait) 
-    # ggrepel::geom_label_repel()
+    ggtitle(ftrait) +
+    geom_smooth(method = "lm")
+  
+  mod <- lm(RDPI~SLA,data = intrasp_toplot)
+  anova(mod)
+  # ggrepel::geom_label_repel()
   
   # intrasp_toplot %>% 
   #   ggplot(aes(x=LifeHistory,y=RDPI,label = code_sp,color = LifeHistory)) +
@@ -72,7 +77,12 @@ for (ftrait in traits){
 }
 
 # SeedMass: pas assez de couverture (que des annuelles)
-
+boxplot <- intrasp_var %>% 
+  ggplot(aes(x=LifeHistory,y=SLA,color = LifeHistory)) +
+  geom_boxplot() +
+  geom_point() +
+  ggsignif::geom_signif(comparisons = list(c("annual", "perennial")), 
+                        map_signif_level=TRUE)
   
 traits
 PLOT[[9]]

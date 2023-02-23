@@ -173,18 +173,55 @@ richness_per_guild_toplot_reduced <- richness_per_guild_toplot %>%
   filter(zone %in% c("G+F","GU-S"))
 # relative richness
 
+richness <- F
+if (richness == T){
+  boxplot(relative_richness_annual *100 ~ zone,
+          data = richness_per_guild_toplot_reduced,
+          ylim=c(0,90),
+          xlab = NA,
+          ylab = "Relative richness of annuals (%)",
+          # xaxt = "n",
+          medlwd = 1,
+          # xaxt = "n",
+          names = labels)
+  
+  title("D - Richness",adj = 0,line = 0.3)
+}
 
-boxplot(relative_richness_annual *100 ~ zone,
-        data = richness_per_guild_toplot_reduced,
-        ylim=c(0,90),
+
+
+## Abundance of annual species ####
+ann_fer <- ab_fer %>% 
+  mutate(LifeHistory = if_else(LifeForm1=="The","annual","perennial")) %>% 
+  group_by(LifeHistory,year,paddock,line) %>% 
+  summarise(tot_relat_ab = sum(relat_ab)) %>% 
+  filter(LifeHistory =="annual") %>% 
+  mutate(depth = "Fer") %>% 
+  relocate(LifeHistory,year,depth,paddock,line,tot_relat_ab)
+
+ann_nat <- ab_nat %>% 
+  group_by(LifeHistory,depth,paddock,line) %>% 
+  summarise(tot_relat_ab = sum(relat_ab)) %>% 
+  filter(LifeHistory =="annual") %>%
+  mutate(year = 2009) %>% 
+  relocate(LifeHistory,year,depth,paddock,line,tot_relat_ab) %>% 
+  mutate(line = as.character(line))
+
+cover_annuals <- rbind(ann_fer,ann_nat)
+cover_annuals$depth <- factor(cover_annuals$depth , levels = c("Fer","D","I","S"))
+cover_annuals2 <- cover_annuals %>% 
+  filter(depth %in% c("Fer","S"))
+cover_annuals2$depth <- factor(cover_annuals2$depth , levels = c("Fer","S"))
+
+
+boxplot(tot_relat_ab * 100 ~ depth,
+        data = cover_annuals2, # cover_annuals, # 
+        # ylim=c(0,90),
         xlab = NA,
-        ylab = "Relative richness \n of annuals (%)",
-        # xaxt = "n",
-        medlwd = 1,
-        # xaxt = "n",
-        names = labels)
-
-title("D - Richness",adj = 0,line = 0.3)
+        ylab = "Relative abundance of annuals (%)",
+        xaxt = "n",
+        medlwd = 1)
+title("D - Abundance",adj = 0,line = 0.3)
 
 dev.off()
 
@@ -322,10 +359,13 @@ ann_nat <- ab_nat %>%
 
 cover_annuals <- rbind(ann_fer,ann_nat)
 cover_annuals$depth <- factor(cover_annuals$depth , levels = c("Fer","D","I","S"))
-
+cover_annuals2 <- cover_annuals %>% 
+  filter(depth %in% c("Fer","S"))
+cover_annuals2$depth <- factor(cover_annuals2$depth , levels = c("Fer","S"))
+  
 
 boxplot(tot_relat_ab * 100 ~ depth,
-        data = ann_nat, # cover_annuals, # 
+        data = cover_annuals2, # cover_annuals, # 
         # ylim=c(0,90),
         xlab = NA,
         ylab = "Relative abundance \n of annuals (%)",
@@ -381,4 +421,34 @@ cover_annuals %>%
 cover_annuals %>% 
   group_by(depth) %>% 
   summarize(mean_relat_ab = mean(tot_relat_ab))
+
+
+
+# Annual cover fer vs nat sup ####
+ann_fer <- ab_fer %>% 
+  mutate(LifeHistory = if_else(LifeForm1=="The","annual","perennial")) %>% 
+  group_by(LifeHistory,year,paddock,line) %>% 
+  summarise(tot_relat_ab = sum(relat_ab)) %>% 
+  filter(LifeHistory =="annual") %>% 
+  mutate(depth = "Fer") %>% 
+  relocate(LifeHistory,year,depth,paddock,line,tot_relat_ab)
+
+ann_nat <- ab_nat %>% 
+  group_by(LifeHistory,depth,paddock,line) %>% 
+  summarise(tot_relat_ab = sum(relat_ab)) %>% 
+  filter(LifeHistory =="annual") %>%
+  mutate(year = 2009) %>% 
+  relocate(LifeHistory,year,depth,paddock,line,tot_relat_ab) %>% 
+  mutate(line = as.character(line))
          
+cover_annuals <- rbind(ann_fer,ann_nat)
+cover_annuals$depth <- factor(cover_annuals$depth , levels = c("Fer","D","I","S"))
+
+cover_annuals %>% 
+  filter(depth %in% c("Fer","S")) %>% 
+  ggplot(aes(x = depth,y = tot_relat_ab)) +
+  geom_boxplot(fill="grey") +
+  # geom_point() +
+  theme_classic() +
+  ylab("Relative abundance of annuals (%)") +
+  theme(axis.text.x = element_text(c("Intensive","Extensive")))
