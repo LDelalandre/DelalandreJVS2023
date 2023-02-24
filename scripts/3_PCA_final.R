@@ -3,6 +3,8 @@ library(FactoMineR)
 library(ggpubr)
 library(rstatix)
 library(cowplot)
+library(funrar)
+library(mFD)
 
 
 MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_SM_H_13C.csv")
@@ -18,7 +20,7 @@ traits <- c("LDMC","SLA","L_Area",
 )
 
 fMEAN <- MEAN %>%
-  select(code_sp,LifeHistory,treatment,all_of(traits)) %>% 
+  select(species,code_sp,LifeHistory,treatment,all_of(traits)) %>% 
   select(-Disp) %>% 
   na.omit() %>% # WE DON'T FILL THE MATRIX
   mutate(sp_trt = paste(code_sp,treatment,sep="_"))
@@ -27,9 +29,9 @@ rownames(fMEAN) <- NULL
 
 data_hypervolume <- fMEAN %>% 
   # filter(treatment == "Fer") %>%
-  # filter(LifeHistory == "annual") %>%
+  # filter(LifeHistory == "perennial") %>%
   column_to_rownames("sp_trt") %>% 
-  select(-c(code_sp,LifeHistory,treatment))
+  select(-c(species,code_sp,LifeHistory,treatment))
 
 data_hypervolume_Nmass <- data_hypervolume %>% 
   mutate(Nmass = LNC * 10) %>% # change unit from mg/g to %
@@ -45,6 +47,81 @@ percent_var <- factoextra::fviz_eig(PCA_hypervolume, addlabels = TRUE, ylim = c(
 var.explain.dim1 <- round(PCA_hypervolume$eig[1,2])
 var.explain.dim2 <- round(PCA_hypervolume$eig[2,2])
 var.explain.dim3 <- round(PCA_hypervolume$eig[3,2])
+
+
+# Distinctiveness ####
+traits_dist<-function(traits){
+  # Computes functional distinctiveness on all the species and adds a new columns with it on the input data frame (i.e. traits, here).
+  dist_tot<-compute_dist_matrix(traits,metric='euclidean')
+  tidy<-as.data.frame(rownames(traits)) # tidy format for computing distinctiveness in the fonction below
+  colnames(tidy)<-"SName"
+  distinct_tot<-distinctiveness_com(com_df=tidy,
+                                    sp_col=colnames(tidy),abund=NULL,
+                                    dist_matrix=dist_tot,relative=F)
+  traits$Di<-distinct_tot$Di
+  traits
+}
+
+# avec les deux premières dim de l'ACP
+dist <- PCA_hypervolume$ind$coord %>% 
+  as.data.frame() %>%
+  select(Dim.1    ,   Dim.2 ) %>%
+  traits_dist() %>% 
+  rownames_to_column("sp_tr") %>% 
+  separate(sp_tr, into = c("code_sp","treatment"),sep = "_") %>% 
+  merge(code_sp_lifeform) %>% 
+  mutate(LifeHistory = if_else(LifeForm1=="The","annual","perennial"))
+
+dist %>% 
+  ggplot(aes(x = LifeHistory,y=Di)) +
+  geom_violin() +
+  facet_wrap(~treatment) +
+  geom_point()
+
+
+# Functional diversity ####
+
+indices <- dbFD(data_hypervolume)
+
+# abundance
+# ab_fer <- read.csv2("outputs/data/abundance_fertile.csv") %>% 
+#   rename(Ligne = id_transect_quadrat) %>% 
+#   select(species,Ligne,relat_ab)
+# ab_nat <- read.csv2("outputs/data/abundance_natif.csv") %>% 
+#   filter(depth == "S") %>% 
+#   select(species,Ligne,relat_ab)
+# abundance_studied <- rbind(ab_fer,ab_nat) %>% 
+#   unique()
+# 
+# ab_sp <- abundance_studied %>%
+#   spread(species,relat_ab) %>%
+#   column_to_rownames("Ligne") %>%
+#   replace(is.na(.),0)
+# # Prendre l'intersection (espèces en commun) des data.frames des traits des abondances
+# sp_common <- intersect( colnames(ab_sp) , fMEAN$species )
+# 
+# data_abundance <- ab_sp[,sp_common] %>%
+#   as.matrix()
+
+
+fspace <- tr.cont.fspace(
+  sp_tr = data_hypervolume,
+  pca = TRUE,
+  nb_dim = 3, # Nombre d'axes que l'on souhaite conserver.
+  scaling = "scale_center",
+  compute_corr = "pearson")
+
+data_abundance <- matrix(nrow = 2,ncol = dim(data_hypervolume[2]),
+                         dimnames = list(NULL,rownames(data_hypervolume)))
+data_abundance[1,] <- rep(1, times = dim(data_hypervolume)[1] )
+data_abundance[2,] <- rep(1, times = dim(data_hypervolume)[1] )
+
+alpha_fd <- alpha.fd.multidim(fspace$sp_faxes_coord ,
+                              asb_sp_w = data_abundance ,
+                              ind_vect = c("fric"))
+indices <- alpha_fd$functional_diversity_indices
+head(indices)
+
 
 # Number of dimensions ####
 # source("scripts/functions/dimensionality_script_mouillot_V1.R")
@@ -231,33 +308,23 @@ plot <- coord_ind %>%
   filter(LifeHistory == "annual") %>%
   ggplot(aes_string(x=DimA,y=DimB), width = 10, height = 10)+
   theme_classic() +
-  geom_hline(aes(yintercept=0), size=.2,linetype="longdash") + 
-  geom_vline(aes(xintercept = 0),linetype = "longdash", size=.2)+
-  # coord_equal() +
   geom_point(size=4,aes(color = Management)) + # ,shape = zone2# ,colour=treatment
-  # geom_segment(data=coord_var, aes(x=0, y=0, xend=get(DimA)*5.5-0.2, yend=get(DimB)*5.5-0.2), 
-  #              arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
-  # ggrepel::geom_text_repel(data=coord_var, aes(x=get(DimA)*5.5, get(DimB)*5.5, label=trait), size = 6, vjust=1, color="black") +
-  # theme(legend.position = "none") +
-  xlab(paste0(DimA," (",var.explain.dimA,"%)"))+
-  ylab(paste0(DimB," (",var.explain.dimB,"%)")) + 
   theme(text=element_text(size=15)) +
   ggforce::geom_mark_ellipse(data = coord_ind %>%
                                rename(Management = treatment) %>% 
                                mutate(Management = if_else(Management == "Fer","Intensive","Extensive")) %>%
-                               filter(LifeHistory == fLH),aes(fill = Management), # ,label = cluster
+                               filter(LifeHistory == fLH),aes(fill = Management),
                              expand = unit(0.5,"mm"),
                              label.buffer = unit(-5, 'mm')) +
-  xlim(c(-3,7.5)) +
-  ylim(c(-3,6)) +
-  scale_shape_manual(values = c(1,19)) 
+  labs(color = 'Management',fill='Management') +
+  scale_color_manual(labels = c("Extensive", "Intensive"), values = c("#00BFC4","#F8766D"))+
+  scale_fill_manual(labels = c("Extensive", "Intensive"), values = c("#00BFC4","#F8766D"))
   
 
 # CHANGE LEGEND NAMES
 
 leg <- ggpubr::get_legend(plot)
 legend <- ggpubr::as_ggplot(leg)
-
 
 # 
 # PCA <- ggpubr::ggarrange(PLOT[[1]],PLOT[[3]],plot_var,
