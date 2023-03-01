@@ -55,6 +55,24 @@ LeafCN_leo <- L5[,colnames(LeafCN1)] %>%
   mutate(LNC = 10*LNC) # to change the unit from % to mg/g.
 Leaf13C_leo <- L5[,colnames(Leaf13C1)]
 
+#___________________________________________________________________________
+# # temporaire ####
+# Valeurs de delta13C pour Eric
+
+# write.csv2(Leaf13C_leo,"leaf13C_leo.csv",row.names=F,fileEncoding = "latin1")
+# dd <- Leaf13C_leo %>% 
+#   group_by(Species,Code_Sp,Treatment) %>% 
+#   summarize(Ldelta13C = mean(Ldelta13C))
+# write.csv2(dd,"leaf13C_leo_averaged_sp.csv",row.names=F,fileEncoding = "latin1")
+# 
+# dd %>% 
+#   ggplot(aes(x=Treatment,y=Ldelta13C))+
+#   geom_boxplot() +
+#   geom_point() +
+#   geom_line(aes(group = Code_Sp))
+
+#___________________________________________________________________________
+
 LeafCN <- rbind(LeafCN1,LeafCN_leo) %>% 
   mutate(LifeForm1 = if_else(Code_Sp == "SANGMINO","Hem",LifeForm1)) %>% 
   mutate(LifeForm1 = if_else(Code_Sp == "ANTHVULN","Hem",LifeForm1)) %>%

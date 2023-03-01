@@ -105,10 +105,14 @@ wilcox.test(JAC ~ LH,data = jaccard)
 ## Load data ####
 
 # trait data
-MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_SM.csv")
-MEAN_site <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_site_level.csv")
+MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_SM.csv") %>% 
+  dplyr::rename(LCCm = LCC) %>% 
+  dplyr::rename(LNCm = LNC)
+MEAN_site <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_site_level.csv")%>% 
+  dplyr::rename(LCCm = LCC) %>% 
+  dplyr::rename(LNCm = LNC)
 traits <- c("LDMC","SLA","L_Area",
-            "LCC","LNC","Ldelta13C",#"LPC",
+            "LCCm","LNCm","Ldelta13C",#"LPC",
             "Hrepro"   , #"Dmax"  , #    "Dmin" ,"Hveg"  , "H_FLORE",#
             "Disp", #"Mat_Per", #"Mat","Flo","FLO_FLORE", #
             "SeedMass"
@@ -284,6 +288,27 @@ boxplot_aITV <- data_aITV %>%
   xlab("") +
   ylab("Contribution of ITV to trait variance (aITV)")
 
+boxplot_aITV_ann <- data_aITV %>% 
+  rename(Annuals = annual, Perennials = perennial) %>% 
+  gather(key = LifeHistory, value = aITV, - trait) %>% 
+  filter(LifeHistory == "Annuals") %>% 
+  ggplot(aes(x = LifeHistory,y = aITV)) +
+  geom_boxplot() +
+  theme_void() +
+  ylim(c(-9,2)) 
+
+boxplot_aITV_per <- data_aITV %>% 
+  rename(Annuals = annual, Perennials = perennial) %>% 
+  gather(key = LifeHistory, value = aITV, - trait) %>% 
+  filter(LifeHistory == "Perennials") %>% 
+  ggplot(aes(y = LifeHistory,x = aITV)) +
+  geom_boxplot() +
+  theme_void() +
+  xlim(c(-9,2)) 
+
+
+  
+
 # stats sur les boxplot:
 # - aITV différent de zéro ?
 # - différent entre annuelles et pérennes ?
@@ -318,4 +343,11 @@ ggsave("draft/plot_aITV.jpg",plots_aITV,width = 8, height = 5)
 plots_turnover_ITV <- ggpubr::ggarrange(plot_jaccard,boxplot_aITV,plot_aITV,labels = c("A","B","C"),ncol = 3)
 
 ggsave("draft/plots_turnover_ITV.jpg",plots_turnover_ITV,width = 11, height = 5)
+
+
+library(cowplot)
+
+ggdraw() +
+  draw_plot(plot_aITV) +
+  draw_plot(boxplot_aITV_ann, x = 0.07, y = .7, width = .3, height = .3)
 

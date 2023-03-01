@@ -5,7 +5,9 @@ library(kableExtra)
 MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_SM.csv") %>%
   filter(!(species== "Geranium dissectum - pétiole")) %>% 
   mutate(log_LA = log(L_Area)) %>% 
-  unique()
+  unique() %>% 
+  dplyr::rename(LCCm = LCC) %>% 
+  dplyr::rename(LNCm = LNC)
 
 ab_fer <- read.csv2("outputs/data/abundance_fertile.csv")
 ab_nat <- read.csv2("outputs/data/abundance_natif.csv")
@@ -19,7 +21,7 @@ MEAN_intersect <- rbind(data_fer,data_nat)
 
 
 traits <- c("LDMC","SLA","log_LA",
-            "LCC","LNC","Ldelta13C",#"LPC",
+            "LCCm","LNCm","Ldelta13C",#"LPC",
             "Hrepro" ,  #, "Dmax"  , #    "Dmin" ,"Hveg"  , 
             "Disp",#"Mat_Per", #"Mat","Flo",
             "SeedMass"

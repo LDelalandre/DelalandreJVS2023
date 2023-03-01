@@ -3,6 +3,8 @@
 library(tidyverse)
 
 MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_SM.csv")
+MEAN_multivar <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_SM_H_13C.csv") %>% 
+  select(-Disp)
 
 code_sp_lifeform <- read.csv2("data/species_names_lifehistory.csv")
 
@@ -144,10 +146,19 @@ cat(table_trait_coverage, file = "draft/table_trait_coverage_abundance.doc")
 FTRAIT <- traits
 FDF <- NULL
 
-for (ftrait in FTRAIT){
+for (ftrait in c(FTRAIT,"multivariate")){
   
-  MEAN_ftrait <- MEAN %>% 
-    filter(!is.na(get(ftrait)))
+  if(ftrait == "multivariate" ){
+    MEAN_ftrait <- MEAN_multivar %>% 
+      select(species,treatment,code_sp,Form,LifeHistory,LifeForm1,
+             any_of(traits)) %>% 
+      na.omit()
+  }else{
+    MEAN_ftrait <- MEAN %>% 
+      filter(!is.na(get(ftrait)))
+  }
+  
+
   
   per_ab_fer <- ab_fer %>% 
     filter(!(LifeForm1=="The")) %>%

@@ -7,31 +7,41 @@ library(funrar)
 library(mFD)
 
 
-MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_SM_H_13C.csv")
+MEAN_multivar <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_SM_H_13C.csv") %>% 
+  select(-Disp) %>% 
+  dplyr::rename(LCCm = LCC) %>% 
+  dplyr::rename(LNCm = LNC)
 # MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_site_level.csv")
 
 code_sp_lifeform <- read.csv2("data/species_names_lifehistory.csv")
 
 traits <- c("LDMC","SLA","L_Area",
-            "LCC","LNC","Ldelta13C",#"LPC",
+            "LCCm","LNCm","Ldelta13C",#"LPC",
             "Hrepro"   , #"Dmax"  , #    "Dmin" ,"Hveg"  , "H_FLORE",#
             "Disp", #"Mat_Per", #"Mat","Flo","FLO_FLORE", #
             "SeedMass"
 )
 
-fMEAN <- MEAN %>%
-  select(species,code_sp,LifeHistory,treatment,all_of(traits)) %>% 
-  select(-Disp) %>% 
+fMEAN <- MEAN_multivar %>%
+  select(species,code_sp,LifeHistory,treatment,any_of(traits)) %>% 
   na.omit() %>% # WE DON'T FILL THE MATRIX
   mutate(sp_trt = paste(code_sp,treatment,sep="_"))
 rownames(fMEAN) <- NULL
 
+# fMEAN %>% 
+#   group_by(LifeHistory,treatment) %>% 
+#   summarize(n = n())
+
 
 data_hypervolume <- fMEAN %>% 
-  # filter(treatment == "Fer") %>%
-  # filter(LifeHistory == "perennial") %>%
+  # filter(treatment == "Nat") %>%
+  # filter(LifeHistory == "annual") %>%
   column_to_rownames("sp_trt") %>% 
   select(-c(species,code_sp,LifeHistory,treatment))
+
+# indices <- data_hypervolume %>%
+#   dbFD()
+# indices$FRic
 
 data_hypervolume_Nmass <- data_hypervolume %>% 
   mutate(Nmass = LNC * 10) %>% # change unit from mg/g to %
@@ -65,23 +75,29 @@ traits_dist<-function(traits){
 # avec les deux premières dim de l'ACP
 dist <- PCA_hypervolume$ind$coord %>% 
   as.data.frame() %>%
-  select(Dim.1    ,   Dim.2 ) %>%
+  select(Dim.1    ,   Dim.2) %>%
   traits_dist() %>% 
   rownames_to_column("sp_tr") %>% 
   separate(sp_tr, into = c("code_sp","treatment"),sep = "_") %>% 
   merge(code_sp_lifeform) %>% 
-  mutate(LifeHistory = if_else(LifeForm1=="The","annual","perennial"))
+  mutate(LifeHistory = if_else(LifeForm1=="The","Annuals","Perennials")) %>% 
+  mutate(treatment = if_else(treatment == "Fer", "Intensive","Extensive"))
 
-dist %>% 
+plot_di <- dist  %>% 
   ggplot(aes(x = LifeHistory,y=Di)) +
-  geom_violin() +
+  geom_boxplot() +
   facet_wrap(~treatment) +
-  geom_point()
+  geom_point() +
+  ggrepel::geom_text_repel(data = dist %>% filter(code_sp %in% c("CARDNUTA","RUMEACET","STIPPENN","TEUCMONT","FESTCHRI","BELLPERE")),
+                            aes(x = LifeHistory,y=Di,label = species)) +
+  theme_classic() +
+  ylab("Functional distinctiveness") +
+  xlab("")
+
+ggsave("draft/sp_distinctes.png",plot_di)
 
 
 # Functional diversity ####
-
-indices <- dbFD(data_hypervolume)
 
 # abundance
 # ab_fer <- read.csv2("outputs/data/abundance_fertile.csv") %>% 
@@ -103,24 +119,24 @@ indices <- dbFD(data_hypervolume)
 # data_abundance <- ab_sp[,sp_common] %>%
 #   as.matrix()
 
-
-fspace <- tr.cont.fspace(
-  sp_tr = data_hypervolume,
-  pca = TRUE,
-  nb_dim = 3, # Nombre d'axes que l'on souhaite conserver.
-  scaling = "scale_center",
-  compute_corr = "pearson")
-
-data_abundance <- matrix(nrow = 2,ncol = dim(data_hypervolume[2]),
-                         dimnames = list(NULL,rownames(data_hypervolume)))
-data_abundance[1,] <- rep(1, times = dim(data_hypervolume)[1] )
-data_abundance[2,] <- rep(1, times = dim(data_hypervolume)[1] )
-
-alpha_fd <- alpha.fd.multidim(fspace$sp_faxes_coord ,
-                              asb_sp_w = data_abundance ,
-                              ind_vect = c("fric"))
-indices <- alpha_fd$functional_diversity_indices
-head(indices)
+# 
+# fspace <- tr.cont.fspace(
+#   sp_tr = data_hypervolume,
+#   pca = TRUE,
+#   nb_dim = 3, # Nombre d'axes que l'on souhaite conserver.
+#   scaling = "scale_center",
+#   compute_corr = "pearson")
+# 
+# data_abundance <- matrix(nrow = 2,ncol = dim(data_hypervolume[2]),
+#                          dimnames = list(NULL,rownames(data_hypervolume)))
+# data_abundance[1,] <- rep(1, times = dim(data_hypervolume)[1] )
+# data_abundance[2,] <- rep(1, times = dim(data_hypervolume)[1] )
+# 
+# alpha_fd <- alpha.fd.multidim(fspace$sp_faxes_coord ,
+#                               asb_sp_w = data_abundance ,
+#                               ind_vect = c("fric"))
+# indices <- alpha_fd$functional_diversity_indices
+# head(indices)
 
 
 # Number of dimensions ####
@@ -176,7 +192,7 @@ for (fLH in c("annual","perennial")){
     geom_hline(aes(yintercept=0), size=.2,linetype="longdash") + 
     geom_vline(aes(xintercept = 0),linetype = "longdash", size=.2)+
     # coord_equal() +
-    geom_point(size=4,aes(color = treatment,shape = zone2)) + # ,colour=treatment
+    geom_point(size=2,aes(color = treatment,shape = zone2)) + # ,colour=treatment
     # geom_segment(data=coord_var, aes(x=0, y=0, xend=get(DimA)*5.5-0.2, yend=get(DimB)*5.5-0.2), 
     #              arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
     # ggrepel::geom_text_repel(data=coord_var, aes(x=get(DimA)*5.5, get(DimB)*5.5, label=trait), size = 6, vjust=1, color="black") +
