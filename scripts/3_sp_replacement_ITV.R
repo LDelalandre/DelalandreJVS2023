@@ -232,15 +232,15 @@ CWM <- compute_cwm(ab,MEAN,MEAN_site,traits,level_of_trait_averaging = "treatmen
 # CWM with species replacement but no intraspecific variability
 CWMfixed <- compute_cwm(ab,MEAN,MEAN_site,traits,level_of_trait_averaging = "site")
 # CWM intra  = CWM - CWMfixed pour chaque trait
-
-fCWMall <- get_cwm_decomposition(ftrait,CWM,CWMfixed)
-# fCWMall %>% 
-#   ggplot(aes(x=CWMfixed,y=CWM,color=treatment)) +
-#   geom_point()
-
-fLH <- "annual"
-SumSq <- compute_SS(fCWMall,fLH) %>% 
-  mutate(sum = SSfixed + SSintra + SScov) # vérifier que SStot = SSfixed + SSintra + SScov. Pas le cas, visiblement...
+# 
+# fCWMall <- get_cwm_decomposition(ftrait,CWM,CWMfixed)
+# # fCWMall %>% 
+# #   ggplot(aes(x=CWMfixed,y=CWM,color=treatment)) +
+# #   geom_point()
+# 
+# fLH <- "annual"
+# SumSq <- compute_SS(fCWMall,fLH) %>% 
+#   mutate(sum = SSfixed + SSintra + SScov) # vérifier que SStot = SSfixed + SSintra + SScov. Pas le cas, visiblement...
 # A VERIFIER!
 # (après, je ne m'intéresse aps à la covariance... Si, peut-être ?)
 # Je peux produire le graphe de la contribution relative de chaque variance pour annuelles et pérennes
@@ -288,23 +288,7 @@ boxplot_aITV <- data_aITV %>%
   xlab("") +
   ylab("Contribution of ITV to trait variance (aITV)")
 
-boxplot_aITV_ann <- data_aITV %>% 
-  rename(Annuals = annual, Perennials = perennial) %>% 
-  gather(key = LifeHistory, value = aITV, - trait) %>% 
-  filter(LifeHistory == "Annuals") %>% 
-  ggplot(aes(x = LifeHistory,y = aITV)) +
-  geom_boxplot() +
-  theme_void() +
-  ylim(c(-9,2)) 
 
-boxplot_aITV_per <- data_aITV %>% 
-  rename(Annuals = annual, Perennials = perennial) %>% 
-  gather(key = LifeHistory, value = aITV, - trait) %>% 
-  filter(LifeHistory == "Perennials") %>% 
-  ggplot(aes(y = LifeHistory,x = aITV)) +
-  geom_boxplot() +
-  theme_void() +
-  xlim(c(-9,2)) 
 
 
   
@@ -316,6 +300,13 @@ mod_aITV <- lm(aITV ~ LifeHistory, data = data_aITV %>%
                  gather(key = LifeHistory, value = aITV, - trait))
 anova(mod_aITV) # METTRE LA SORTIE D'ANOVA EN LEGENDE ?
 summary(mod_aITV)
+
+
+
+# plots_aITV <- gridExtra::grid.arrange(boxplot_aITV,plot_aITV, ncol=2)
+
+
+library(cowplot)
 
 plot_aITV <- data_aITV %>% 
   # filter(!(trait %in% c("L_Area"))) %>%
@@ -329,14 +320,59 @@ plot_aITV <- data_aITV %>%
   ggrepel::geom_label_repel() +
   xlab("aITV of perennials") +
   ylab("aITV of annuals") +
-  theme_classic() 
+  # theme_void() +
+  theme_classic() +
+  theme(axis.ticks=element_blank(),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank()) +
+  theme(text = element_text(size = 15))
 
-# plots_aITV <- gridExtra::grid.arrange(boxplot_aITV,plot_aITV, ncol=2)
-plots_aITV <- ggpubr::ggarrange(boxplot_aITV,plot_aITV,labels = c("A","B"),ncol = 2)
+boxplot_aITV_ann <- data_aITV %>% 
+  rename(Annuals = annual, Perennials = perennial) %>% 
+  gather(key = LifeHistory, value = aITV, - trait) %>% 
+  filter(LifeHistory == "Annuals") %>% 
+  ggplot(aes(x = LifeHistory,y = aITV)) +
+  geom_boxplot() +
+  theme_classic()+
+  # theme_void() +
+  ylim(c(-9,2)) +
+  theme(axis.text.x=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks=element_blank(),
+        axis.title.x=element_blank()) +
+  ylab("aITV of annuals")+ 
+  ggeasy::easy_remove_y_axis(what = c("ticks", "text", "line"), teach = FALSE) +
+  ggeasy::easy_remove_x_axis(what = c("ticks", "text", "line"), teach = FALSE) +
+  theme(text = element_text(size = 15))
 
-ggsave("draft/plot_aITV.jpg",plots_aITV,width = 8, height = 5)
+boxplot_aITV_per <- data_aITV %>% 
+  rename(Annuals = annual, Perennials = perennial) %>% 
+  gather(key = LifeHistory, value = aITV, - trait) %>% 
+  filter(LifeHistory == "Perennials") %>% 
+  ggplot(aes(y = LifeHistory,x = aITV)) +
+  geom_boxplot() +
+  theme_classic()+
+  # theme_void() +
+  xlim(c(-9,2)) +
+  theme(axis.text.x=element_blank(),
+        axis.text.y=element_blank(),
+    axis.ticks=element_blank(),
+    axis.title.y=element_blank())+
+  xlab("aITV of perennials")+ 
+  ggeasy::easy_remove_x_axis(what = c("ticks", "text", "line"), teach = FALSE) +
+  ggeasy::easy_remove_y_axis(what = c("ticks", "text", "line"), teach = FALSE) +
+  theme(text = element_text(size = 15))
 
 
+
+plots_aITV <-ggdraw() +
+  draw_plot(plot_aITV, x = 0.2,y=0.2,width = 0.8, height = 0.8) +
+  draw_plot(boxplot_aITV_ann, x = 0, y = 0.23, width = .2, height = .8) +
+  draw_plot(boxplot_aITV_per, x = 0.237, y = 0, width = .8, height = .2)
+
+plots_aITV
+
+ggsave("draft/plot_aITV.jpg",plots_aITV,width = 8, height = 8)
 
 # 3) combine plots ####
 
@@ -345,9 +381,4 @@ plots_turnover_ITV <- ggpubr::ggarrange(plot_jaccard,boxplot_aITV,plot_aITV,labe
 ggsave("draft/plots_turnover_ITV.jpg",plots_turnover_ITV,width = 11, height = 5)
 
 
-library(cowplot)
-
-ggdraw() +
-  draw_plot(plot_aITV) +
-  draw_plot(boxplot_aITV_ann, x = 0.07, y = .7, width = .3, height = .3)
 
