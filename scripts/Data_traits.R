@@ -46,14 +46,17 @@ L3 <- LeafMorpho_leo %>%
 fam <- read.csv2("data/traits/names and family.csv")
 L4 <- merge(L3,fam)
 # Rep
-L5 <- L4 %>% 
-  group_by(Species,Plot) %>% 
-  mutate(Rep = paste("RCN",Rep,sep=""))
+L5 <- L4 
 
 LeafCN_leo <- L5[,colnames(LeafCN1)] %>% 
   mutate(LCC = 10*LCC) %>% 
-  mutate(LNC = 10*LNC) # to change the unit from % to mg/g.
-Leaf13C_leo <- L5[,colnames(Leaf13C1)]
+  mutate(LNC = 10*LNC) %>% # to change the unit from % to mg/g.
+  group_by(Species,Plot) %>% 
+  mutate(Rep = paste("Rcn",Rep,sep=""))
+
+Leaf13C_leo <- L5[,colnames(Leaf13C1)] %>% 
+  group_by(Species,Plot) %>% 
+  mutate(Rep = paste("Ris",Rep,sep=""))
 
 #___________________________________________________________________________
 # # temporaire ####
@@ -128,12 +131,12 @@ pheno_leo_DP <- pheno_leo %>%
   select(-c(code_sp,date,plot)) %>% 
   mutate(LifeForm2 = NA) %>%  # A compléter pour le data paper
   mutate(Flo = NA, Mat_Per = NA, nameOfProject = "Annuals",measurementDeterminedBy = "Léo Delalandre") %>% 
-  mutate(Rep = "None") %>% 
+  mutate(Rep = "Rrp1") %>% 
   group_by(species) %>% 
   filter(Disp == min (Disp)) %>%  # NB: une valeur de phéno par espèce*traitment dans la BDD ; je prends la min !
   rename(Species = species) %>% 
   select(all_of(colnames)) %>% 
-  mutate(Species = if_else(Code_Sp=="SAXITRIDA","Saxifraga tridactylites",Species))
+  mutate(Species = if_else(Code_Sp=="SAXITRIDA","Saxifraga tridactylites",Species)) 
 
 Pheno <- rbind(Pheno1,pheno_leo_DP)
 # Virer filago pyramidata, pour lequel j'ai peut-être estimé trop tard la dispersion (et elle avait aussi lieu
@@ -143,7 +146,7 @@ Pheno <- rbind(Pheno1,pheno_leo_DP)
 Seed1 <- read.xlsx(paste0("data/traits/",data_file), sheet = "Seed", startRow = 1, colNames = TRUE) 
 
 Seed_leo <- read.csv2("data/traits/Seed_leo_lila.csv",encoding="latin1") %>%
-  mutate(Rep = paste0("Rsd",Rep)) %>% 
+  mutate(Rep = paste0("Rsm",Rep)) %>% 
   mutate(Site = "La Fage",Block = "None",Year = 2022, 
          LifeForm2 = "None",
          SeedMass = TotSeedMass.mg./SeedNb, Mat = NA, 
@@ -164,18 +167,77 @@ Seed <- rbind(Seed1,Seed_leo)
 # exporter en csv
 # les copier_coller dans la dernière version des fichiers de La Fage après avoir demandé à Eric
 
-LeafMorpho_leo %>%
+LeafMorpho_leo <- LeafMorpho_leo %>%
   mutate(Species = case_when(
     Species == "Myosostis ramosissima subsp. ramosissima" ~ "Myosotis ramosissima subsp. ramosissima", # s en trop
     Species == "Vicia sativa sativa" ~ "Vicia sativa subsp. sativa",
     TRUE ~ Species)) %>% 
-  filter(!(Species == "Medicago rigidula")) # je ne suis pas sûr de l'identification
-# corriger idem ensuite
-LeafCN_leo
-Leaf13C_leo
-Biovolume_leo
-pheno_leo_DP
-Seed_leo
+  filter(!(Species == "Medicago rigidula")) %>%  # je ne suis pas sûr de l'identification
+  unique()
+
+LeafCN_leo <- LeafCN_leo %>%
+  mutate(Species = case_when(
+    Species == "Myosostis ramosissima subsp. ramosissima" ~ "Myosotis ramosissima subsp. ramosissima", # s en trop
+    Species == "Vicia sativa sativa" ~ "Vicia sativa subsp. sativa",
+    TRUE ~ Species)) %>% 
+  filter(!(Species == "Medicago rigidula")) %>%  # je ne suis pas sûr de l'identification
+  unique()
+
+Leaf13C_leo <- Leaf13C_leo %>%
+  mutate(Species = case_when(
+    Species == "Myosostis ramosissima subsp. ramosissima" ~ "Myosotis ramosissima subsp. ramosissima", # s en trop
+    Species == "Vicia sativa sativa" ~ "Vicia sativa subsp. sativa",
+    TRUE ~ Species)) %>% 
+  filter(!(Species == "Medicago rigidula")) %>%  # je ne suis pas sûr de l'identification
+  unique()
+
+Biovolume_leo <- Biovolume_leo %>%
+  mutate(Species = case_when(
+    Species == "Myosostis ramosissima subsp. ramosissima" ~ "Myosotis ramosissima subsp. ramosissima", # s en trop
+    Species == "Vicia sativa sativa" ~ "Vicia sativa subsp. sativa",
+    TRUE ~ Species)) %>% 
+  filter(!(Species == "Medicago rigidula")) %>%  # je ne suis pas sûr de l'identification
+  unique()
+
+pheno_leo_DP <- pheno_leo_DP %>%
+  mutate(Species = case_when(
+    Species == "Myosostis ramosissima subsp. ramosissima" ~ "Myosotis ramosissima subsp. ramosissima", # s en trop
+    Species == "Vicia sativa sativa" ~ "Vicia sativa subsp. sativa",
+    TRUE ~ Species)) %>% 
+  filter(!(Species == "Medicago rigidula")) %>%  # je ne suis pas sûr de l'identification
+  unique()
+
+Seed_leo <- Seed_leo %>%
+  mutate(Species = case_when(
+    Species == "Myosostis ramosissima subsp. ramosissima" ~ "Myosotis ramosissima subsp. ramosissima", # s en trop
+    Species == "Vicia sativa sativa" ~ "Vicia sativa subsp. sativa",
+    TRUE ~ Species)) %>% 
+  filter(!(Species == "Medicago rigidula")) %>%  # je ne suis pas sûr de l'identification
+  unique()
+
+
+
+dataset_names <- list('LeafMorpho_traits' = LeafMorpho_leo, 
+                      'LeafC&N' = LeafCN_leo, 
+                      'Leaf13C' = Leaf13C_leo,
+                      'Biovolume' = Biovolume_leo,
+                      'SeedMass'= Seed_leo,
+                      'ReproPheno' = pheno_leo_DP
+                      )
+write.xlsx(dataset_names, file = 'data/traits/DP_leo_annuals.xlsx')
+
+
+fdata <- pheno_leo_DP
+
+fdata %>% 
+  ggplot(aes(x = Code_Sp, y = Flo,color = Treatment)) +
+  geom_boxplot() +
+  geom_point()
+
+fdata %>% 
+  ggplot(aes(x = Dmin,y=Dmax)) +
+  geom_point() 
+
 
 # species Léo
 data.frame( Species = c(
@@ -185,5 +247,6 @@ data.frame( Species = c(
   Biovolume_leo$Species,
   pheno_leo_DP$Species,
   Seed_leo$Species) %>% unique() ) %>% 
-  arrange(Species) %>% 
-  write.csv2("outputs/data/species_leo.csv",row.names=F)
+  arrange(Species)
+  # write.csv2("outputs/data/species_leo.csv",row.names=F)
+
