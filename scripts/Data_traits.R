@@ -111,7 +111,6 @@ get_day_of_year <- function(Month,Day2){
     filter(day_of_month == Day2) %>% 
     pull(day_of_year)
 }
-colnames <- colnames(Pheno1)
 
 pheno_leo <- read.xlsx("data/phenology/Pheno_leo.xlsx", sheet = "rawdata_seeds", startRow = 1, colNames = TRUE) %>% 
   mutate(Day2 = as.Date(date - 25569, origin = "1970-01-01")) %>% 
@@ -135,10 +134,10 @@ pheno_leo_DP <- pheno_leo %>%
   group_by(species) %>% 
   filter(Disp == min (Disp)) %>%  # NB: une valeur de phéno par espèce*traitment dans la BDD ; je prends la min !
   rename(Species = species) %>% 
-  select(all_of(colnames)) %>% 
+  # select(all_of(colnames)) %>%
   mutate(Species = if_else(Code_Sp=="SAXITRIDA","Saxifraga tridactylites",Species)) 
 
-Pheno <- rbind(Pheno1,pheno_leo_DP)
+Pheno <- rbind(Pheno1,pheno_leo_DP %>% select(all_of(colnames(Pheno1))))
 # Virer filago pyramidata, pour lequel j'ai peut-être estimé trop tard la dispersion (et elle avait aussi lieu
 # dans le fertile!!)
 
@@ -167,62 +166,79 @@ Seed <- rbind(Seed1,Seed_leo)
 # exporter en csv
 # les copier_coller dans la dernière version des fichiers de La Fage après avoir demandé à Eric
 
-LeafMorpho_leo <- LeafMorpho_leo %>%
+LeafMorpho_leo_DP <- LeafMorpho_leo %>%
   mutate(Species = case_when(
     Species == "Myosostis ramosissima subsp. ramosissima" ~ "Myosotis ramosissima subsp. ramosissima", # s en trop
     Species == "Vicia sativa sativa" ~ "Vicia sativa subsp. sativa",
     TRUE ~ Species)) %>% 
   filter(!(Species == "Medicago rigidula")) %>%  # je ne suis pas sûr de l'identification
-  unique()
+  unique() %>% 
+  separate(Day,into = c("Day","Month","Year"),sep = "/") %>% 
+  mutate(nameOfProject = "FAGEANNUALS")%>% 
+  select(c("Site","Block","Plot","Treatment","Year","Month","Day"),everything())
 
-LeafCN_leo <- LeafCN_leo %>%
+LeafCN_leo_DP <- LeafCN_leo %>%
   mutate(Species = case_when(
     Species == "Myosostis ramosissima subsp. ramosissima" ~ "Myosotis ramosissima subsp. ramosissima", # s en trop
     Species == "Vicia sativa sativa" ~ "Vicia sativa subsp. sativa",
     TRUE ~ Species)) %>% 
   filter(!(Species == "Medicago rigidula")) %>%  # je ne suis pas sûr de l'identification
-  unique()
+  unique() %>% 
+  separate(Day,into = c("Day","Month","Year"),sep = "/") %>% 
+  mutate(nameOfProject = "FAGEANNUALS")%>% 
+  select(c("Site","Block","Plot","Treatment","Year","Month","Day"),everything())
 
-Leaf13C_leo <- Leaf13C_leo %>%
+Leaf13C_leo_DP <- Leaf13C_leo %>%
   mutate(Species = case_when(
     Species == "Myosostis ramosissima subsp. ramosissima" ~ "Myosotis ramosissima subsp. ramosissima", # s en trop
     Species == "Vicia sativa sativa" ~ "Vicia sativa subsp. sativa",
     TRUE ~ Species)) %>% 
   filter(!(Species == "Medicago rigidula")) %>%  # je ne suis pas sûr de l'identification
-  unique()
+  unique() %>% 
+  separate(Day,into = c("Day","Month","Year"),sep = "/") %>% 
+  mutate(nameOfProject = "FAGEANNUALS")%>% 
+  select(c("Site","Block","Plot","Treatment","Year","Month","Day"),everything())
 
-Biovolume_leo <- Biovolume_leo %>%
+Biovolume_leo_DP <- Biovolume_leo %>%
   mutate(Species = case_when(
     Species == "Myosostis ramosissima subsp. ramosissima" ~ "Myosotis ramosissima subsp. ramosissima", # s en trop
     Species == "Vicia sativa sativa" ~ "Vicia sativa subsp. sativa",
     TRUE ~ Species)) %>% 
   filter(!(Species == "Medicago rigidula")) %>%  # je ne suis pas sûr de l'identification
-  unique()
+  unique() %>% 
+  separate(Day,into = c("Day","Month","Year"),sep = "/") %>% 
+  mutate(nameOfProject = "FAGEANNUALS") %>% 
+  select(c("Site","Block","Plot","Treatment","Year","Month","Day"),everything())
 
-pheno_leo_DP <- pheno_leo_DP %>%
+pheno_leo_DP2 <- pheno_leo_DP %>%
   mutate(Species = case_when(
     Species == "Myosostis ramosissima subsp. ramosissima" ~ "Myosotis ramosissima subsp. ramosissima", # s en trop
     Species == "Vicia sativa sativa" ~ "Vicia sativa subsp. sativa",
     TRUE ~ Species)) %>% 
   filter(!(Species == "Medicago rigidula")) %>%  # je ne suis pas sûr de l'identification
-  unique()
+  unique() %>% 
+  mutate(nameOfProject = "FAGEANNUALS") %>% 
+  select(c("Site","Block","Plot","Treatment","Year","Month","Day"),everything())
 
-Seed_leo <- Seed_leo %>%
+Seed_leo_DP <- Seed_leo %>%
   mutate(Species = case_when(
     Species == "Myosostis ramosissima subsp. ramosissima" ~ "Myosotis ramosissima subsp. ramosissima", # s en trop
     Species == "Vicia sativa sativa" ~ "Vicia sativa subsp. sativa",
     TRUE ~ Species)) %>% 
   filter(!(Species == "Medicago rigidula")) %>%  # je ne suis pas sûr de l'identification
-  unique()
+  unique() %>% 
+  mutate(nameOfProject = "FAGEANNUALS") %>% 
+  separate(Day,into = c("Day","Month","Year"),sep = "/") %>%
+  select(c("Site","Block","Plot","Treatment","Year","Month","Day"),everything())
 
 
 
-dataset_names <- list('LeafMorpho_traits' = LeafMorpho_leo, 
-                      'LeafC&N' = LeafCN_leo, 
-                      'Leaf13C' = Leaf13C_leo,
-                      'Biovolume' = Biovolume_leo,
-                      'SeedMass'= Seed_leo,
-                      'ReproPheno' = pheno_leo_DP
+dataset_names <- list('LeafMorpho_traits' = LeafMorpho_leo_DP, 
+                      'LeafC&N' = LeafCN_leo_DP, 
+                      'Leaf13C' = Leaf13C_leo_DP,
+                      'Biovolume' = Biovolume_leo_DP,
+                      'SeedMass'= Seed_leo_DP,
+                      'ReproPheno' = pheno_leo_DP2
                       )
 write.xlsx(dataset_names, file = 'data/traits/DP_leo_annuals.xlsx')
 

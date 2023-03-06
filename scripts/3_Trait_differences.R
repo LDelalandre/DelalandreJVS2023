@@ -209,60 +209,42 @@ for (ftrait in traits){
     )
     
     # part of variance explained
-    var_code_sp <- as.data.frame(lme4::VarCorr(mmod))[1,"vcov"]
-    var_code_sp_residuals <- sum(as.data.frame(lme4::VarCorr(mmod))[,"vcov"])
-
-    sum <- summary(mmod)
-    coef_fer_ann <- sum$coefficients["(Intercept)","Estimate"]
-    coef_nat_ann <- coef_fer_ann + sum$coefficients["treatmentNat","Estimate"]
-    coef_fer_per <- coef_fer_ann + sum$coefficients["LifeHistoryperennial","Estimate"]
-    coef_nat_per <- coef_fer_ann + sum$coefficients["treatmentNat:LifeHistoryperennial","Estimate"]
-
-    var_fixed = coef_fer_ann ^2* var(data.anovaCSR %>% 
-                                    filter(treatment == "Fer" & LifeHistory == "annual") %>% 
-                                    pull(sym(ftrait)) %>% 
-                                    na.omit()) +
-      coef_nat_ann ^2* var(data.anovaCSR %>% 
-                             filter(treatment == "Nat" & LifeHistory == "annual") %>% 
-                             pull(sym(ftrait)) %>% 
-                             na.omit()) +
-      coef_fer_per ^2* var(data.anovaCSR %>% 
-                             filter(treatment == "Fer" & LifeHistory == "perennial") %>% 
-                             pull(sym(ftrait)) %>% 
-                             na.omit()) +
-      coef_nat_per ^2* var(data.anovaCSR %>% 
-                             filter(treatment == "Nat" & LifeHistory == "perennial") %>% 
-                             pull(sym(ftrait)) %>% 
-                             na.omit()) 
-      
-    percent_var_code_sp <- var_code_sp / (var_code_sp_residuals + var_fixed)
-    
-    
+    variance <- MuMIn::r.squaredGLMM(mmod) 
+    vfixed <- variance[1] # marginal R squared value associated with fixed effects
+    vcomplete <- variance[2] # conditional R2 value associated with fixed effects plus the random effects. 
+    part_var_species <- (vcomplete-vfixed/vcomplete)
 
     # if( table_pval$Interaction < 0.05 ){
-      posthoc <- multcomp::cld(emmeans::emmeans(mmod, specs = c("treatment","LifeHistory"),  type = "response",
-                                                adjust = "tuckey"),
-                               Letters = "abcdefghi", details = T)
-      
-      # contrasts = différences entre les deux traitements pour annuelles et pérennes
-      contrasts <- posthoc$comparisons %>% 
-        filter(contrast %in% c("Nat annual - Fer annual","Nat perennial - Fer perennial",
-                               "Fer annual - Nat annual","Fer perennial - Nat perennial")) %>%
-        mutate(estimate = case_when(contrast %in% c("Fer annual - Nat annual","Fer perennial - Nat perennial") ~ -estimate,
-                                    TRUE ~ estimate)) %>% 
-        mutate(contrast = case_when(contrast == "Fer annual - Nat annual" ~ "Nat annual - Fer annual",
-                                    contrast == "Fer perennial - Nat perennial" ~ "Nat perennial - Fer perennial",
-                                    TRUE ~ contrast)) %>% 
-        mutate(contrast = if_else(contrast == "Nat annual - Fer annual", "Annuals","Perennials")) %>% 
-        select(contrast,estimate,p.value) %>% 
-        mutate(estimate = round(estimate,digits =1)) %>% 
-        mutate(p.value = format(p.value,scientific = TRUE, digits = 2)) %>% 
-        mutate(est_pval = paste0(estimate, " (",p.value,")")) %>%
-        select(contrast,est_pval) %>% 
-        spread(key = contrast,value = est_pval)
+    
+    # pb version package: la version récente de emmeans demande 
+    # remove.packages("emmeans")
+    # library(remotes)
+    # install_version("emmeans", "1.5.2-1")
+    EM <- emmeans::emmeans(mmod, specs = c("treatment","LifeHistory"),  type = "response",
+                           adjust = "tuckey")
+    # emmeans (version 1.5.2-1)
+    posthoc <- multcomp::cld(EM, #emmeans::as.glht(EM)
+                             Letters = "abcdefghi", details = T)
+    
+    # contrasts = différences entre les deux traitements pour annuelles et pérennes
+    contrasts <- posthoc$comparisons %>% 
+      filter(contrast %in% c("Nat annual - Fer annual","Nat perennial - Fer perennial",
+                             "Fer annual - Nat annual","Fer perennial - Nat perennial")) %>%
+      mutate(estimate = case_when(contrast %in% c("Fer annual - Nat annual","Fer perennial - Nat perennial") ~ -estimate,
+                                  TRUE ~ estimate)) %>% 
+      mutate(contrast = case_when(contrast == "Fer annual - Nat annual" ~ "Nat annual - Fer annual",
+                                  contrast == "Fer perennial - Nat perennial" ~ "Nat perennial - Fer perennial",
+                                  TRUE ~ contrast)) %>% 
+      mutate(contrast = if_else(contrast == "Nat annual - Fer annual", "Annuals","Perennials")) %>% 
+      select(contrast,estimate,p.value) %>% 
+      mutate(estimate = round(estimate,digits =1)) %>% 
+      mutate(p.value = format(p.value,scientific = TRUE, digits = 2)) %>% 
+      mutate(est_pval = paste0(estimate, " (",p.value,")")) %>%
+      select(contrast,est_pval) %>% 
+      spread(key = contrast,value = est_pval)
       
       table_pval2 <- cbind(table_pval,contrasts)
-      table_pval2$percent_var_code_sp <- percent_var_code_sp
+      table_pval2$percent_var_code_sp <- part_var_species
       TABLE_PVAL <- rbind(TABLE_PVAL,table_pval2)
       
       comp <- as.data.frame(posthoc$emmeans) %>% 
@@ -427,7 +409,7 @@ ggsave("draft/boxplot_all_traits.jpg",boxplot_all_traits,width = 10, height = 10
 
 ## Table ####
 table_trait_diff <- TABLE_PVAL %>% 
-  mutate(percent_var_code_sp = round(percent_var_code_sp,digits = 5)) %>% 
+  mutate(percent_var_code_sp = round(percent_var_code_sp,digits = 2)*100) %>% 
   transmute(
     Trait = Trait, 
     Treatment = ifelse(Treatment =="<0.05",
@@ -441,10 +423,13 @@ table_trait_diff <- TABLE_PVAL %>%
                          cell_spec(Interaction, bold=F)),
     Annuals     =Annuals     ,
     Perennials = Perennials
+    # Var_ITV = percent_var_code_sp
   ) %>% 
   kableExtra::kable( escape = F,
                      col.names = c("Trait", "Regime", "LifeHistory","Interaction",
-                                   "Int. - Ext. (annuals)", "Int. - Ext. (perennials)")) %>%
+                                   "Int. - Ext. (annuals)", "Int. - Ext. (perennials)"
+                                   # "Var explained by species (%)"
+                                   )) %>%
   kableExtra::kable_styling("hover", full_width = F)
   
 
