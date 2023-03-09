@@ -26,11 +26,16 @@ traits <- c("LDMC","SLA","log_LA",
             "log_SeedMass"
 )#"H_FLORE","FLO_FLORE",
 
-traits_names <- c("Leaf Dry Matter Content (mg/g)", "Specific Leaf Area (cm²/kg)"," log(Leaf Area (cm²))",
-                  "Leaf Carbon Content (mg/g)","Leaf Nitrogen Content (mg/g)", "Leaf delta 13C (part per thousand)",
+traits_names <- c("Leaf Dry Matter Content/mass (mg/g)", "Specific Leaf Area (m²/kg)"," log(Leaf Area (cm²))",
+                  "Leaf Carbon Content/mass (mg/g)","Leaf Nitrogen Content (mg/g)", 
+                  paste("Leaf δ13C (part per thousand)"),
                   "Reproductive Height (cm)", 
                   "Date of first dispersal (Julian day)",
                   "log(Seed Mass (mg))")
+
+ggplot(iris,aes(x = Sepal.Length,y=Petal.Length))+
+  geom_point() +
+  ggtitle (expression("mu"))
 
 # Chose to take species in trait data, or in both trait and abundance data
 
@@ -381,9 +386,9 @@ plot <- MEAN %>%
   filter(treatment%in% c("Nat","Fer")) %>% 
   mutate(zone = if_else(treatment == "Fer", "G+F","GU-S")) %>%
   mutate(Management = if_else(treatment=="Fer","Intensive","Extensive")) %>% 
-  
+  mutate(Management = factor(Management,levels = c("Intensive","Extensive"))) %>% 
   ggplot(aes_string(x="Management", y=ftrait, label = "code_sp",fill = "Management")) + #,shape = "LifeHistory"
-  theme_classic()+
+  theme_classic() +
   theme(axis.title.x=element_blank())+
   # geom_boxplot(aes(color = LifeHistory)) +
   geom_boxplot() +

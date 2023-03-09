@@ -44,7 +44,7 @@ data_hypervolume <- fMEAN %>%
 # indices$FRic
 
 data_hypervolume_Nmass <- data_hypervolume %>% 
-  mutate(Nmass = LNC * 10) %>% # change unit from mg/g to %
+  mutate(Nmass = LNCm * 10) %>% # change unit from mg/g to %
   mutate(LMA = 1/SLA * 10^7) %>% # convert kg/cm² to g/m² (1kg sur 1cm² = 1^4 kg sur 1m², = 10^7 g sur 1m²)
   mutate(log10_Amass = 0.74 * log10(Nmass) - 0.54 * log10(LMA) + 2.96) %>% #equation from supp. data Wright et al. 2003
   mutate(Amass = 10^log10_Amass) %>% 
@@ -57,6 +57,12 @@ percent_var <- factoextra::fviz_eig(PCA_hypervolume, addlabels = TRUE, ylim = c(
 var.explain.dim1 <- round(PCA_hypervolume$eig[1,2])
 var.explain.dim2 <- round(PCA_hypervolume$eig[2,2])
 var.explain.dim3 <- round(PCA_hypervolume$eig[3,2])
+
+contrib_pca <- PCA_hypervolume$var$contrib %>% 
+  as.data.frame() %>% 
+  select(Dim.1,Dim.2,Dim.3) %>%
+  round(digits = 2)
+write.csv2(contrib_pca,"draft/contribution_traits_pca.csv")
 
 
 # Distinctiveness ####
@@ -350,6 +356,7 @@ legend <- ggpubr::as_ggplot(leg)
 #                          PLOT[[2]],PLOT[[4]],ncol = 2,nrow = 3)
 # 
 
+
 PCA <- plot_grid(plot_axis_pca, legend,
           PLOT[[1]],PLOT[[3]],
           PLOT[[2]],PLOT[[4]],
@@ -357,6 +364,30 @@ PCA <- plot_grid(plot_axis_pca, legend,
           labels = c("A","","B","C","D","E"))
 
 ggsave("draft/PCA.png",PCA,height = 10, width =6)
+
+
+# Trait values of species present in both or one trt ####
+
+
+coord_ind %>%
+  mutate(LifeHistory = if_else(LifeHistory=="annual","Annuals","Perennials")) %>% 
+  mutate(origin = if_else(zone == "Both","Both","One")) %>% 
+  mutate(orig_LH = paste(origin,LifeHistory,sep="_")) %>% 
+  mutate(zone2 = paste(zone,treatment,sep="_")) %>% 
+  mutate(zone2 = factor(zone2,levels = c("Fer_Fer","Both_Fer","Both_Nat","Nat_Nat"))) %>% 
+  ggplot(aes(x = zone2, y =Dim.2)) +
+  geom_boxplot(fill="lightgrey",outlier.shape = NA)+
+  geom_point(aes(shape = orig_LH,color = LifeHistory),size = 2)+
+  geom_line(aes(group = code_sp))+
+  facet_wrap(~LifeHistory) +
+  theme_classic() +
+  scale_shape_manual(values = c(1,2,19,17)) +
+  theme(legend.position = "none") +
+  theme(
+    axis.title.x = element_blank())+
+  scale_x_discrete(labels= c("Int.","Int.","Ext.","Ext."))
+
+
 
 
 # trash
