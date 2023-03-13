@@ -3,8 +3,7 @@
 # - compares abundance in the nat between maud's and diachro's relevés. Highly correlated.
 
 source("scripts/Packages.R")
-names_LH2 <- read.csv2("data/species_names_lifehistory.csv") %>% 
-  mutate(species= Species, code_sp = Code_Sp)
+names_LH2 <- read.csv2("data/species_names_lifehistory.csv")
 
 # Fertilized treatment ####
 ABUNDANCE <- read.csv2("data/abundance/pooled_abundance_data.csv") %>%  

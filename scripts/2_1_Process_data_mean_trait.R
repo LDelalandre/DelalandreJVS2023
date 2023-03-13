@@ -70,48 +70,56 @@ mean_attribute_per_species <- function(dataset,subset_gt_nat = T,site_level = F)
 
 
 for (average_at_site_level in c(T,F)){
-  
-  # Generate a list of mean attributes per sp*treatment
-  MEAN_list <- list( mean_attribute_per_species(LeafMorpho,site_level = average_at_site_level),
-                     mean_attribute_per_species(LeafCN,site_level = average_at_site_level),
-                     mean_attribute_per_species(LeafP,site_level = average_at_site_level),
-                     mean_attribute_per_species(Leaf13C,site_level = average_at_site_level),
-                     mean_attribute_per_species(Biovolume ,site_level = average_at_site_level), 
-                     mean_attribute_per_species(Pheno,site_level = average_at_site_level),
-                     mean_attribute_per_species(Seed,site_level = average_at_site_level) )
-  
-  
-  
-  # Convert the list into a data frame
-  MEAN <- MEAN_list[[1]]
-  MEAN$Species <- recode(MEAN$Species,"Cirsium acaulon" = "Cirsium acaule")
-  for (i in 2:length(MEAN_list)){
-    MEAN <- full_join(MEAN,MEAN_list[[i]], by = c('Species','Trtmt','Code_Sp','LifeHistory','LifeForm1','Form'))
+  for (subset in c(T,F)){
+    # Generate a list of mean attributes per sp*treatment
+    MEAN_list <- list( mean_attribute_per_species(LeafMorpho, subset_gt_nat = subset ,site_level = average_at_site_level),
+                       mean_attribute_per_species(LeafCN,subset_gt_nat = subset ,site_level = average_at_site_level),
+                       mean_attribute_per_species(LeafP,subset_gt_nat = subset ,site_level = average_at_site_level),
+                       mean_attribute_per_species(Leaf13C,subset_gt_nat = subset ,site_level = average_at_site_level),
+                       mean_attribute_per_species(Biovolume ,subset_gt_nat = subset ,site_level = average_at_site_level), 
+                       mean_attribute_per_species(Pheno,subset_gt_nat = subset ,site_level = average_at_site_level),
+                       mean_attribute_per_species(Seed,subset_gt_nat = subset ,site_level = average_at_site_level) )
+    
+    
+    
+    # Convert the list into a data frame
+    MEAN <- MEAN_list[[1]]
     MEAN$Species <- recode(MEAN$Species,"Cirsium acaulon" = "Cirsium acaule")
-  }
-  
-  # Clean (uniformize) the data
-  MEAN$Species <- recode(MEAN$Species,"Festuca christiani-bernardii" = "Festuca christianii-bernardii")
-  MEAN2 <- MEAN %>% 
-    dplyr::rename(species = Species, code_sp = Code_Sp, treatment = Trtmt) %>% 
-    filter(!(species %in% c("Carex humilis?","Carex sp.","Geranium dissectum - petiole","Geranium dissectum - pétiole","Geranium dissectum - limbe"))) %>% 
-    filter(!(treatment %in% c("Tem","Che"))) %>% 
-    # mutate(LDMC = LDMC/10) %>% # good units for CSR ()
-    mutate(L_Area = L_Area*100) %>%  # good units for CSR
-    unique()
-  MEAN2[which(MEAN2$code_sp=="BUPLBALD"),]$Hrepro <- 7 # Bupleurum, measurements on samples stored at cefe
-  
-  
-  # REMOVE SPECIES WITH PROBLEMS IN INTRASP TRAIT VARIATION
-  MEAN2[which(MEAN2$code_sp == "GALICORR"),]$L_Area <- NA # problems on leaf surface of GALICORR (feuille très découpée)
-  MEAN2[which(MEAN2$code_sp == "HIERPILO" & MEAN2$treatment == "Nat"),]$LDMC <- NA # Mesures par Adeline dans Fer et Karim dans Nat, et très très différentes
-  MEAN2[which(MEAN2$code_sp == "SESEMONT" & MEAN2$treatment == "Fer"),]$LCC <- NA # Mesures par Adeline dans Fer et Karim dans Nat, et très très différentes
-  MEAN2[which(MEAN2$code_sp == "ERYNCAMP" & MEAN2$treatment == "Nat"),]$LNC <- NA # Mesures par Adeline dans Fer et Karim dans Nat, et très très différentes
-  
-  
-  if(average_at_site_level == F){ # work at the level of treatments
-    write.csv2(MEAN2,"outputs/data/mean_attribute_per_treatment_subset_nat_sab_int.csv",row.names=F)
-  } else{ # average traits values across the whole site
-    write.csv2(MEAN2,"outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_site_level.csv",row.names=F)
+    for (i in 2:length(MEAN_list)){
+      MEAN <- full_join(MEAN,MEAN_list[[i]], by = c('Species','Trtmt','Code_Sp','LifeHistory','LifeForm1','Form'))
+      MEAN$Species <- recode(MEAN$Species,"Cirsium acaulon" = "Cirsium acaule")
+    }
+    
+    # Clean (uniformize) the data
+    MEAN$Species <- recode(MEAN$Species,"Festuca christiani-bernardii" = "Festuca christianii-bernardii")
+    MEAN2 <- MEAN %>% 
+      dplyr::rename(species = Species, code_sp = Code_Sp, treatment = Trtmt) %>% 
+      filter(!(species %in% c("Carex humilis?","Carex sp.","Geranium dissectum - petiole","Geranium dissectum - pétiole","Geranium dissectum - limbe"))) %>% 
+      filter(!(treatment %in% c("Tem","Che"))) %>% 
+      # mutate(LDMC = LDMC/10) %>% # good units for CSR ()
+      mutate(L_Area = L_Area*100) %>%  # good units for CSR
+      unique()
+    MEAN2[which(MEAN2$code_sp=="BUPLBALD"),]$Hrepro <- 7 # Bupleurum, measurements on samples stored at cefe
+    
+    
+    # REMOVE SPECIES WITH PROBLEMS IN INTRASP TRAIT VARIATION
+    MEAN2[which(MEAN2$code_sp == "GALICORR"),]$L_Area <- NA # problems on leaf surface of GALICORR (feuille très découpée)
+    MEAN2[which(MEAN2$code_sp == "HIERPILO" & MEAN2$treatment == "Nat"),]$LDMC <- NA # Mesures par Adeline dans Fer et Karim dans Nat, et très très différentes
+    MEAN2[which(MEAN2$code_sp == "SESEMONT" & MEAN2$treatment == "Fer"),]$LCC <- NA # Mesures par Adeline dans Fer et Karim dans Nat, et très très différentes
+    MEAN2[which(MEAN2$code_sp == "ERYNCAMP" & MEAN2$treatment == "Nat"),]$LNC <- NA # Mesures par Adeline dans Fer et Karim dans Nat, et très très différentes
+    
+    
+    if (subset == T){
+      if(average_at_site_level == F){ # work at the level of treatments
+        write.csv2(MEAN2,"outputs/data/mean_attribute_per_treatment_subset_nat_sab_int.csv",row.names=F)
+      } else{ # average traits values across the whole site
+        write.csv2(MEAN2,"outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_site_level.csv",row.names=F)
+      }
+    } else {
+      if(average_at_site_level == F){ # work at the level of treatments
+        write.csv2(MEAN2,"outputs/data/mean_attribute_per_treatment.csv",row.names=F)
+      } else{ # average traits values across the whole site
+      }
+    }
   }
 }

@@ -5,20 +5,14 @@
 library(tidyverse)
 
 # Trait values computed in the G+F and GU(S+I) conditions, i.e. removing GUd for the latter
-MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int.csv")%>%
-  filter(!(species== "Geranium dissectum - pétiole")) %>% 
-  filter(!species == "Geranium dissectum - pÃ©tiole")
+MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int.csv")
 
 # Trait values computed in the G+F and GU conditions
 MEAN_no_subset <- read.csv2("outputs/data/mean_attribute_per_treatment.csv",encoding = "latin1") %>%
-  filter(!(LifeForm1 %in% c("DPh","EPh")))%>% 
-  filter(!(species== "Geranium dissectum - pétiole"))%>% 
-  filter(!species == "Geranium dissectum - pÃ©tiole") 
+  filter(!(LifeForm1 %in% c("DPh","EPh")))
 
-MEAN_Nat_Dol <- read.csv2("outputs/data/mean_attribute_Nat_Dol.csv",encoding = "latin1") %>%
-  filter(!(LifeForm1 %in% c("DPh","EPh")))%>% 
-  filter(!(species== "Geranium dissectum - pétiole"))%>% 
-  filter(!species == "Geranium dissectum - pÃ©tiole")
+# MEAN_Nat_Dol <- read.csv2("outputs/data/mean_attribute_Nat_Dol.csv",encoding = "latin1") %>%
+#   filter(!(LifeForm1 %in% c("DPh","EPh")))
 
 traits <- c("LDMC","SLA","L_Area",
             "LCC","LNC","Ldelta13C",#"LPC",
