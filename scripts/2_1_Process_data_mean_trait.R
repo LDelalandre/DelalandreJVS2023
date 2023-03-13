@@ -39,9 +39,10 @@ mean_attribute_per_species <- function(dataset,subset_gt_nat = T,site_level = F)
     # (sinon, ça découple une espèce en deux artificiellement dans le calcul de la moyenne).
     select(-c(nameOfProject,measurementDeterminedBy,Rep))
   
-  # Do not consider trait values in the Nat_Dol
-  dataset2 <- dataset2 %>%
-    filter(Treatment %in% c("Fer_Clc","Fer_Dlm","Nat_Sab","Nat_Int"))
+  if (subset_gt_nat == T){
+    dataset2 <- dataset2 %>%
+      filter(Treatment %in% c("Fer_Clc","Fer_Dlm","Nat_Sab","Nat_Int")) 
+  }
   
   # Variables on which we want to summarize:
   vars <- dataset2 %>% 

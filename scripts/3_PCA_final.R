@@ -28,9 +28,9 @@ fMEAN <- MEAN_multivar %>%
   mutate(sp_trt = paste(code_sp,treatment,sep="_"))
 rownames(fMEAN) <- NULL
 
-# fMEAN %>% 
-#   group_by(LifeHistory,treatment) %>% 
-#   summarize(n = n())
+fMEAN %>%
+  group_by(LifeHistory,treatment) %>%
+  summarize(n = n())
 
 
 data_hypervolume <- fMEAN %>% 
