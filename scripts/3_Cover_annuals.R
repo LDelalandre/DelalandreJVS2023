@@ -34,29 +34,6 @@ error.bar <- function(x, y, upper, lower=upper, length=0.1,...){
   arrows(x,y+upper, x, y-lower, angle=90, code=3, length=length, ...)
 }
 
-
-## 3) CSR ####
-# CWM2_fer <- read.csv2("outputs/data/Pierce CSR/Traits_CWM_fer_completed.csv")
-# CWM2_nat <- read.csv2("outputs/data/Pierce CSR/Traits_CWM_nat_completed.csv")
-
-CWM3_fer <- read.csv2("outputs/data/Pierce CSR/Traits_CWM_fer.csv") # not yet completed CSR
-CWM3_nat <- read.csv2("outputs/data/Pierce CSR/Traits_CWM_subset_nat_sab_int.csv")
-
-## 4) Abundance ####
-ab_fer <- read.csv2("outputs/data/abundance_fertile.csv") %>% 
-  rename(line = id_transect_quadrat)
-ab_nat <- read.csv2("outputs/data/abundance_natif.csv") 
-
-soil_Maud <- data.frame(PC1score = c(-3.08,-2.85,-2.52,-1.78,-1.60,-1.56,-0.03,0.16,1.97,2.66,4.05,4.58),
-                        depth = c("S","S","S","S","I","I","I","I","D","D","D","D" ),
-                        paddock = c("P8","P10","P6","P1","P6","P8","P10","P1","P10","P1","P6","P8"))
-
-
-
-
-
-
-
 # II) Figure_envt ####
 
 #specify path to save PDF to
@@ -230,7 +207,7 @@ boxplot(tot_relat_ab * 100 ~ regime,
 
 dev.off()
 
-# legend("topleft", legend="d", bty='n')
+
 
 
 # peut-être faire test non paramétrique (kruskal-wallis)
@@ -259,7 +236,7 @@ comp_binom <- as.data.frame(emm$emmeans) %>%
   arrange(factor(depth, levels = levels(richness_per_guild_toplot$depth))) %>% 
   mutate(.group = c("a","b","b","c")) # /!\ recode manually significant levels
 
-text(x=c(1:4),y=c(85,40,40,60), labels = comp_binom$.group)
+# text(x=c(1:4),y=c(85,40,40,60), labels = comp_binom$.group)
 
 
 #turn off PDF plotting
@@ -267,164 +244,3 @@ dev.off()
 
 
 
-
-
-# disturbance %>% 
-#   group_by(Trtmt) %>% 
-#   summarize(mean = mean(Tx_CalcPic))
-
-
-#________________________________________________________________________________
-# V) Optional graphs ####
-
-## only C score ####
-boxplot(
-  value ~ score * depth , data = CSR_toplot %>% filter(score == "CWM_C"), xaxt = "n",
-  xlab = "", ylab = "Score (%)",
-  col = "black",
-  medlwd = 1
-)
-legend(
-  "topleft", title = "Score",
-  legend = c("C"), fill = c("black"),
-  cex = 0.7
-)
-
-
-## CSR Triangle ####
-CSR_toplot2 <- CSR_toplot %>%
-  spread(key = score,value = value)
-
-library(Ternary)
-TernaryPlot(main = "La Fage",alab = "C \u2192", blab = "S \u2192", clab = "\u2190 R")
-AddToTernary(points, CSR_toplot2 %>%
-               filter(depth == "Fer") %>%
-               select(CWM_C,CWM_S,CWM_R), col='green', lty='dotted', lwd=3, pch = 0)
-AddToTernary(points, CSR_toplot2 %>%
-               filter(depth == "D") %>%
-               select(CWM_C,CWM_S,CWM_R), col='black', lty='dotted', lwd=3, pch = 1)
-AddToTernary(points, CSR_toplot2 %>%
-               filter(depth == "I") %>%
-               select(CWM_C,CWM_S,CWM_R), col='black', lty='dotted', lwd=3, pch = 4)
-AddToTernary(points, CSR_toplot2 %>%
-               filter(depth == "S") %>%
-               select(CWM_C,CWM_S,CWM_R), col='black', lty='dotted', lwd=3, pch = 3)
-legend("topright",
-       cex = 1,
-       bty = "n",
-       legend = c('Deep', 'Intermediary', 'Superficial'),
-       pch = c(1,4,3))
-
-## Annual cover ####
-jpeg("draft/cover_nat.jpeg")
-ann_fer <- ab_fer %>% 
-  mutate(LifeHistory = if_else(LifeForm1=="The","annual","perennial")) %>% 
-  group_by(LifeHistory,year,paddock,line) %>% 
-  summarise(tot_relat_ab = sum(relat_ab)) %>% 
-  filter(LifeHistory =="annual") %>% 
-  mutate(depth = "Fer") %>% 
-  relocate(LifeHistory,year,depth,paddock,line,tot_relat_ab)
-
-ann_nat <- ab_nat %>% 
-  group_by(LifeHistory,depth,paddock,line) %>% 
-  summarise(tot_relat_ab = sum(relat_ab)) %>% 
-  filter(LifeHistory =="annual") %>%
-  mutate(year = 2009) %>% 
-  relocate(LifeHistory,year,depth,paddock,line,tot_relat_ab) %>% 
-  mutate(line = as.character(line))
-
-cover_annuals <- rbind(ann_fer,ann_nat)
-cover_annuals$depth <- factor(cover_annuals$depth , levels = c("Fer","D","I","S"))
-cover_annuals2 <- cover_annuals %>% 
-  filter(depth %in% c("Fer","S"))
-cover_annuals2$depth <- factor(cover_annuals2$depth , levels = c("Fer","S"))
-  
-
-boxplot(tot_relat_ab * 100 ~ depth,
-        data = cover_annuals2, # cover_annuals, # 
-        # ylim=c(0,90),
-        xlab = NA,
-        ylab = "Relative abundance \n of annuals (%)",
-        xaxt = "n",
-        medlwd = 1)
-
-ann_nat %>%
-  ungroup() %>% 
-  filter(depth == "S") %>% 
-  summarize(mean_ab = mean(tot_relat_ab))
-
-mod <- lm(tot_relat_ab ~ depth, data =  cover_annuals%>% filter(!(depth=="Fer"))) # ou ann_nat
-anova(mod)
-summary(mod)
-shapiro.test(residuals(mod)) # not normal --> kruskal-wallis ?
-lmtest::bptest(mod)
-lmtest::dwtest(mod)
-
-posthoc <- multcomp::cld(emmeans::emmeans(mod, specs = "depth",  type = "response",
-                                          adjust = "tuckey"),
-                         Letters = "abcdefghi", details = T)
-
-comp <- as.data.frame(posthoc$emmeans) %>% 
-  arrange(factor(depth, levels = levels(cover_annuals$depth)))
-
-# text(x=c(1:4),y=c(82,30,40,50), labels = comp$.group)
-text(x=c(1:3),y=c(20,20,20), labels = comp$.group)
-
-dev.off()
-
-# plutôt faire kruskal test
-# En gros : si je bosse sur le natif seul, il y a un effet du gradient de prof de sol.
-# Mais cet effet est noyé par la grosse différence avec le fertile, qui 
-# embarque la majorité de la variance.
-
-# C'est aussi visible avec un test non paramétrique (kruskal-wallis)
-cover_annuals %>% 
-  ggplot(aes(x=depth,y=tot_relat_ab))+
-  geom_point()
-kruskal.test(tot_relat_ab  ~ depth,data = cover_annuals )
-FSA::dunnTest(tot_relat_ab ~ depth,data = cover_annuals )
-
-kruskal.test(tot_relat_ab  ~ depth,data = cover_annuals %>% filter(!(depth=="Fer")) )
-FSA::dunnTest(tot_relat_ab ~ depth,data = cover_annuals %>% filter(!(depth=="Fer")) )
-
-cover_annuals %>% 
-  ggplot(aes(x=tot_relat_ab))+
-  geom_histogram(sts="identity") +
-  facet_wrap(~depth)
-# On n'a pas la même forme de distribution dans les trois cas de figure --> pas approprié d'utiliser Kruskal pour fertile...
-
-
-cover_annuals %>% 
-  group_by(depth) %>% 
-  summarize(mean_relat_ab = mean(tot_relat_ab))
-
-
-
-# Annual cover fer vs nat sup ####
-ann_fer <- ab_fer %>% 
-  mutate(LifeHistory = if_else(LifeForm1=="The","annual","perennial")) %>% 
-  group_by(LifeHistory,year,paddock,line) %>% 
-  summarise(tot_relat_ab = sum(relat_ab)) %>% 
-  filter(LifeHistory =="annual") %>% 
-  mutate(depth = "Fer") %>% 
-  relocate(LifeHistory,year,depth,paddock,line,tot_relat_ab)
-
-ann_nat <- ab_nat %>% 
-  group_by(LifeHistory,depth,paddock,line) %>% 
-  summarise(tot_relat_ab = sum(relat_ab)) %>% 
-  filter(LifeHistory =="annual") %>%
-  mutate(year = 2009) %>% 
-  relocate(LifeHistory,year,depth,paddock,line,tot_relat_ab) %>% 
-  mutate(line = as.character(line))
-         
-cover_annuals <- rbind(ann_fer,ann_nat)
-cover_annuals$depth <- factor(cover_annuals$depth , levels = c("Fer","D","I","S"))
-
-cover_annuals %>% 
-  filter(depth %in% c("Fer","S")) %>% 
-  ggplot(aes(x = depth,y = tot_relat_ab)) +
-  geom_boxplot(fill="grey") +
-  # geom_point() +
-  theme_classic() +
-  ylab("Relative abundance of annuals (%)") +
-  theme(axis.text.x = element_text(c("Intensive","Extensive")))
