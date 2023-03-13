@@ -87,7 +87,8 @@ dist <- PCA_hypervolume$ind$coord %>%
   separate(sp_tr, into = c("code_sp","treatment"),sep = "_") %>% 
   merge(code_sp_lifeform) %>% 
   mutate(LifeHistory = if_else(LifeForm1=="The","Annuals","Perennials")) %>% 
-  mutate(treatment = if_else(treatment == "Fer", "Intensive","Extensive"))
+  mutate(treatment = if_else(treatment == "Fer", "Intensive","Extensive")) %>% 
+  mutate(treatment = factor(treatment,levels = c("Intensive","Extensive")))
 
 plot_di <- dist  %>% 
   ggplot(aes(x = LifeHistory,y=Di)) +
@@ -387,93 +388,4 @@ coord_ind %>%
     axis.title.x = element_blank())+
   scale_x_discrete(labels= c("Int.","Int.","Ext.","Ext."))
 
-
-
-
-# trash
-plot1 <- ggplot(coord_var,aes(x=Dim.1,y=Dim.2,label=trait)) +
-  geom_segment(data=coord_var, aes(x=0, y=0, xend=Dim.1, yend=Dim.2), 
-               arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
-  ggrepel::geom_text_repel(data=coord_var, aes(x=Dim.1, Dim.2, label=trait), size = 6, vjust=1, color="black") +
-  # geom_point(data = coord_ind)+
-  theme_classic()
-
-plot2 <- ggplot(coord_var,aes(x=Dim.1,y=Dim.3,label=trait)) +
-  geom_segment(data=coord_var, aes(x=0, y=0, xend=Dim.1, yend=Dim.3), 
-               arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
-  ggrepel::geom_text_repel(data=coord_var, aes(x=Dim.1, Dim.3, label=trait), size = 6, vjust=1, color="black") +
-  theme_classic()
-
-pcas <- gridExtra::grid.arrange(plot1, plot2, ncol=2)
-
-
-
-
-
-# ggsave("outputs/plots/PCA_fer.png",pcas,height = 10, width = 14)
-
-# correlation
-
-panel.hist <- function(x, ...) {
-  usr <- par("usr")
-  on.exit(par(usr))
-  par(usr = c(usr[1:2], 0, 1.5))
-  his <- hist(x, plot = FALSE)
-  breaks <- his$breaks
-  nB <- length(breaks)
-  y <- his$counts
-  y <- y/max(y)
-  rect(breaks[-nB], 0, breaks[-1], y, col = rgb(0, 1, 1, alpha = 0.5), ...)
-  # lines(density(x), col = 2, lwd = 2) # Uncomment to add density lines
-}
-
-panel.cor <- function(x, y, digits = 2, prefix = "", cex.cor, ...) {
-  usr <- par("usr")
-  on.exit(par(usr))
-  par(usr = c(0, 1, 0, 1))
-  Cor <- abs(cor(x, y)) # Remove abs function if desired
-  txt <- paste0(prefix, format(c(Cor, 0.123456789), digits = digits)[1])
-  if(missing(cex.cor)) {
-    cex.cor <- 0.4 / strwidth(txt)
-  }
-  text(0.5, 0.5, txt,
-       cex = 1 + cex.cor * Cor) # Resize the text by level of correlation
-}
-
-plot_cor <- fMEAN %>% 
-  # filter(treatment == "Fer") %>%
-  column_to_rownames("sp_trt") %>% 
-  select(-c(code_sp,LifeHistory,treatment)) %>% 
-  mutate(L_Area = log(L_Area)) %>% 
-  pairs(diag.panel = panel.hist,
-      upper.panel = panel.cor,    # Correlation panel
-      lower.panel = panel.smooth) # Smoothed regression lines)
-plot_cor
-
-
-
-SLA_LDMC <- function(x) 11.3 * 10^4 * x ^(-1.58)
-# (Equation de Garnier, 2001, functional ecology)
-
-
-fMEAN %>% 
-  # filter(treatment == "Fer") %>% 
-  # filter(LifeHistory == "annual") %>% 
-  ggplot(aes(x = LDMC, y = SLA,color = LifeHistory)) +
-  geom_point() +
-  geom_function(fun = SLA_LDMC,color = "black")
-
-
-fMEAN %>% 
-  filter(treatment == "Nat") %>%
-  # filter(LifeHistory == "annual") %>%
-  ggplot(aes(x = log(L_Area), y = LNC)) +
-  geom_point(aes(color = LifeHistory)) 
-  # geom_smooth(method = "lm")
-
-fMEAN %>% 
-  # filter(treatment == "Fer") %>%
-  # filter(LifeHistory == "annual") %>%
-  ggplot(aes(x = SLA, y = LNC)) +
-  geom_point(aes(color = LifeHistory))
 
