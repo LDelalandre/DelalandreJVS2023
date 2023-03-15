@@ -312,7 +312,8 @@ coord_axes <- PCA_hypervolume$var$coord %>%
   as.data.frame() %>% 
   rownames_to_column("trait") %>% 
   mutate(trait = case_when(trait == "L_Area" ~ "LA",
-                           trait == "Hrepro" ~ "H",
+                           trait == "Hrepro" ~ "RPH",
+                           trait == "Ldelta13C" ~ "Lδ13C ",
                            TRUE ~ trait))
 
 plot_axis_pca <- ggplot(coord_axes) +
@@ -364,7 +365,7 @@ PCA <- plot_grid(plot_axis_pca, legend,
           ncol = 2, align = "hv",
           labels = c("A","","B","C","D","E"))
 
-ggsave("draft/PCA.png",PCA,height = 10, width =6)
+ggsave("draft/PCA.png",PCA,height = 11, width =7)
 
 
 # Trait values of species present in both or one trt ####

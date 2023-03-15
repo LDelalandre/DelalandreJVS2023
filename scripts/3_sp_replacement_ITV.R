@@ -233,18 +233,6 @@ CWM <- compute_cwm(ab,MEAN,MEAN_site,traits,level_of_trait_averaging = "treatmen
 CWMfixed <- compute_cwm(ab,MEAN,MEAN_site,traits,level_of_trait_averaging = "site")
 # CWM intra  = CWM - CWMfixed pour chaque trait
 # 
-# fCWMall <- get_cwm_decomposition(ftrait,CWM,CWMfixed)
-# # fCWMall %>% 
-# #   ggplot(aes(x=CWMfixed,y=CWM,color=treatment)) +
-# #   geom_point()
-# 
-# fLH <- "annual"
-# SumSq <- compute_SS(fCWMall,fLH) %>% 
-#   mutate(sum = SSfixed + SSintra + SScov) # vérifier que SStot = SSfixed + SSintra + SScov. Pas le cas, visiblement...
-# A VERIFIER!
-# (après, je ne m'intéresse aps à la covariance... Si, peut-être ?)
-# Je peux produire le graphe de la contribution relative de chaque variance pour annuelles et pérennes
-# En disant bien que la variance est plus forte chez les pérennes
 
 AITV <- NULL
 TRAIT <- NULL
@@ -309,6 +297,10 @@ summary(mod_aITV)
 library(cowplot)
 
 plot_aITV <- data_aITV %>% 
+  mutate(trait = case_when(trait == "L_Area" ~ "LA",
+                           trait == "Hrepro" ~ "RPH",
+                           trait == "Ldelta13C" ~ "Lδ13C ",
+                           TRUE ~ trait)) %>% 
   # filter(!(trait %in% c("L_Area"))) %>%
   ggplot(aes(x=perennial,y=annual,label = trait))+
   geom_point() +
@@ -373,12 +365,6 @@ plots_aITV <-ggdraw() +
 plots_aITV
 
 ggsave("draft/plot_aITV.jpg",plots_aITV,width = 8, height = 8)
-
-# 3) combine plots ####
-
-plots_turnover_ITV <- ggpubr::ggarrange(plot_jaccard,boxplot_aITV,plot_aITV,labels = c("A","B","C"),ncol = 3)
-
-ggsave("draft/plots_turnover_ITV.jpg",plots_turnover_ITV,width = 11, height = 5)
 
 
 

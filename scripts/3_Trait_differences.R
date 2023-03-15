@@ -26,8 +26,8 @@ traits <- c("LDMC","SLA","log_LA",
             "log_SeedMass"
 )#"H_FLORE","FLO_FLORE",
 
-traits_names <- c("Leaf Dry Matter Content/mass (mg/g)", "Specific Leaf Area (m²/kg)"," log(Leaf Area (cm²))",
-                  "Leaf Carbon Content/mass (mg/g)","Leaf Nitrogen Content (mg/g)", 
+traits_names <- c("Leaf Dry Matter Content (mg/g)", "Specific Leaf Area (m²/kg)"," log(Leaf Area (cm²))",
+                  "Leaf Carbon Content/mass (mg/g)","Leaf Nitrogen Content/mass (mg/g)", 
                   paste("Leaf δ13C (part per thousand)"),
                   "Reproductive Height (cm)", 
                   "Date of first dispersal (Julian day)",
@@ -407,10 +407,16 @@ legend <- ggpubr::as_ggplot(leg)
 
 
 boxplot_all_traits <- ggpubr::ggarrange(PLOTS[[1]],PLOTS[[2]],PLOTS[[3]],PLOTS[[4]],PLOTS[[5]],PLOTS[[6]],
-                                        PLOTS[[7]],PLOTS[[8]],PLOTS[[9]],legend,
-                                        ncol = 3,nrow = 4)
+                                        PLOTS[[7]],PLOTS[[8]],PLOTS[[9]],
+                                        ncol = 3,nrow = 3)
 
-ggsave("draft/boxplot_all_traits.jpg",boxplot_all_traits,width = 10, height = 10)
+
+boxplot_all_traits_legend <- ggpubr::ggarrange(boxplot_all_traits,
+                                               legend,
+                                               ncol = 2, nrow = 1,
+                                               widths = c(1, 0.2))
+# boxplot_all_traits_legend
+ggsave("draft/boxplot_all_traits.jpg",boxplot_all_traits_legend,width = 12, height = 8)
 
 ## Table ####
 table_trait_diff <- TABLE_PVAL %>% 
