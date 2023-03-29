@@ -125,6 +125,14 @@ title("C - Disturbance",adj = 0,line = 0.5)
 # pdf(file=destination,width = 4, height = 4)
 # png(file=destination2)
 
+ab_fer <- read.csv2("outputs/data/abundance_fertile.csv") %>% 
+  rename(line = id_transect_quadrat)
+ab_nat <- read.csv2("outputs/data/abundance_natif.csv") 
+
+soil_Maud <- data.frame(PC1score = c(-3.08,-2.85,-2.52,-1.78,-1.60,-1.56,-0.03,0.16,1.97,2.66,4.05,4.58),
+                        depth = c("S","S","S","S","I","I","I","I","D","D","D","D" ),
+                        paddock = c("P8","P10","P6","P1","P6","P8","P10","P1","P10","P1","P6","P8"))
+
 richness_per_guild_nat <- ab_nat %>% 
   count(depth,paddock,LifeHistory,line) %>% 
   merge(soil_Maud,by=c("depth","paddock"))
@@ -243,4 +251,63 @@ comp_binom <- as.data.frame(emm$emmeans) %>%
 dev.off() 
 
 
+
+# Figures pour ppt ####
+## Bar plot of INN and INP ####
+
+barplot(to_barplot[1,c(1,4)],
+        col=c("#F8766D","#00BFC4"),
+        cex.axis=3,
+        las = 2 ,
+        ylim = c(0, 80)) # texte axe y horizontal)
+
+barplot(to_barplot[2,c(1,4)],
+        col=c("#F8766D","#00BFC4"),
+        cex.axis=3,
+        las = 2 ,
+        ylim = c(0, 80))
+
+## Prod ####
+boxplot(biomass_may_reduced$rdt.T.ha ~ biomass_may_reduced$Position,
+        xlab = NA,
+        ylab = NA,
+        xaxt = "n",
+        medlwd = 1,
+        # border=c("#F8766D","#00BFC4"),
+        col=c("#F8766D","#00BFC4"),
+        # boxlwd = 8,
+        # whisklwd = 5,
+        # staplelwd = 8,
+        cex.axis=3,
+        las = 2 # texte axe y horizontal
+)
+
+## Disturb ####
+boxplot(disturbance$Tx_CalcPic * 100 ~ disturbance$Trtmt ,  
+        width=c(1,4),
+        # col=c("orange" , "seagreen"),
+        xlab = NA,
+        ylab = NA,
+        xaxt = "n",
+        at = c(1,2),
+        medlwd = 1,
+        names = labels,
+        col=c("#F8766D","#00BFC4"),
+        las = 2 ,
+        cex.axis=2.5
+)
+
+## Richness ####
+boxplot(relative_richness_annual *100 ~ zone,
+        data = richness_per_guild_toplot_reduced,
+        ylim=c(0,90),
+        xlab = NA,
+        ylab = NA,
+        # xaxt = "n",
+        medlwd = 1,
+        xaxt = "n",
+        names = labels,
+        col=c("#F8766D","#00BFC4"),
+        las = 2 ,
+        cex.axis=2.5)
 
