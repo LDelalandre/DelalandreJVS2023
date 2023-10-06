@@ -33,9 +33,6 @@ traits_names <- c("Leaf Dry Matter Content (mg/g)", "Specific Leaf Area (m²/kg)
                   "Date of first dispersal (Julian day)",
                   "log(Seed Mass (mg))")
 
-ggplot(iris,aes(x = Sepal.Length,y=Petal.Length))+
-  geom_point() +
-  ggtitle (expression("mu"))
 
 # Chose to take species in trait data, or in both trait and abundance data
 
@@ -168,10 +165,15 @@ cat(table_sp_replacement, file = "draft/table_species_replacement.doc")
 #_______________________________________________________________________________
 # Interspecific comparisons ####
 
+species_experiment <- read.csv2("data/annual_species_experiment.csv") %>% 
+  pull(code_sp)
 
 # changer les noms des traits
 # passer LA en log
 # changer les noms des zones
+
+MEAN <- MEAN %>% 
+  filter((code_sp %in% species_experiment))
 
 TABLE_PVAL <- NULL
 PLOTS <- NULL
@@ -260,6 +262,9 @@ for (ftrait in traits){
     # }
     
   }
+}
+
+for (ftrait in traits){
   
   ## plot ####
   miny <- min( MEAN %>% pull(sym(ftrait)) , na.rm = T)
@@ -307,7 +312,7 @@ for (ftrait in traits){
                shape = 19,size = 2,
                position = position_dodge(width = .75)) +
     scale_fill_manual(values = c("grey", "white")) +
-    # scale_fill_manual(values = c("grey30", "grey80")) +
+    # scale_fill_manual(values = c("#F8766D","#00BFC4"))+
     geom_line(aes(group = code_sp),
               alpha=0.4) + #,color=LifeHistory
     ylim(c(miny- 1/10*(maxy-miny),
@@ -341,8 +346,8 @@ for (ftrait in traits){
     geom_point(#aes(color = LifeHistory),
                shape = 17, size = 2,
                position = position_dodge(width = .75)) +
-    # scale_fill_manual(values = c("grey30", "grey80")) +
     scale_fill_manual(values = c("grey", "white")) +
+    # scale_fill_manual(values = c("#F8766D","#00BFC4"))+
     geom_line(aes(group = code_sp),
               alpha = 0.4) + #,color=LifeHistory
     scale_color_manual(values = "#00BFC4") +

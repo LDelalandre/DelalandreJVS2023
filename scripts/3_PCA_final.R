@@ -371,15 +371,18 @@ ggsave("draft/PCA.png",PCA,height = 11, width =7)
 # Trait values of species present in both or one trt ####
 
 
-coord_ind %>%
+plot_PCA_detailed <- coord_ind %>%
   mutate(LifeHistory = if_else(LifeHistory=="annual","Annuals","Perennials")) %>% 
   mutate(origin = if_else(zone == "Both","Both","One")) %>% 
   mutate(orig_LH = paste(origin,LifeHistory,sep="_")) %>% 
   mutate(zone2 = paste(zone,treatment,sep="_")) %>% 
   mutate(zone2 = factor(zone2,levels = c("Fer_Fer","Both_Fer","Both_Nat","Nat_Nat"))) %>% 
-  ggplot(aes(x = zone2, y =Dim.2)) +
-  geom_boxplot(fill="lightgrey",outlier.shape = NA)+
-  geom_point(aes(shape = orig_LH,color = LifeHistory),size = 2)+
+  
+  ggplot(aes(x = zone2, y =Dim.2,fill = treatment)) +
+  
+  geom_boxplot(outlier.shape = NA)+ #fill="lightgrey",
+  geom_point(aes(shape = orig_LH),size = 2)+ #,color = treatment
+  scale_fill_manual(values = c("#F8766D","#00BFC4")) +
   geom_line(aes(group = code_sp))+
   facet_wrap(~LifeHistory) +
   theme_classic() +
@@ -389,4 +392,5 @@ coord_ind %>%
     axis.title.x = element_blank())+
   scale_x_discrete(labels= c("Int.","Int.","Ext.","Ext."))
 
+ggsave("draft/PCA_boxplot_detailed_Dim.2.png",plot_PCA_detailed,height = 5, width = 5)
 

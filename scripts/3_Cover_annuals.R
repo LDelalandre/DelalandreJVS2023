@@ -66,7 +66,6 @@ error.bar(BarPlot,to_barplot[,c(1,4)],to_barplot_se[,c(1,4)])
 
 
 
-
 ## Biomass production ####
 biomass <- read.xlsx("data/environment/Biomasses et indices La Fage.xlsx", 
                      sheet = "2009", 
@@ -99,7 +98,7 @@ labels <- c("Intensive",
             "Extensive")
 
 boxplot(disturbance$Tx_CalcPic ~ disturbance$Trtmt ,  
-        width=c(1,4),
+        width=c(1,1),
         # col=c("orange" , "seagreen"),
         xlab = "",
         ylab = "Proportion of biomass eaten",
@@ -111,7 +110,9 @@ boxplot(disturbance$Tx_CalcPic ~ disturbance$Trtmt ,
 
 title("C - Disturbance",adj = 0,line = 0.5)
 
-
+# ggplot(aes(x = Trtmt, y = Tx_CalcPic), data = disturbance)+ 
+#   geom_boxplot()+
+#   geom_point()
 
 
 
@@ -284,7 +285,7 @@ boxplot(biomass_may_reduced$rdt.T.ha ~ biomass_may_reduced$Position,
 
 ## Disturb ####
 boxplot(disturbance$Tx_CalcPic * 100 ~ disturbance$Trtmt ,  
-        width=c(1,4),
+        width=c(1,1),
         # col=c("orange" , "seagreen"),
         xlab = NA,
         ylab = NA,

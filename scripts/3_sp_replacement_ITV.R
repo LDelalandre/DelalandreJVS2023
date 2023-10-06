@@ -84,11 +84,12 @@ plot_jaccard <- jaccard %>%
   theme_classic() +
   ggsignif::geom_signif(comparisons = list(c("Annuals", "Perennials")), 
                         map_signif_level=TRUE) +
-  xlab('')
+  xlab('') +
+  ylim(c(0,1.03))
 
 plot_jaccard
 
-ggsave("draft/plot_jaccard.png",plot = plot_jaccard)
+ggsave("draft/plot_jaccard.png",plot = plot_jaccard,height = 3.5, width = 3)
 
 # mod <- lm(JAC ~ LH,data = jaccard)
 # # plot(mod)
@@ -302,6 +303,7 @@ plot_aITV <- data_aITV %>%
                            trait == "Ldelta13C" ~ "Lδ13C ",
                            TRUE ~ trait)) %>% 
   # filter(!(trait %in% c("L_Area"))) %>%
+  # filter(trait %in% c("LA","SLA","LDMC","LNCm")) %>% # POUR L'ORAL
   ggplot(aes(x=perennial,y=annual,label = trait))+
   geom_point() +
   geom_abline(intercept = 0, slope = 1) +
@@ -364,7 +366,7 @@ plots_aITV <-ggdraw() +
 
 plots_aITV
 
-ggsave("draft/plot_aITV.jpg",plots_aITV,width = 8, height = 8)
+ggsave("draft/plot_aITV.jpg",plots_aITV,width = 6, height = 6)
 
 
 

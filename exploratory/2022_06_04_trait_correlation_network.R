@@ -1,5 +1,5 @@
 library(tidyverse)
-library(igraph)
+library(igraph) 
 source("scripts/Data_traits.R")
 
 # igraphs https://kateto.net/netscix2016.html
