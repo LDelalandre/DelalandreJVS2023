@@ -5,21 +5,15 @@ source("scripts/Packages.R")
 # I) Load data ####
 # NB: data mainly generated from 2021_11_18_CSR.R
 
-## 1) Vegetation consumption ####
-disturbance <- read.table("data/environment/Disturbance_DivHerbe.txt",header=T,sep="\t",dec=",") %>% 
-  filter(!(Trtmt == "Tem"))
+## Environmental data ####
+env_data <- read.csv2("outputs/data/env_data.csv")
+
+## Richness and abundance ####
+ab_fer <- read.csv2("outputs/data/abundance_fertile.csv") %>% 
+  rename(line = id_transect_quadrat)
+ab_nat <- read.csv2("outputs/data/abundance_natif.csv") 
 
 
-## 2) INN ####
-INraw <- read.xlsx("data/environment/IN La Fage.xlsx", sheet = "resultat", startRow = 1, colNames = TRUE) %>% 
-  mutate()
-nom <- read.xlsx("data/environment/IN La Fage.xlsx", sheet = "nom", startRow = 1, colNames = TRUE)  %>% 
-  filter(!is.na(plot))
-IN <- merge(nom,INraw,by="nature.echantillon") %>% 
-  filter(!(treatment =="temoin")) %>% 
-  mutate(soil = if_else(treatment=="fertilise","Fer",plot)) %>% 
-  select(soil,INN,INP) %>% 
-  filter(soil %in% c("Fer","Sable"))
 
 # II) Figure_envt ####
 
@@ -35,15 +29,14 @@ pdf(file=destination,width = 6.5, height = 6)
 par(mar = c(2, 6.5, 1.3, 1),mfrow = c(2,2),mpg = c(1,1,0))
 
 
-## Bar plot of INN and INP ####
-IN_gathered <- IN %>% 
-  gather(key = index, value = value, -soil) %>% 
-  na.omit() %>% 
-  mutate(soil_index = paste(soil,index,sep="_")) 
+## Boxplot of INN and INP ####
+IN_toplot <- env_data  %>% 
+  filter(variable %in% c("NNI", "PNI")) %>% 
+  mutate(soil_index = paste(management,variable,sep="_")) 
 
-IN_gathered$soil_index <- factor(IN_gathered$soil_index, levels = c("Fer_INN","Fer_INP","Sable_INN","Sable_INP"))
+IN_toplot$soil_index <- factor(IN_toplot$soil_index, levels = c("Int_NNI","Int_PNI","Ext_NNI","Ext_PNI"))
 
-boxplot(IN_gathered$value ~ IN_gathered$soil_index,
+boxplot(IN_toplot$value ~ IN_toplot$soil_index,
         xlab = NA,
         ylab = "Nutrition index (%)",
         xaxt = "n",
@@ -57,24 +50,12 @@ legend("topright",
 title("A - Nutrient availability",adj = 0,line = 0.5)
 
 ## Biomass production ####
-biomass <- read.xlsx("data/environment/Biomasses et indices La Fage.xlsx", 
-                     sheet = "2009", 
-                     startRow = 1, colNames = TRUE, rowNames = F) %>% 
-  mutate(Dates = as.Date(Dates- 25569, origin = "1970-01-01"))
 
-biomass_may <- biomass %>% 
-  filter(Parcs %in% c("C1","C2","1","6","8","10")) %>% 
-  filter(Dates == "2009-05-01") %>% 
-  mutate(rdt.T.ha = as.numeric(rdt.T.ha)) %>% 
-  mutate(Position = str_sub(Position,1,1)) %>% 
-  mutate(Position = case_when(is.na(Position) ~ "Fer",
-                              TRUE ~ Position)) 
-biomass_may$Position <- factor(biomass_may$Position , levels = c("Fer","D","I","S"))
-biomass_may_reduced <- biomass_may %>% 
-  filter(Position %in% c("Fer","S"))
-biomass_may_reduced$Position <- factor(biomass_may_reduced$Position , levels = c("Fer","S"))
+biomass_toplot <- env_data  %>% 
+  filter(variable == "Biomass")
+biomass_toplot$management = factor(biomass_toplot$management, levels = c("Int", "Ext"))
 
-boxplot(biomass_may_reduced$rdt.T.ha ~ biomass_may_reduced$Position,
+boxplot(biomass_toplot$value ~ biomass_toplot$management,
         xlab = NA,
         ylab = "Maximum standing biomass (t/ha)",
         xaxt = "n",
@@ -84,10 +65,15 @@ title("B - Biomass",adj = 0,line = 0.5)
 
 ## Disturbance ####
 
+disturbance_toplot <- env_data  %>% 
+  filter(variable == "Disturbance")
+disturbance_toplot$management = factor(disturbance_toplot$management, levels = c("Int", "Ext"))
+
+
 labels <- c("Intensive",
             "Extensive")
 
-boxplot(disturbance$Tx_CalcPic ~ disturbance$Trtmt ,  
+boxplot(disturbance_toplot$value ~ disturbance_toplot$management ,  
         width=c(1,1),
         # col=c("orange" , "seagreen"),
         xlab = "",
@@ -116,9 +102,6 @@ title("C - Disturbance",adj = 0,line = 0.5)
 # pdf(file=destination,width = 4, height = 4)
 # png(file=destination2)
 
-ab_fer <- read.csv2("outputs/data/abundance_fertile.csv") %>% 
-  rename(line = id_transect_quadrat)
-ab_nat <- read.csv2("outputs/data/abundance_natif.csv") 
 
 soil_Maud <- data.frame(PC1score = c(-3.08,-2.85,-2.52,-1.78,-1.60,-1.56,-0.03,0.16,1.97,2.66,4.05,4.58),
                         depth = c("S","S","S","S","I","I","I","I","D","D","D","D" ),
@@ -162,7 +145,7 @@ boxplot(relative_richness_annual *100 ~ zone,
 title("D - Richness",adj = 0,line = 0.3)
 
 
-dev.off()
+# dev.off()
 
 
 
@@ -246,59 +229,64 @@ dev.off()
 # Figures pour ppt ####
 ## Bar plot of INN and INP ####
 
-barplot(to_barplot[1,c(1,4)],
-        col=c("#F8766D","#00BFC4"),
-        cex.axis=3,
-        las = 2 ,
-        ylim = c(0, 80)) # texte axe y horizontal)
+ppt <- F
 
-barplot(to_barplot[2,c(1,4)],
-        col=c("#F8766D","#00BFC4"),
-        cex.axis=3,
-        las = 2 ,
-        ylim = c(0, 80))
-
-## Prod ####
-boxplot(biomass_may_reduced$rdt.T.ha ~ biomass_may_reduced$Position,
-        xlab = NA,
-        ylab = NA,
-        xaxt = "n",
-        medlwd = 1,
-        # border=c("#F8766D","#00BFC4"),
-        col=c("#F8766D","#00BFC4"),
-        # boxlwd = 8,
-        # whisklwd = 5,
-        # staplelwd = 8,
-        cex.axis=3,
-        las = 2 # texte axe y horizontal
-)
-
-## Disturb ####
-boxplot(disturbance$Tx_CalcPic * 100 ~ disturbance$Trtmt ,  
-        width=c(1,1),
-        # col=c("orange" , "seagreen"),
-        xlab = NA,
-        ylab = NA,
-        xaxt = "n",
-        at = c(1,2),
-        medlwd = 1,
-        names = labels,
-        col=c("#F8766D","#00BFC4"),
-        las = 2 ,
-        cex.axis=2.5
-)
-
-## Richness ####
-boxplot(relative_richness_annual *100 ~ zone,
-        data = richness_per_guild_toplot_reduced,
-        ylim=c(0,90),
-        xlab = NA,
-        ylab = NA,
-        # xaxt = "n",
-        medlwd = 1,
-        xaxt = "n",
-        names = labels,
-        col=c("#F8766D","#00BFC4"),
-        las = 2 ,
-        cex.axis=2.5)
-
+if (ppt == T){
+  barplot(to_barplot[1,c(1,4)],
+          col=c("#F8766D","#00BFC4"),
+          cex.axis=3,
+          las = 2 ,
+          ylim = c(0, 80)) # texte axe y horizontal)
+  
+  barplot(to_barplot[2,c(1,4)],
+          col=c("#F8766D","#00BFC4"),
+          cex.axis=3,
+          las = 2 ,
+          ylim = c(0, 80))
+  
+  ## Prod ####
+  boxplot(biomass_may_reduced$rdt.T.ha ~ biomass_may_reduced$Position,
+          xlab = NA,
+          ylab = NA,
+          xaxt = "n",
+          medlwd = 1,
+          # border=c("#F8766D","#00BFC4"),
+          col=c("#F8766D","#00BFC4"),
+          # boxlwd = 8,
+          # whisklwd = 5,
+          # staplelwd = 8,
+          cex.axis=3,
+          las = 2 # texte axe y horizontal
+  )
+  
+  ## Disturb ####
+  boxplot(disturbance$Tx_CalcPic * 100 ~ disturbance$Trtmt ,  
+          width=c(1,1),
+          # col=c("orange" , "seagreen"),
+          xlab = NA,
+          ylab = NA,
+          xaxt = "n",
+          at = c(1,2),
+          medlwd = 1,
+          names = labels,
+          col=c("#F8766D","#00BFC4"),
+          las = 2 ,
+          cex.axis=2.5
+  )
+  
+  ## Richness ####
+  boxplot(relative_richness_annual *100 ~ zone,
+          data = richness_per_guild_toplot_reduced,
+          ylim=c(0,90),
+          xlab = NA,
+          ylab = NA,
+          # xaxt = "n",
+          medlwd = 1,
+          xaxt = "n",
+          names = labels,
+          col=c("#F8766D","#00BFC4"),
+          las = 2 ,
+          cex.axis=2.5)
+  
+  
+}
