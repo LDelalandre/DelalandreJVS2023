@@ -18,21 +18,8 @@ nom <- read.xlsx("data/environment/IN La Fage.xlsx", sheet = "nom", startRow = 1
 IN <- merge(nom,INraw,by="nature.echantillon") %>% 
   filter(!(treatment =="temoin")) %>% 
   mutate(soil = if_else(treatment=="fertilise","Fer",plot)) %>% 
-  select(soil,INN,INP)
-
-IN2 <- IN %>% 
-  group_by(soil) %>% 
-  summarise(meanINN = mean(INN,na.rm = T),meanINP = mean(INP,na.rm=T),
-            seINN = sd(INN,na.rm=T)/n(), seINP = sd(INP,na.rm=T)/n()) %>% 
-  arrange(-meanINN)
-
-
-to_barplot <- t(as.matrix(IN2[, c("meanINN", "meanINP")]))
-to_barplot_se <- t(as.matrix(IN2[, c("seINN", "seINP")]))
-#A function to add arrows on the chart
-error.bar <- function(x, y, upper, lower=upper, length=0.1,...){
-  arrows(x,y+upper, x, y-lower, angle=90, code=3, length=length, ...)
-}
+  select(soil,INN,INP) %>% 
+  filter(soil %in% c("Fer","Sable"))
 
 # II) Figure_envt ####
 
@@ -49,22 +36,25 @@ par(mar = c(2, 6.5, 1.3, 1),mfrow = c(2,2),mpg = c(1,1,0))
 
 
 ## Bar plot of INN and INP ####
-BarPlot <- barplot(to_barplot[,c(1,4)],
-                   beside = TRUE, names.arg = c("Intensive", "Extensive"),#names.arg = IN2$soil, # yaxt = "n",
-                   ylim=c(0, max(c(IN2$meanINN,IN2$meanINP)+3)  ),  
-                   col = c("black","grey"),
-                   ylab = "Nutrition index (%)",
-                   xaxt = "n"
-)
-title("A - Nutrient availability",adj = 0,line = 0.5)
+IN_gathered <- IN %>% 
+  gather(key = index, value = value, -soil) %>% 
+  na.omit() %>% 
+  mutate(soil_index = paste(soil,index,sep="_")) 
 
+IN_gathered$soil_index <- factor(IN_gathered$soil_index, levels = c("Fer_INN","Fer_INP","Sable_INN","Sable_INP"))
+
+boxplot(IN_gathered$value ~ IN_gathered$soil_index,
+        xlab = NA,
+        ylab = "Nutrition index (%)",
+        xaxt = "n",
+        medlwd = 1,
+        col = gray(c(0.3,0.9)))
 legend("topright",
        legend = c("NNI (%)","PNI (%)"),
        pch = 15,
-       col = c("black","grey"))
-error.bar(BarPlot,to_barplot[,c(1,4)],to_barplot_se[,c(1,4)])
+       col = gray(c(0.3,0.9)))
 
-
+title("A - Nutrient availability",adj = 0,line = 0.5)
 
 ## Biomass production ####
 biomass <- read.xlsx("data/environment/Biomasses et indices La Fage.xlsx", 
