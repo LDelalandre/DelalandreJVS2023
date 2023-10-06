@@ -100,7 +100,7 @@ boxplot(disturbance$Tx_CalcPic ~ disturbance$Trtmt ,
 
 title("C - Disturbance",adj = 0,line = 0.5)
 
-# ggplot(aes(x = Trtmt, y = Tx_CalcPic), data = disturbance)+ 
+# ggplot(aes(x = Trtmt, y = Tx_CalcPic), data = disturbance)+
 #   geom_boxplot()+
 #   geom_point()
 
