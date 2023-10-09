@@ -6,11 +6,11 @@ source("scripts/Packages.R")
 # NB: data mainly generated from 2021_11_18_CSR.R
 
 ## Environmental data ####
-env_data <- read.csv2("outputs/data/env_data.csv")
+env_data <- read.csv("outputs/data/env_data.csv")
 
 ## Richness and abundance ####
 
-data_abundance <- read.csv2("outputs/data/data_abundance.csv")
+data_abundance <- read.csv("outputs/data/data_abundance.csv")
 ab_fer <- data_abundance %>% filter(treatment == "Int")
 ab_nat <- data_abundance %>% filter(treatment == "Ext") 
 

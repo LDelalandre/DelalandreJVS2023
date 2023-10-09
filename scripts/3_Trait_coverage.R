@@ -2,8 +2,8 @@
 
 library(tidyverse)
 
-MEAN <- read.csv2("outputs/data/traits_univariate.csv")
-MEAN_multivar <- read.csv2("outputs/data/traits_multivariate.csv") %>% 
+MEAN <- read.csv("outputs/data/traits_univariate.csv")
+MEAN_multivar <- read.csv("outputs/data/traits_multivariate.csv") %>% 
   select(-Disp)
 
 code_sp_lifeform <- read.csv2("data/species_names_lifehistory.csv")
@@ -15,7 +15,7 @@ traits <- c("LDMC","SLA","L_Area",
             "SeedMass"
 )
 
-data_abundance <- read.csv2("outputs/data/data_abundance.csv")
+data_abundance <- read.csv("outputs/data/data_abundance.csv")
 ab_fer <- data_abundance %>% filter(treatment == "Int")
 ab_nat <- data_abundance %>% filter(treatment == "Ext") 
 
@@ -142,7 +142,7 @@ for (ftrait in c(FTRAIT,"multivariate")){
   
   if(ftrait == "multivariate" ){
     MEAN_ftrait <- MEAN_multivar %>% 
-      select(species,treatment,code_sp,Form,LifeHistory,
+      select(species,treatment,code_sp,LifeHistory,
              any_of(traits)) %>% 
       na.omit()
   }else{

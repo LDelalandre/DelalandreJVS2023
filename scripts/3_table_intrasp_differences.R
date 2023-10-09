@@ -2,14 +2,14 @@ library(tidyverse)
 library(ggpubr)
 library(kableExtra)
 
-MEAN <- read.csv2("outputs/data/traits_univariate.csv") %>%
+MEAN <- read.csv("outputs/data/traits_univariate.csv") %>%
   filter(!(species== "Geranium dissectum - pétiole")) %>% 
   mutate(log_LA = log(L_Area)) %>% 
   unique() %>% 
   dplyr::rename(LCCm = LCC) %>% 
   dplyr::rename(LNCm = LNC)
 
-data_abundance <- read.csv2("outputs/data/data_abundance.csv")
+data_abundance <- read.csv("outputs/data/data_abundance.csv")
 ab_fer <- data_abundance %>% filter(treatment == "Int")
 ab_nat <- data_abundance %>% filter(treatment == "Ext") 
 

@@ -3,19 +3,7 @@ library(vegan)
 
 
 # 1) Jaccard distance ####
-ab_fer <- read.csv2("outputs/data/abundance_fertile.csv") %>% 
-  mutate(code_sp = case_when(species == "Vicia sativa ssp. sativa"~ "VICISATI-SAT",
-                             species == "Crepis vesicaria ssp. haenseleri" ~"CREPVESI-HAE",
-                             species == "Taraxacum laevigatum" ~ "TARALAEV",
-                             species == "Cirsium acaulon" ~ "CIRSACAU",
-                             species == "Carthamus mitissimus" ~ "CARTMITI",
-                             TRUE~ code_sp)) %>% 
-  mutate(LifeHistory = if_else(LifeForm1=="The","annual","perennial"))
-ab_nat <- read.csv2("outputs/data/abundance_natif.csv") %>% 
-  mutate(LifeHistory = if_else(LifeForm1=="The","annual","perennial"))
-
-
-data_abundance <- read.csv2("outputs/data/data_abundance.csv")
+data_abundance <- read.csv("outputs/data/data_abundance.csv")
 ab_fer <- data_abundance %>% filter(treatment == "Int")
 ab_nat <- data_abundance %>% filter(treatment == "Ext") 
 

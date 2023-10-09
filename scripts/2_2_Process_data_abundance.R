@@ -96,7 +96,7 @@ ab_nat <- ab_maud %>%
 data_abundance <- rbind(ab_fer,ab_nat) %>%
   select(species,code_sp,LifeHistory,treatment,paddock,year,depth,PC1score,line,line_length,abundance,relat_ab) 
 
-write.csv2(data_abundance,"outputs/data/data_abundance.csv",row.names = F)
+write.csv(data_abundance,"outputs/data/data_abundance.csv",row.names = F)
 
 #richness
 richness_per_guild_nat <- ab_nat %>% 

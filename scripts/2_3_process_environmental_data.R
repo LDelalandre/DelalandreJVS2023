@@ -66,4 +66,4 @@ env_data <- rbind(IN_gathered,biomass_gathered,disturbance_gathered) %>%
                               TRUE ~variable))
 env_data$management = factor(env_data$management, levels = c("Int", "Ext"))
 
-write.csv2(env_data,"outputs/data/env_data.csv",row.names=F)
+write.csv(env_data,"outputs/data/env_data.csv",row.names=F)

@@ -7,7 +7,7 @@ library(funrar)
 library(mFD)
 
 
-MEAN_multivar <- read.csv2("outputs/data/traits_multivariate.csv") %>% 
+MEAN_multivar <- read.csv("outputs/data/traits_multivariate.csv") %>% 
   select(-Disp) %>% 
   dplyr::rename(LCCm = LCC) %>% 
   dplyr::rename(LNCm = LNC)
