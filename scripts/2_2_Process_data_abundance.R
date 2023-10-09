@@ -61,6 +61,68 @@ ab_maud <- read.xlsx("data/abundance/maud_Relevés d'abondance La Fage Juin 2009
 write.csv2(ab_maud,"outputs/data/abundance_natif.csv",row.names=F)
 
 
+# Merge abundance data in one file ####
+soil_Maud <- data.frame(PC1score = c(-3.08,-2.85,-2.52,-1.78,-1.60,-1.56,-0.03,0.16,1.97,2.66,4.05,4.58),
+                        depth = c("S","S","S","S","I","I","I","I","D","D","D","D" ),
+                        paddock = c("P8","P10","P6","P1","P6","P8","P10","P1","P10","P1","P6","P8"))
+
+ab_fer <- ab_diachro_2005 %>% 
+  rename(line = id_transect_quadrat) %>% 
+  mutate(depth = "Fer") %>% 
+  mutate(LifeHistory = if_else(LifeForm1=="The","annual","perennial")) %>%
+  select(species,code_sp,LifeHistory,paddock,depth,line,line_length,abundance,relat_ab) %>% 
+  mutate(PC1score = NA) %>% 
+  mutate(year=2005) %>% 
+  mutate(line_length = as.numeric(line_length)) %>% 
+  mutate(treatment = "Int") %>% 
+  mutate(code_sp = case_when(species == "Vicia sativa ssp. sativa"~ "VICISATI-SAT",
+                             species == "Crepis vesicaria ssp. haenseleri" ~"CREPVESI-HAE",
+                             species == "Taraxacum laevigatum" ~ "TARALAEV",
+                             species == "Cirsium acaulon" ~ "CIRSACAU",
+                             species == "Carthamus mitissimus" ~ "CARTMITI",
+                             TRUE~ code_sp)) %>% 
+  #add missing life history (NB: not missing lifeform!!)
+  mutate(LifeHistory = case_when(
+    is.na(LifeHistory) & !(species %in% c("Vicia sativa ssp. sativa","Trifolium stellatum"))~"perennial",
+    is.na(LifeHistory) & species %in% c("Vicia sativa ssp. sativa","Trifolium stellatum") ~ "annual",
+    TRUE ~ LifeHistory))
+ab_nat <- ab_maud %>% 
+  select(species,code_sp,LifeHistory,paddock,depth,line,abundance,relat_ab) %>% 
+  merge(soil_Maud,by=c("depth","paddock")) %>% 
+  mutate(year = 2009) %>% 
+  mutate(line_length = 3) %>% 
+  mutate(treatment = "Ext")
+
+data_abundance <- rbind(ab_fer,ab_nat) %>%
+  select(species,code_sp,LifeHistory,treatment,paddock,year,depth,PC1score,line,line_length,abundance,relat_ab) 
+
+write.csv2(data_abundance,"outputs/data/data_abundance.csv",row.names = F)
+
+#richness
+richness_per_guild_nat <- ab_nat %>% 
+  count(depth,paddock,LifeHistory,line) 
+
+richness_per_guild_fer <- ab_fer %>%
+  count(depth,paddock,LifeHistory,line) 
+
+#abundance
+ann_fer <- ab_fer %>% 
+  group_by(LifeHistory,paddock,line,depth,year) %>% 
+  summarise(tot_relat_ab = sum(relat_ab)) %>% 
+  filter(LifeHistory =="annual") %>% 
+  relocate(LifeHistory,depth,paddock,line,tot_relat_ab) %>% 
+  mutate(year)
+
+ann_nat <- ab_nat %>% 
+  group_by(LifeHistory,depth,paddock,line,year) %>% 
+  summarise(tot_relat_ab = sum(relat_ab)) %>% 
+  filter(LifeHistory =="annual") %>%
+  relocate(LifeHistory,year,depth,paddock,line,tot_relat_ab) %>% 
+  mutate(line = as.character(line))
+
+cover_annuals <- rbind(ann_fer,ann_nat)
+
+
 # Comparison abundances between the two measurements ####
 ab_diachro_2004_nat <- ABUNDANCE %>% 
   filter(dataset == "Diachro") %>% 

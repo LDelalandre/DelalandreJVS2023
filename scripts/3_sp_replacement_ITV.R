@@ -15,20 +15,19 @@ ab_nat <- read.csv2("outputs/data/abundance_natif.csv") %>%
   mutate(LifeHistory = if_else(LifeForm1=="The","annual","perennial"))
 
 
+data_abundance <- read.csv2("outputs/data/data_abundance.csv")
+ab_fer <- data_abundance %>% filter(treatment == "Int")
+ab_nat <- data_abundance %>% filter(treatment == "Ext") 
 
 ## build presence matrix ####
 pres_fer <- ab_fer %>% 
-  mutate(treatment = "Fer") %>% 
-  rename(line = id_transect_quadrat) %>%  
   mutate(presence = if_else(relat_ab >0,1,0)) %>% 
   select(code_sp,LifeHistory,treatment,line,presence)
 
 pres_nat <- ab_nat %>% 
-  mutate(treatment = "Nat") %>% 
   filter(depth == "S") %>% 
   mutate(presence = if_else(relat_ab >0,1,0)) %>%
-  select(code_sp,LifeHistory,treatment,Ligne,presence) %>% 
-  rename(line = Ligne)
+  select(code_sp,LifeHistory,treatment,line,presence)
 
 presence <- rbind(pres_fer,pres_nat)
 
@@ -38,12 +37,12 @@ presence_matrix <- presence %>%
   replace(is.na(.),0)
 
 presence_matrix %>% 
-  filter(treatment=="Fer") %>%
+  filter(treatment=="Int") %>%
   pull(line) %>% 
   length()
 
 presence_matrix %>% 
-  filter(treatment=="Nat") %>% 
+  filter(treatment=="Ext") %>% 
   pull(line) %>% 
   unique() %>%
   length()
@@ -54,10 +53,10 @@ JAC <- NULL
 LH <- NULL
 for (lh in c("annual","perennial")){
   fpres_nat <- presence_matrix %>%
-    filter(treatment=="Nat") %>% 
+    filter(treatment=="Ext") %>% 
     filter(LifeHistory == lh)
   fpres_fer <- presence_matrix %>%
-    filter(treatment=="Fer") %>% 
+    filter(treatment=="Int") %>% 
     filter(LifeHistory == lh)
   species <- presence %>% 
     filter(LifeHistory == lh) %>% 
@@ -67,8 +66,7 @@ for (lh in c("annual","perennial")){
     for(j in c(1:dim(fpres_fer[1]))){
       A <- fpres_nat[i,] %>% select(-c(LifeHistory,treatment,line))
       B <- fpres_fer[j,] %>% select(-c(LifeHistory,treatment,line))
-      jac  <- vegan::vegdist(x = rbind(A,B) %>% 
-                               select(all_of(species)),method="jaccard") 
+      jac  <- vegan::vegdist(x = rbind(A,B) ,method="jaccard") 
       JAC <- c(JAC,jac)
       LH <- c(LH,lh)
     }
@@ -106,10 +104,10 @@ wilcox.test(JAC ~ LH,data = jaccard)
 ## Load data ####
 
 # trait data
-MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_SM.csv") %>% 
+MEAN <- read.csv2("outputs/data/traits_univariate.csv") %>% 
   dplyr::rename(LCCm = LCC) %>% 
   dplyr::rename(LNCm = LNC)
-MEAN_site <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_site_level.csv")%>% 
+MEAN_site <- read.csv2("outputs/data/traits_site_level.csv")%>% 
   dplyr::rename(LCCm = LCC) %>% 
   dplyr::rename(LNCm = LNC)
 traits <- c("LDMC","SLA","L_Area",
@@ -119,14 +117,6 @@ traits <- c("LDMC","SLA","L_Area",
             "SeedMass"
 )
 
-# abundance data
-ab_fer <- read.csv2("outputs/data/abundance_fertile.csv") %>% 
-  rename(transect = id_transect_quadrat)
-ab_nat <- read.csv2("outputs/data/abundance_natif.csv") %>% 
-  filter(depth == "S") %>% 
-  select(-depth) %>% 
-  rename(transect = Ligne)
-
 # Join abundance datasets
 ab_fer2 <- ab_fer %>% 
   select(any_of(colnames(ab_nat))) %>% 
@@ -135,8 +125,8 @@ ab_nat2 <- ab_nat %>%
   mutate(treatment = "Nat") %>% 
   select(all_of(colnames(ab_fer2)))
 ab <- rbind(ab_fer2,ab_nat2) %>% 
-  mutate(LifeHistory = if_else(LifeForm1 == "The","annual","perennial")) %>% 
-  select(species,code_sp,LifeForm1,LifeHistory,treatment,paddock,transect,abundance)
+  select(species,code_sp,LifeHistory,treatment,paddock,line,abundance) %>% 
+  rename(transect = line)
 
 
 ## Functions ####

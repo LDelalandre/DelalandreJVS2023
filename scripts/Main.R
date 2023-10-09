@@ -18,9 +18,6 @@ if (rawdata == T){
   source("scripts/2_2_Process_data_abundance.R")
   # Rq: sensitivity analysis of the results on the year kept in diachro to be performed.
   # (cf. also 2022_10_24_critiques et réponses.docx)
-  
-  ## CWM: Compute CWM of CSR scores ####
-  source("scripts/2_3_Process_data_CWM_CSR.R")
 }
 
 

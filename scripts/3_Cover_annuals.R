@@ -9,9 +9,10 @@ source("scripts/Packages.R")
 env_data <- read.csv2("outputs/data/env_data.csv")
 
 ## Richness and abundance ####
-ab_fer <- read.csv2("outputs/data/abundance_fertile.csv") %>% 
-  rename(line = id_transect_quadrat)
-ab_nat <- read.csv2("outputs/data/abundance_natif.csv") 
+
+data_abundance <- read.csv2("outputs/data/data_abundance.csv")
+ab_fer <- data_abundance %>% filter(treatment == "Int")
+ab_nat <- data_abundance %>% filter(treatment == "Ext") 
 
 
 
@@ -108,14 +109,10 @@ soil_Maud <- data.frame(PC1score = c(-3.08,-2.85,-2.52,-1.78,-1.60,-1.56,-0.03,0
                         paddock = c("P8","P10","P6","P1","P6","P8","P10","P1","P10","P1","P6","P8"))
 
 richness_per_guild_nat <- ab_nat %>% 
-  count(depth,paddock,LifeHistory,line) %>% 
-  merge(soil_Maud,by=c("depth","paddock"))
+  count(depth,paddock,LifeHistory,line) 
 
 richness_per_guild_fer <- ab_fer %>%
-  mutate(LifeHistory = if_else(LifeForm1=="The","annual","perennial")) %>% 
-  mutate(depth = "Fer") %>% 
-  count(depth,paddock,LifeHistory,line) %>% 
-  mutate(PC1score = NA)
+  count(depth,paddock,LifeHistory,line) 
 
 richness_per_guild <- rbind(richness_per_guild_nat,richness_per_guild_fer)
 richness_per_guild$depth <- factor(richness_per_guild$depth , levels = c("Fer","D","I","S"))
@@ -154,18 +151,16 @@ title("D - Richness",adj = 0,line = 0.3)
 png(file="draft/boxplot abundance.png")
 
 ann_fer <- ab_fer %>% 
-  mutate(LifeHistory = if_else(LifeForm1=="The","annual","perennial")) %>% 
-  group_by(LifeHistory,year,paddock,line) %>% 
+  group_by(LifeHistory,paddock,line,depth,year) %>% 
   summarise(tot_relat_ab = sum(relat_ab)) %>% 
   filter(LifeHistory =="annual") %>% 
-  mutate(depth = "Fer") %>% 
-  relocate(LifeHistory,year,depth,paddock,line,tot_relat_ab)
+  relocate(LifeHistory,depth,paddock,line,tot_relat_ab) %>% 
+  mutate(year)
 
 ann_nat <- ab_nat %>% 
-  group_by(LifeHistory,depth,paddock,line) %>% 
+  group_by(LifeHistory,depth,paddock,line,year) %>% 
   summarise(tot_relat_ab = sum(relat_ab)) %>% 
   filter(LifeHistory =="annual") %>%
-  mutate(year = 2009) %>% 
   relocate(LifeHistory,year,depth,paddock,line,tot_relat_ab) %>% 
   mutate(line = as.character(line))
 

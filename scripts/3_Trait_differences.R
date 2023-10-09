@@ -2,14 +2,15 @@ library(tidyverse)
 library(ggpubr)
 library(kableExtra)
 
-MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_SM.csv") %>%
+MEAN <- read.csv2("outputs/data/traits_univariate.csv") %>%
   filter(!(species== "Geranium dissectum - pétiole")) %>% 
   mutate(log_LA = log(L_Area)) %>% 
   mutate(log_SeedMass = log(SeedMass)) %>% 
   unique()
 
-ab_fer <- read.csv2("outputs/data/abundance_fertile.csv")
-ab_nat <- read.csv2("outputs/data/abundance_natif.csv")
+data_abundance <- read.csv2("outputs/data/data_abundance.csv")
+ab_fer <- data_abundance %>% filter(treatment == "Int")
+ab_nat <- data_abundance %>% filter(treatment == "Ext") 
 
 # I case I want to perform the analyses with species both in the trait and abundance data:
 data_fer <- MEAN %>%
@@ -41,13 +42,13 @@ traits_names <- c("Leaf Dry Matter Content (mg/g)", "Specific Leaf Area (m²/kg)
 # Table: Jaccard and species number ####
 
 AF <- ab_fer %>% 
-  filter(LifeForm1=="The") %>% 
+  filter(LifeHistory=="annual") %>% 
   select(species) %>% 
   unique() %>% 
   mutate(presence_fer=1)
 nb_ann_fer <- dim(AF)[1]
 AN <- ab_nat %>% 
-  filter(LifeForm1=="The") %>% 
+  filter(LifeHistory=="perennial") %>% 
   select(species) %>% 
   unique() %>% 
   mutate(presence_nat=1)
@@ -67,13 +68,13 @@ info_ann <- paste0(Jac_ann," (",
 
 # Perennials in Fertile
 PF <- ab_fer %>% 
-  filter(!(LifeForm1=="The")) %>% 
+  filter(!(LifeHistory=="annual")) %>% 
   select(species) %>% 
   unique() %>% 
   mutate(presence_fer=1)
 nb_per_fer <- dim(PF)[1]
 PN <- ab_nat %>% 
-  filter(!(LifeForm1=="The")) %>% 
+  filter(!(LifeHistory=="annual")) %>% 
   select(species) %>% 
   unique() %>% 
   mutate(presence_nat=1)
@@ -172,8 +173,8 @@ species_experiment <- read.csv2("data/annual_species_experiment.csv") %>%
 # passer LA en log
 # changer les noms des zones
 
-MEAN <- MEAN %>% 
-  filter((code_sp %in% species_experiment))
+# MEAN <- MEAN %>% 
+#   filter((code_sp %in% species_experiment))
 
 TABLE_PVAL <- NULL
 PLOTS <- NULL
@@ -183,7 +184,7 @@ for (ftrait in traits){
   data.anovaCSR <- MEAN %>% 
     # select(code_sp,treatment,LifeHistory,C,S,R) %>%
     # gather(key = score, value = value, -c(code_sp, LifeHistory,treatment)) %>% 
-    filter(treatment%in% c("Nat","Fer")) %>% 
+    filter(treatment %in% c("Nat","Fer")) %>% 
     mutate(log_L_Area = log(L_Area)) %>% 
     mutate(treatment = as.factor(treatment) ) %>% 
     mutate(LifeHistory = as.factor(LifeHistory))

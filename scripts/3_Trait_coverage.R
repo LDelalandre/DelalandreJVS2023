@@ -2,8 +2,8 @@
 
 library(tidyverse)
 
-MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_SM.csv")
-MEAN_multivar <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_SM_H_13C.csv") %>% 
+MEAN <- read.csv2("outputs/data/traits_univariate.csv")
+MEAN_multivar <- read.csv2("outputs/data/traits_multivariate.csv") %>% 
   select(-Disp)
 
 code_sp_lifeform <- read.csv2("data/species_names_lifehistory.csv")
@@ -15,34 +15,26 @@ traits <- c("LDMC","SLA","L_Area",
             "SeedMass"
 )
 
-ab_fer <- read.csv2("outputs/data/abundance_fertile.csv") %>% 
-  rename(line = id_transect_quadrat)
-ab_nat <- read.csv2("outputs/data/abundance_natif.csv") 
-
+data_abundance <- read.csv2("outputs/data/data_abundance.csv")
+ab_fer <- data_abundance %>% filter(treatment == "Int")
+ab_nat <- data_abundance %>% filter(treatment == "Ext") 
 
 
 # coverage (abundance) ####
 relat_ab_nat <- ab_nat %>%
   filter(depth == "S") %>% 
-  group_by(species,code_sp) %>% 
+  group_by(species,code_sp,LifeHistory) %>% 
   summarize(sp_abundance = sum(abundance)) %>% 
   ungroup() %>% 
   mutate(sp_relat_abundance = sp_abundance/sum(sp_abundance)) %>% 
-  left_join(code_sp_lifeform) %>% 
-  mutate(LifeHistory = if_else(LifeForm1 == "The","annual","perennial"))
+  left_join(code_sp_lifeform) 
 
 relat_ab_fer <- ab_fer %>% 
-  group_by(species,code_sp) %>% 
+  group_by(species,code_sp,LifeHistory) %>% 
   summarize(sp_abundance = sum(abundance)) %>% 
   ungroup() %>% 
   mutate(sp_relat_abundance = sp_abundance/sum(sp_abundance))%>% 
-  left_join(code_sp_lifeform) %>% 
-  mutate(LifeHistory = if_else(LifeForm1 == "The","annual","perennial")) %>% 
-  #add missing life history (NB: not missing lifeform!!)
-  mutate(LifeHistory = case_when(
-    is.na(LifeHistory) & !(species %in% c("Vicia sativa ssp. sativa","Trifolium stellatum"))~"perennial",
-    is.na(LifeHistory) & species %in% c("Vicia sativa ssp. sativa","Trifolium stellatum") ~ "annual",
-    TRUE ~ LifeHistory))
+  left_join(code_sp_lifeform) 
 
 
 
@@ -150,7 +142,7 @@ for (ftrait in c(FTRAIT,"multivariate")){
   
   if(ftrait == "multivariate" ){
     MEAN_ftrait <- MEAN_multivar %>% 
-      select(species,treatment,code_sp,Form,LifeHistory,LifeForm1,
+      select(species,treatment,code_sp,Form,LifeHistory,
              any_of(traits)) %>% 
       na.omit()
   }else{
@@ -161,21 +153,21 @@ for (ftrait in c(FTRAIT,"multivariate")){
 
   
   per_ab_fer <- ab_fer %>% 
-    filter(!(LifeForm1=="The")) %>%
+    filter(!(LifeHistory=="annual")) %>%
     arrange(code_sp) %>% 
     pull(code_sp) %>% 
     unique() 
   ann_ab_fer <- ab_fer %>% 
-    filter((LifeForm1=="The")) %>% 
+    filter((LifeHistory=="annual")) %>% 
     pull(code_sp) %>% 
     unique()
   
   per_trait_fer <- MEAN_ftrait %>% 
-    filter(!(LifeForm1=="The")) %>% 
+    filter(!(LifeHistory=="annual")) %>% 
     filter(treatment == "Fer") %>%  
     pull(code_sp) %>% unique()
   ann_trait_fer <- MEAN_ftrait %>% 
-    filter((LifeForm1=="The")) %>% 
+    filter((LifeHistory=="annual")) %>% 
     filter(treatment == "Fer") %>%  
     pull(code_sp) %>% unique()
   
@@ -194,21 +186,21 @@ for (ftrait in c(FTRAIT,"multivariate")){
   fer_instersectA <- intersect(A2,B2) %>% length()
   
   per_ab_nat <- ab_nat %>%   
-    filter(!(LifeForm1=="The")) %>% 
+    filter(!(LifeHistory=="annual")) %>% 
     filter(depth=="S") %>% 
     arrange(code_sp) %>%
     pull(code_sp) %>% unique()
   ann_ab_nat <- ab_nat %>%   
-    filter((LifeForm1=="The")) %>% 
+    filter((LifeHistory=="annual")) %>% 
     filter(depth=="S") %>% 
     pull(code_sp) %>% unique()
   
   per_trait_nat <- MEAN_ftrait %>%   
-    filter(!(LifeForm1=="The")) %>% 
+    filter(!(LifeHistory=="annual")) %>% 
     filter(treatment == "Nat") %>%  
     pull(code_sp) %>% unique()
   ann_trait_nat <- MEAN_ftrait %>%   
-    filter((LifeForm1=="The")) %>% 
+    filter((LifeHistory=="annual")) %>% 
     filter(treatment == "Nat") %>%  
     pull(code_sp) %>% unique()
   
@@ -231,7 +223,7 @@ for (ftrait in c(FTRAIT,"multivariate")){
   
   fdf <- data.frame(trait = ftrait,
                     treatment = c(rep("Fer",2),rep("Nat",2)),
-                    LifeForm1 = c(rep("Per",1),rep("Ann",1),rep("Per",1),rep("Ann",1)),
+                    LifeHistory = c(rep("Per",1),rep("Ann",1),rep("Per",1),rep("Ann",1)),
                     in_ab_only = c(fer_ab_onlyP,fer_ab_onlyA,nat_ab_onlyP,nat_ab_onlyA) ,
                     in_trait_only = c(fer_trait_onlyP,fer_trait_onlyA,nat_trait_onlyP,nat_trait_onlyA),
                     intersect = c(fer_instersectP,fer_instersectA,nat_instersectP,nat_instersectA) ) %>% 
@@ -247,7 +239,7 @@ FDF
 # table à faire
 
 table_trait_coverage_nb_sp <- FDF %>% 
-  mutate(LH_tr = paste(LifeForm1,treatment)) %>% 
+  mutate(LH_tr = paste(LifeHistory,treatment)) %>% 
   mutate(trait_coverage = round(trait_coverage,2)) %>% 
   select(trait,LH_tr,trait_coverage) %>% 
   spread(key = LH_tr,value = trait_coverage) %>% 

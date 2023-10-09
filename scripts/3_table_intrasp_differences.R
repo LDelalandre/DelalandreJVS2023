@@ -2,15 +2,16 @@ library(tidyverse)
 library(ggpubr)
 library(kableExtra)
 
-MEAN <- read.csv2("outputs/data/mean_attribute_per_treatment_subset_nat_sab_int_SM.csv") %>%
+MEAN <- read.csv2("outputs/data/traits_univariate.csv") %>%
   filter(!(species== "Geranium dissectum - pétiole")) %>% 
   mutate(log_LA = log(L_Area)) %>% 
   unique() %>% 
   dplyr::rename(LCCm = LCC) %>% 
   dplyr::rename(LNCm = LNC)
 
-ab_fer <- read.csv2("outputs/data/abundance_fertile.csv")
-ab_nat <- read.csv2("outputs/data/abundance_natif.csv")
+data_abundance <- read.csv2("outputs/data/data_abundance.csv")
+ab_fer <- data_abundance %>% filter(treatment == "Int")
+ab_nat <- data_abundance %>% filter(treatment == "Ext") 
 
 # I case I want to perform the analyses with species both in the trait and abundance data:
 data_fer <- MEAN %>%
@@ -85,6 +86,7 @@ diff_ann_per <- function(intrasp_var){
 # measure difference between trait values in the two treatments
 # compute proportion of times when real difference was either greater or smaller than randomized
 nb_boot <- 1000
+set.seed(16347)
 
 PVAL_ANN <- NULL
 PVAL_PER <- NULL
