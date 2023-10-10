@@ -2,7 +2,7 @@ library(tidyverse)
 library(ggpubr)
 library(kableExtra)
 
-MEAN <- read.csv("outputs/data/traits_univariate.csv") %>%
+MEAN <- read.csv("outputs/data/traits_management_level.csv") %>%
   filter(!(species== "Geranium dissectum - pétiole")) %>% 
   mutate(log_LA = log(L_Area)) %>% 
   unique() %>% 

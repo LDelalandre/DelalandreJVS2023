@@ -7,7 +7,10 @@ library(funrar)
 library(mFD)
 
 
-MEAN_multivar <- read.csv("outputs/data/traits_multivariate.csv") %>% 
+MEAN_multivar <- read.csv("outputs/data/traits_management_level.csv") %>% 
+  select(-c(Ldelta13C,Hrepro)) %>% 
+  rename(Hrepro = Hrepro_multivar) %>% 
+  rename(Ldelta13C = Ldelta13C_multivar) %>% 
   select(-Disp) %>% 
   dplyr::rename(LCCm = LCC) %>% 
   dplyr::rename(LNCm = LNC)

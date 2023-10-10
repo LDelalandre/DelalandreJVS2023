@@ -27,7 +27,7 @@ pdf(file=destination,width = 6.5, height = 6)
 # png(file=destination2)
 
 #specify to save plots in 2x2 grid
-par(mar = c(2, 6.5, 1.3, 1),mfrow = c(2,2),mpg = c(1,1,0))
+par(mar = c(2, 6.5, 1.3, 1),mfrow = c(2,2))#,mpg = c(1,1,0)
 
 
 ## Boxplot of INN and INP ####

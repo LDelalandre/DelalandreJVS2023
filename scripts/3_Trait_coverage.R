@@ -2,9 +2,12 @@
 
 library(tidyverse)
 
-MEAN <- read.csv("outputs/data/traits_univariate.csv")
-MEAN_multivar <- read.csv("outputs/data/traits_multivariate.csv") %>% 
-  select(-Disp)
+MEAN <- read.csv("outputs/data/traits_management_level.csv")
+MEAN_multivar <- read.csv("outputs/data/traits_management_level.csv") %>% 
+  select(-Disp) %>% 
+  select(-c(Ldelta13C,Hrepro)) %>% 
+  rename(Hrepro = Hrepro_multivar) %>% 
+  rename(Ldelta13C = Ldelta13C_multivar) 
 
 code_sp_lifeform <- read.csv2("data/species_names_lifehistory.csv")
 

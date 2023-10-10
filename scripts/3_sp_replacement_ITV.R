@@ -92,10 +92,10 @@ wilcox.test(JAC ~ LH,data = jaccard)
 ## Load data ####
 
 # trait data
-MEAN <- read.csv2("outputs/data/traits_univariate.csv") %>% 
+MEAN <- read.csv("outputs/data/traits_management_level.csv") %>% 
   dplyr::rename(LCCm = LCC) %>% 
   dplyr::rename(LNCm = LNC)
-MEAN_site <- read.csv2("outputs/data/traits_site_level.csv")%>% 
+MEAN_site <- read.csv("outputs/data/traits_site_level.csv")%>% 
   dplyr::rename(LCCm = LCC) %>% 
   dplyr::rename(LNCm = LNC)
 traits <- c("LDMC","SLA","L_Area",
