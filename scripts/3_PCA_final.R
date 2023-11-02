@@ -322,11 +322,13 @@ coord_axes <- PCA_hypervolume$var$coord %>%
 plot_axis_pca <- ggplot(coord_axes) +
   geom_segment( aes(x=0, y=0, xend=Dim.1, yend=Dim.2), 
                 arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color="black") +
-  ggrepel::geom_label_repel( aes(x=Dim.1, Dim.2, label=trait), size = 4, vjust=1, color="black")  +
+  ggrepel::geom_label_repel( aes(x=Dim.1, Dim.2, label=trait), size = 4, vjust=.8, color="black")  +
   theme_classic() +
   xlab(paste0(DimA," (",var.explain.dimA,"%)"))+
-  ylab(paste0(DimB," (",var.explain.dimB,"%)")) 
-
+  ylab(paste0(DimB," (",var.explain.dimB,"%)")) +
+  ylim(c(-0.7,0.9)) +
+  xlim(c(-0.4,0.9))
+plot_axis_pca
 
 ## plot legend ####
 plot <- coord_ind %>% 
@@ -369,7 +371,7 @@ PCA <- plot_grid(plot_axis_pca, legend,
           labels = c("A","","B","C","D","E"))
 
 ggsave("draft/PCA.png",PCA,height = 11, width =7)
-
+ggsave("draft/PCA.svg",PCA,height = 11, width =7)
 
 # Trait values of species present in both or one trt ####
 

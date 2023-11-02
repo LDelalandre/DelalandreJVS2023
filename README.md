@@ -1,4 +1,4 @@
-### Trait-environment relationships depend on species life history 
+# Trait-environment relationships depend on species life history 
 
 This repository contains the code used for the article "Trait-environment relationships depend on species life history ", published in the Journal of Vegetation Science
 
@@ -14,14 +14,14 @@ If you have [Rstudio](https://www.rstudio.com/) installed on your computer, you 
 
 You can contact me at <leo.delalandre@protonmail.com>
 
-### Data availability
+# Data availability
 
 Data used for the article is available on the dataverse [InDoRES](https://doi.org/10.48579/PRO/IYVPFJ)
 
 
-### Structure of the project repository
+# Structure of the project repository
 
-#### scripts
+## scripts
 
 Contains code used to produce figures and tables included in the article.
 
@@ -29,6 +29,6 @@ Contains code used to produce figures and tables included in the article.
 
 Scripts starting by the letter `3` perform the analyses starting from the files published on [InDoRES](https://doi.org/10.48579/PRO/IYVPFJ).
 
-#### exploratory
+## exploratory
 
 Contains exploratory code not retained for the article.
