@@ -27,7 +27,7 @@ traits <- c("LDMC","SLA","log_LA",
             "log_SeedMass"
 )#"H_FLORE","FLO_FLORE",
 
-traits_names <- c("Leaf Dry Matter Content (mg/g)", "Specific Leaf Area (m²/kg)"," log(Leaf Area (cm²))",
+traits_names <- c("Leaf Dry Matter Content (mg/g)", "Specific Leaf Area (m²/kg)"," log(Leaf Area (cm²)",
                   "Leaf Carbon Content/mass (mg/g)","Leaf Nitrogen Content/mass (mg/g)", 
                   paste("Leaf δ13C (part per thousand)"),
                   "Reproductive Height (cm)", 
@@ -259,131 +259,129 @@ for (ftrait in traits){
         mutate(treatment = factor(treatment,levels = c("Fer","Nat"))) %>% 
         mutate(LifeHistory = factor(LifeHistory, levels = c("annual","perennial"))) %>% 
         arrange(LifeHistory,treatment)
-    # }else{
-    # }
-    
+
+      ## plot ####
+      miny <- min( MEAN %>% pull(sym(ftrait)) , na.rm = T)
+      maxydata <- max(MEAN %>% pull(sym(ftrait)), na.rm = T)
+      
+      maxy <- maxydata + (maxydata - miny)/10
+      
+      # nb of species
+      nb1 <- MEAN %>% 
+        filter(LifeHistory == "annual") %>%
+        filter(treatment =="Fer") %>% 
+        pull(sym(ftrait)) %>% 
+        na.omit() %>% 
+        length()
+      nb2 <- MEAN %>% 
+        filter(LifeHistory == "annual") %>%
+        filter(treatment =="Nat") %>% 
+        pull(sym(ftrait)) %>% 
+        na.omit() %>% 
+        length()
+      nb3 <- MEAN %>% 
+        filter(LifeHistory == "perennial") %>%
+        filter(treatment =="Fer") %>% 
+        pull(sym(ftrait)) %>% 
+        na.omit() %>% 
+        length()
+      nb4 <- MEAN %>% 
+        filter(LifeHistory == "perennial") %>%
+        filter(treatment =="Nat") %>% 
+        pull(sym(ftrait)) %>% 
+        na.omit() %>% 
+        length()
+      
+      A <- MEAN %>% 
+        filter(LifeHistory == "annual") %>%
+        filter(treatment%in% c("Nat","Fer")) %>% 
+        mutate(zone = if_else(treatment == "Fer", "G+F","GU-S")) %>% 
+        
+        ggplot(aes_string(x="zone", y=ftrait, label = "code_sp",fill = "zone")) +
+        theme_classic()+
+        # theme(axis.title.x=element_blank())+
+        # geom_boxplot(aes(color = LifeHistory)) +
+        geom_boxplot()+
+        geom_point(#aes(color = LifeHistory),
+          shape = 19,size = 2,
+          position = position_dodge(width = .75)) +
+        scale_fill_manual(values = c("grey", "white")) +
+        # scale_fill_manual(values = c("#F8766D","#00BFC4"))+
+        geom_line(aes(group = code_sp),
+                  alpha=0.4) + #,color=LifeHistory
+        ylim(c(miny- 1/10*(maxy-miny),
+               maxy)) +
+        theme(legend.position="none") +
+        # ggtitle ("annuals")
+        theme(axis.text.x=element_blank(),
+              axis.ticks.x=element_blank() ,
+              # axis.title.x = element_blank(),
+              axis.title.y = element_blank()
+        ) +
+        annotate("text", x = 1, y=maxy, label = comp[1,]$.group)+ 
+        annotate("text", x = 2, y=maxy, label = comp[2,]$.group) + 
+        
+        annotate("text", x = 1, y=miny - 1/10*(maxy-miny), label = nb1)+ 
+        annotate("text", x = 2, y=miny - 1/10*(maxy-miny), label = nb2) +
+        labs(x = "Annuals")
+      # annotate("text", x = 2, y=maxy + maxy/10, label = trait) 
+      
+      B <- MEAN %>% 
+        filter(LifeHistory == "perennial") %>%
+        filter(treatment%in% c("Nat","Fer")) %>% 
+        mutate(zone = if_else(treatment == "Fer", "G+F","GU-S")) %>% 
+        
+        ggplot(aes_string(x="zone", y=ftrait, label = "code_sp",fill = "zone")) +
+        theme_classic()+
+        xlab("Perennials") +
+        # theme(axis.title.x=element_blank())+
+        # geom_boxplot(aes(color = LifeHistory)) +
+        geom_boxplot() +
+        geom_point(#aes(color = LifeHistory),
+          shape = 17, size = 2,
+          position = position_dodge(width = .75)) +
+        scale_fill_manual(values = c("grey", "white")) +
+        # scale_fill_manual(values = c("#F8766D","#00BFC4"))+
+        geom_line(aes(group = code_sp),
+                  alpha = 0.4) + #,color=LifeHistory
+        scale_color_manual(values = "#00BFC4") +
+        ylim(c(miny - 1/10*(maxy-miny), 
+               maxy))+
+        theme(legend.position="none") +
+        ggeasy::easy_remove_y_axis() +
+        # ggtitle("perennials") 
+        theme(axis.text.x=element_blank(),
+              axis.ticks.x=element_blank() ,
+              #axis.title.x = element_blank(),
+              axis.title.y = element_blank()
+        )  + 
+        annotate("text", x = 1, y=maxy, label = comp[3,]$.group)+ 
+        annotate("text", x = 2, y=maxy, label = comp[4,]$.group)+ 
+        
+        annotate("text", x = 1, y=miny - 1/10*(maxy-miny), label = nb3)+ 
+        annotate("text", x = 2, y=miny- 1/10*(maxy-miny), label = nb4)
+      
+      
+      
+      # Create a text grob (for the title = trait name)
+      tgrob <- ggpubr::text_grob(traits_names[i],size = 10)
+      # Draw the text
+      plot_0 <- ggpubr::as_ggplot(tgrob) + theme(plot.margin = margin(0,3,0,0, "cm"))
+      
+      plot <- ggpubr::ggarrange(A, B,
+                                ncol = 2,nrow = 1,heights = c(1,5))
+      plot2 <- annotate_figure(plot, top = text_grob(traits_names[i], 
+                                                     color = "black", 
+                                                     # face = "bold", 
+                                                     size = 12))
+      PLOTS[[i]] <- plot2
+      i <- i+1
   }
 }
 
-for (ftrait in traits){
-  
-  ## plot ####
-  miny <- min( MEAN %>% pull(sym(ftrait)) , na.rm = T)
-  maxydata <- max(MEAN %>% pull(sym(ftrait)), na.rm = T)
-  
-  maxy <- maxydata + (maxydata - miny)/10
-  
-  # nb of species
-  nb1 <- MEAN %>% 
-    filter(LifeHistory == "annual") %>%
-    filter(treatment =="Fer") %>% 
-    pull(sym(ftrait)) %>% 
-    na.omit() %>% 
-    length()
-  nb2 <- MEAN %>% 
-    filter(LifeHistory == "annual") %>%
-    filter(treatment =="Nat") %>% 
-    pull(sym(ftrait)) %>% 
-    na.omit() %>% 
-    length()
-  nb3 <- MEAN %>% 
-    filter(LifeHistory == "perennial") %>%
-    filter(treatment =="Fer") %>% 
-    pull(sym(ftrait)) %>% 
-    na.omit() %>% 
-    length()
-  nb4 <- MEAN %>% 
-    filter(LifeHistory == "perennial") %>%
-    filter(treatment =="Nat") %>% 
-    pull(sym(ftrait)) %>% 
-    na.omit() %>% 
-    length()
-  
-  A <- MEAN %>% 
-    filter(LifeHistory == "annual") %>%
-    filter(treatment%in% c("Nat","Fer")) %>% 
-    mutate(zone = if_else(treatment == "Fer", "G+F","GU-S")) %>% 
-    
-    ggplot(aes_string(x="zone", y=ftrait, label = "code_sp",fill = "zone")) +
-    theme_classic()+
-    # theme(axis.title.x=element_blank())+
-    # geom_boxplot(aes(color = LifeHistory)) +
-    geom_boxplot()+
-    geom_point(#aes(color = LifeHistory),
-               shape = 19,size = 2,
-               position = position_dodge(width = .75)) +
-    scale_fill_manual(values = c("grey", "white")) +
-    # scale_fill_manual(values = c("#F8766D","#00BFC4"))+
-    geom_line(aes(group = code_sp),
-              alpha=0.4) + #,color=LifeHistory
-    ylim(c(miny- 1/10*(maxy-miny),
-           maxy)) +
-    theme(legend.position="none") +
-    # ggtitle ("annuals")
-    theme(axis.text.x=element_blank(),
-          axis.ticks.x=element_blank() ,
-          # axis.title.x = element_blank(),
-          axis.title.y = element_blank()
-    ) +
-    annotate("text", x = 1, y=maxy, label = comp[1,]$.group)+ 
-    annotate("text", x = 2, y=maxy, label = comp[2,]$.group) + 
-    
-    annotate("text", x = 1, y=miny - 1/10*(maxy-miny), label = nb1)+ 
-    annotate("text", x = 2, y=miny - 1/10*(maxy-miny), label = nb2) +
-    labs(x = "Annuals")
-  # annotate("text", x = 2, y=maxy + maxy/10, label = trait) 
-  
-  B <- MEAN %>% 
-    filter(LifeHistory == "perennial") %>%
-    filter(treatment%in% c("Nat","Fer")) %>% 
-    mutate(zone = if_else(treatment == "Fer", "G+F","GU-S")) %>% 
-    
-    ggplot(aes_string(x="zone", y=ftrait, label = "code_sp",fill = "zone")) +
-    theme_classic()+
-    xlab("Perennials") +
-    # theme(axis.title.x=element_blank())+
-    # geom_boxplot(aes(color = LifeHistory)) +
-    geom_boxplot() +
-    geom_point(#aes(color = LifeHistory),
-               shape = 17, size = 2,
-               position = position_dodge(width = .75)) +
-    scale_fill_manual(values = c("grey", "white")) +
-    # scale_fill_manual(values = c("#F8766D","#00BFC4"))+
-    geom_line(aes(group = code_sp),
-              alpha = 0.4) + #,color=LifeHistory
-    scale_color_manual(values = "#00BFC4") +
-    ylim(c(miny - 1/10*(maxy-miny), 
-           maxy))+
-    theme(legend.position="none") +
-    ggeasy::easy_remove_y_axis() +
-    # ggtitle("perennials") 
-    theme(axis.text.x=element_blank(),
-          axis.ticks.x=element_blank() ,
-          #axis.title.x = element_blank(),
-          axis.title.y = element_blank()
-    )  + 
-    annotate("text", x = 1, y=maxy, label = comp[3,]$.group)+ 
-    annotate("text", x = 2, y=maxy, label = comp[4,]$.group)+ 
-    
-    annotate("text", x = 1, y=miny - 1/10*(maxy-miny), label = nb3)+ 
-    annotate("text", x = 2, y=miny- 1/10*(maxy-miny), label = nb4)
+
   
   
-  
-  # Create a text grob (for the title = trait name)
-  tgrob <- ggpubr::text_grob(traits_names[i],size = 10)
-  # Draw the text
-  plot_0 <- ggpubr::as_ggplot(tgrob) + theme(plot.margin = margin(0,3,0,0, "cm"))
-  
-  plot <- ggpubr::ggarrange(A, B,
-                            ncol = 2,nrow = 1,heights = c(1,5))
-  plot2 <- annotate_figure(plot, top = text_grob(traits_names[i], 
-                                        color = "black", 
-                                        # face = "bold", 
-                                        size = 12))
-  PLOTS[[i]] <- plot2
-  i <- i+1
-}
 
 ## Boxplot ####
 
